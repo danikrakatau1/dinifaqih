@@ -224,7 +224,7 @@ function finishEditorToast(el,message,type='success',title=''){if(!el)return edi
  function updateHistoryButtons(){document.querySelectorAll('[data-history="undo"]').forEach(b=>b.disabled=!history.length);document.querySelectorAll('[data-history="redo"]').forEach(b=>b.disabled=!future.length)}
  document.addEventListener('keydown',e=>{if(!(e.ctrlKey||e.metaKey))return;const k=e.key.toLowerCase();if(k==='z'){e.preventDefault();e.shiftKey?redo():undo()}else if(k==='y'){e.preventDefault();redo()}});
  function injectEditorParityPatch(doc,{forExport=false}={}){
-   doc.querySelectorAll('[data-dini-anif-editor-parity],[data-dini-anif-action-runtime]').forEach(n=>n.remove());
+   doc.querySelectorAll('[data-dini-anif-editor-parity],[data-dini-anif-action-runtime],#dini-anif-editor-hit-css,#dini-force-visible-v2274').forEach(n=>n.remove());
    // Keep the source <base> untouched in Live Editor so relative source JS/CSS keeps the same runtime as Fetch Preview.
    // Only exported ZIPs must resolve generated/local assets against the package root.
    const base=doc.querySelector('base');if(forExport&&base)base.setAttribute('href','./');

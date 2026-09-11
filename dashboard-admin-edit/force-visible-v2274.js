@@ -1,4 +1,5 @@
 (()=>{
+  if(new URLSearchParams(location.search).get('handoff')==='1')return;
   const frame=document.getElementById('previewFrame');
   if(!frame)return;
   const toolbar=document.querySelector('.preview-toolbar');

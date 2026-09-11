@@ -1,4 +1,5 @@
 (()=>{
+  if(new URLSearchParams(location.search).get('handoff')==='1')return;
   'use strict';
   const frame=document.getElementById('previewFrame');
   if(!frame)return;

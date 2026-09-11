@@ -203,17 +203,29 @@ async function removeStorageTree(prefix){
 }
 async function deleteTemplate(id){
   const t=templates.find(x=>String(x.id)===String(id));if(!t||t.is_active)return;
-  if(!confirm(`Hapus ${t.name}? Snapshot Supabase + paket Backblaze yang terhubung juga akan dibersihkan.`))return;
-  libraryStatus.className='status';libraryStatus.textContent=`Menghapus ${t.name} secara aman…`;
+  if(!confirm(`Hapus ${t.name}? Template akan dihapus dari library dan storage terkait akan dibersihkan.`))return;
+  libraryStatus.className='status';libraryStatus.textContent=`Menghapus ${t.name} dari library…`;
   try{
+    const cleanupWarnings=[];
     const metas=[t.manifest_json?.package_storage,...(t.manifest_json?.revision_history||[]).map(x=>x.package_storage)].filter(Boolean);
     const seen=new Set();
-    for(const meta of metas){const k=meta.object_key||meta.b2_object_key;if(k&&!seen.has(k)){seen.add(k);await deleteB2Object(meta)}}
-    await removeStorageTree(t.slug);
+    for(const meta of metas){
+      const k=meta.object_key||meta.b2_object_key;
+      if(!k||seen.has(k))continue;
+      seen.add(k);
+      try{await deleteB2Object(meta)}catch(err){cleanupWarnings.push('Backblaze: '+(err.message||String(err)))}
+    }
+    try{await removeStorageTree(t.slug)}catch(err){cleanupWarnings.push('Supabase Storage: '+(err.message||String(err)))}
+
     const {error}=await sb.from('templates').delete().eq('id',id);if(error)throw error;
     lastRenderSignature='';await loadTemplates();
-    libraryStatus.className='status ok';libraryStatus.textContent=`${t.name} + storage terkait berhasil dihapus.`;
-  }catch(e){libraryStatus.className='status warn';libraryStatus.textContent='Delete dibatalkan/parsial: '+(e.message||String(e))}
+    if(cleanupWarnings.length){
+      libraryStatus.className='status warn';
+      libraryStatus.textContent=`${t.name} berhasil dihapus dari library. Cleanup eksternal menyisakan peringatan: ${cleanupWarnings.join(' • ')}`;
+    }else{
+      libraryStatus.className='status ok';libraryStatus.textContent=`${t.name} + storage terkait berhasil dihapus.`;
+    }
+  }catch(e){libraryStatus.className='status warn';libraryStatus.textContent='Delete template gagal: '+(e.message||String(e))}
 }
 async function rollbackTemplate(id){
   const t=templates.find(x=>String(x.id)===String(id));if(!t)return;
