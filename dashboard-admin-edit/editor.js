@@ -678,12 +678,31 @@ function finishEditorToast(el,message,type='success',title=''){if(!el)return edi
      currentTemplateRecord=data;
      pendingB2Upload=data.manifest_json?.package_storage||((data.storage_provider==='backblaze-b2'&&data.b2_object_key)?{provider:'backblaze-b2',bucket:data.b2_bucket,object_key:data.b2_object_key,original_filename:data.original_filename,file_size:data.file_size,mime_type:data.mime_type,etag:data.b2_etag,uploaded_at:data.storage_uploaded_at}:null);
      if(pendingB2Upload)setB2State('success',`✓ ${pendingB2Upload.original_filename||'Paket B2'} · ${fmtBytes(pendingB2Upload.file_size)} · ${pendingB2Upload.bucket}/${pendingB2Upload.object_key}`,100);
-     let snapUrl=data.manifest_json?.editor_snapshot_url||'';
-     if(!snapUrl&&data.source_path&&data.source_path!=='/')snapUrl=data.source_path.replace(/\/index\.html(?:\?.*)?$/,'/editor-snapshot.json');
-     if(!snapUrl)throw new Error('Template lama belum memiliki editor snapshot V2.14. Buka dari Fetch lalu Simpan Draft sekali.');
-     const r=await fetch(snapUrl,{cache:'no-store'});if(!r.ok)throw new Error(`Snapshot HTTP ${r.status}`);
-     const snap=await r.json();
-     if(!snap?.schema||!Array.isArray(snap.schema.fields)||!(snap.baseHtml||snap.html))throw new Error('Snapshot Draft tidak valid.');
+     const sourcePath=String(data.source_path||'').trim();
+     const manifestSnap=String(data.manifest_json?.editor_snapshot_url||'').trim();
+     const snapshotCandidates=[];
+     if(sourcePath&&sourcePath!=='/'){
+       try{
+         const u=new URL(sourcePath,location.href);
+         if(/\/index\.html$/i.test(u.pathname)){
+           u.pathname=u.pathname.replace(/\/index\.html$/i,'/editor-snapshot.json');
+           u.search='';u.hash='';snapshotCandidates.push(u.href);
+         }
+       }catch{}
+     }
+     if(manifestSnap&&!snapshotCandidates.includes(manifestSnap))snapshotCandidates.push(manifestSnap);
+     if(!snapshotCandidates.length)throw new Error('Template lama belum memiliki editor snapshot V2.14. Buka dari Fetch lalu Simpan Draft sekali.');
+     let snap=null,snapUrl='',lastSnapshotError='';
+     for(const candidate of snapshotCandidates){
+       try{
+         const rr=await fetch(candidate,{cache:'no-store'});
+         if(!rr.ok){lastSnapshotError=`${candidate} -> HTTP ${rr.status}`;continue}
+         const parsed=await rr.json();
+         if(!parsed?.schema||!Array.isArray(parsed.schema.fields)||!(parsed.baseHtml||parsed.html)){lastSnapshotError=`${candidate} -> snapshot tidak valid`;continue}
+         snap=parsed;snapUrl=candidate;break;
+       }catch(err){lastSnapshotError=`${candidate} -> ${err?.message||err}`}
+     }
+     if(!snap)throw new Error('Snapshot Draft tidak dapat dimuat. '+lastSnapshotError);
      native={schema:deep(snap.schema),baseHtml:snap.baseHtml||snap.html,manifest:deep(snap.manifest||data.manifest_json||{}),values:deep(snap.values||{})};
      for(const k of Object.keys(transforms))delete transforms[k];Object.assign(transforms,deep(snap.transforms||{}));
      generatedAssets.clear();projectAssets.clear();localizedLinks.clear();history.length=future.length=0;selectedFieldId='';isDirty=false;
