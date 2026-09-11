@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <base href="/dashboard-admin-fetch/">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Dini Anif — Fetch Studio</title>
+  <link rel="stylesheet" href="./studio.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/admin-auth-guard.js"></script>
+</head>
+<body class="studio-body">
+  <header class="studio-topbar">
+    <div>
+      <div class="studio-kicker">DINI ANIF · ADMIN FETCH</div>
+      <h1>Fetch & Rebuild Studio</h1>
+      <p>Fetch source → analyze → rebuild → preview → editor → download. Engine asli dipertahankan untuk project Dini Anif.</p>
+    </div>
+    <nav class="studio-nav">
+      <a href="/dashboard-admin">Dashboard</a><a class="active" href="./">Fetch</a>
+      <a id="previewNavBtn" href="./preview.html">Preview</a>
+      <a href="/dashboard-admin-edit/?mode=fetch">Editor</a>
+    </nav>
+  </header>
+
+  <main class="studio-grid">
+    <section class="studio-card source-card">
+      <div class="card-head">
+        <div><span class="step">01</span><h2>Source Input</h2></div>
+        <span id="sourceBadge" class="badge neutral">Belum ada source</span>
+      </div>
+      <label class="studio-label" for="sourceUrl">URL website</label>
+      <div class="url-fetch-row">
+        <input id="sourceUrl" class="url-input" type="url" inputmode="url" autocomplete="url" placeholder="https://website-sumber.com/undangan/">
+        <button id="fetchSourceBtn" class="btn secondary" type="button">Fetch Source</button>
+      </div>
+      <div id="fetchMeta" class="fetch-meta" aria-live="polite"></div>
+
+      <div class="source-divider"><span>atau</span></div>
+
+      <label class="studio-label">Paste source HTML</label>
+      <textarea id="sourceInput" class="source-input" placeholder="Paste View Source / HTML di sini…"></textarea>
+      <div class="source-actions">
+        <button id="uploadHtmlBtn" class="btn secondary">Upload HTML</button>
+        <button id="clearBtn" class="btn ghost">Clear</button>
+        <button id="analyzeBtn" class="btn primary">Analyze Source</button>
+      </div>
+      <input id="htmlFileInput" type="file" accept=".html,.htm,.txt,text/html,text/plain" hidden>
+      <p class="hint">Fetch URL memakai Netlify Function <code>/api/fetch-source</code>. Localhost/private network diblok dan response HTML dibatasi agar proxy tidak menjadi open proxy liar.</p>
+    </section>
+
+    <section class="studio-card report-card">
+      <div class="card-head">
+        <div><span class="step">02</span><h2>Analysis</h2></div>
+        <span id="analysisStatus" class="badge neutral">Menunggu</span>
+      </div>
+      <div class="score-grid">
+        <div class="score"><span>Parity Score</span><strong id="parityScore">—</strong></div>
+        <div class="score"><span>Editable Coverage</span><strong id="editableScore">—</strong></div>
+        <div class="score"><span>External Dependency</span><strong id="dependencyScore">—</strong></div>
+        <div class="score"><span>Unsupported</span><strong id="unsupportedScore">—</strong></div>
+      </div>
+      <div id="detectList" class="detect-list empty">Belum ada hasil analisis.</div>
+    </section>
+
+    <section class="studio-card map-card">
+      <div class="card-head">
+        <div><span class="step">03</span><h2>Editable Mapping</h2></div>
+        <span id="mappingBadge" class="badge neutral">Belum generate</span>
+      </div>
+      <div id="mappingTree" class="mapping-tree empty">Hasil mapping akan tampil di sini.</div>
+      <div class="build-actions">
+        <button id="buildBtn" class="btn primary" disabled>Generate Rebuild</button>
+        <a id="previewBtn" class="btn secondary disabled" href="./preview.html">Preview</a>
+        <button id="downloadBtn" class="btn success" disabled>Download Rebuild ZIP</button>
+      </div>
+      <p id="studioMessage" class="studio-message"></p>
+    </section>
+  </main>
+
+  <script src="/assets/js/visual-resolver.js"></script>
+  <script src="./defaults.js"></script>
+  <script src="./zip-builder.js"></script>
+  <script src="./studio.js"></script>
+</body>
+</html>

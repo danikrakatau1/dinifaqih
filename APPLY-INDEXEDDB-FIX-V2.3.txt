@@ -1,0 +1,24 @@
+DINI ANIF — APPLY INDEXEDDB FIX V2.3
+
+Scope:
+- Flow tetap: Dashboard Admin -> Fetch -> Preview -> Editor -> APPLY -> Download ZIP.
+- Fetch engine tidak diubah.
+- Snapshot APPLY besar dipindah dari localStorage ke IndexedDB.
+
+IndexedDB:
+- DB: dini-anif-editor-v150
+- Version: 2
+- Store assets: asset binary/editor asset seperti sebelumnya
+- Store snapshots: snapshot final APPLY
+- Key snapshot: native-applied
+
+localStorage sekarang hanya menyimpan pointer kecil:
+- diniAnifNativeAppliedRef
+
+Compatibility:
+- Clean Preview membaca IndexedDB dahulu, lalu fallback legacy local/session storage.
+- Download ZIP membaca IndexedDB dahulu, lalu fallback legacy localStorage.
+- Reset menghapus snapshot IndexedDB + pointer legacy.
+
+Expected result:
+- Error "diniAnifNativeApplied exceeded the quota" tidak lagi terjadi karena payload besar tidak ditulis ke localStorage.

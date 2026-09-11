@@ -1,0 +1,23 @@
+DINI ANIF — FETCH ENGINE INTEGRATION V1
+
+Route:
+/                     Halaman utama
+/dashboard-admin      Dashboard admin
+/dashboard-admin-template Template Library
+/dashboard-admin-fetch Fetch Studio
+/dashboard-admin-fetch/preview.html Preview hasil Fetch
+/dashboard-admin-edit Editor native
+
+Fetch flow tetap: Fetch -> Analyze -> Generate -> Preview -> Editor -> Download.
+Semua namespace/branding runtime donor sudah dibersihkan menjadi Dini Anif.
+Route Fetch/Preview/Editor dilindungi session Supabase Dini Anif.
+API fetch berada di /api/fetch-source.js dan /api/fetch-asset.js.
+Preview share backend memakai /api/preview-save.js + /api/preview-load.js dan membutuhkan SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY di Vercel bila fitur share preview dipakai.
+
+
+V2 — UPLOAD ZIP -> DRAFT TEMPLATE
+- /dashboard-admin-edit sekarang dapat Import ZIP hasil Fetch/Preview/Editor.
+- Setelah import dan edit, tombol "Simpan sebagai Draft" mengupload seluruh paket ke Supabase Storage bucket template-packages.
+- Draft otomatis didaftarkan ke tabel templates dengan nama Template 2, Template 3, dst.
+- Draft otomatis muncul di /dashboard-admin-template.
+- Jalankan ulang SUPABASE-TEMPLATES.sql untuk menambahkan kolom package_path/manifest_json dan policy Storage.

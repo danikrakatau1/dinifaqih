@@ -1,0 +1,8 @@
+DINI ANIF V2.4.2 — FIX 50
+- Template Library flicker/state stabilization
+- Editor cover flash/disappear stabilization
+- Buka Undangan action routing fixed
+- Fetch Editor + Dashboard Edit share same fixed runtime
+- PRO150 retained
+- APPLY IndexedDB retained
+- Guest per-template UUID retained

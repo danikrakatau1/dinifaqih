@@ -1,0 +1,30 @@
+CARA PASANG DASHBOARD ADMIN
+============================
+
+A. SUPABASE
+1. Buka Supabase project yang sama.
+2. Masuk SQL Editor.
+3. Jalankan seluruh isi file SUPABASE-DASHBOARD-ASSETS.sql.
+4. Pastikan akun admin sudah ada di Authentication > Users.
+
+B. WEBSITE
+1. Upload ulang seluruh folder project ke hosting.
+2. Buka generator-tamu-supabase-final.html.
+3. Login memakai email/password admin.
+4. Pilih menu Tamu, Foto, atau Musik.
+
+C. FOTO
+- Cover/Couple
+- Mempelai pria
+- Mempelai wanita
+- Galeri 1 sampai 6
+
+D. MUSIK
+- Upload file MP3.
+- Klik Upload / Aktifkan.
+- Tamu akan mendengar musik baru setelah menekan "Buka Undangan".
+
+E. FALLBACK
+Jika belum ada upload di Dashboard, undangan tetap memakai:
+assets/images/*
+assets/music/lagu-pernikahan.mp3

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Dini Anif — Fetch Preview</title>
+  <link rel="stylesheet" href="./studio.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/admin-auth-guard.js"></script>
+</head>
+<body class="preview-studio-body">
+  <header class="preview-studio-toolbar">
+    <div>
+      <strong>Source-Native Preview <small style="font-size:10px;color:#70d6a0">V1.4.1</small></strong>
+      <span id="previewMeta">Memuat snapshot…</span>
+    </div>
+    <div class="preview-actions">
+      <a class="btn ghost" href="./">← Kembali ke Scrape</a>
+      <a class="btn secondary" href="/dashboard-admin-edit/?mode=fetch">Buka Editor</a>
+      <button id="downloadPreviewZip" class="btn success">Download ZIP</button>
+    </div>
+  </header>
+  <main class="preview-canvas">
+    <iframe id="rebuildPreviewFrame" src="about:blank"></iframe>
+    <div id="previewEmpty" class="preview-empty" hidden>
+      <h2>Belum ada hasil rebuild</h2>
+      <p>Kembali ke halaman Scrape, Analyze lalu Generate Rebuild.</p><pre id="previewDiag" class="preview-diag"></pre>
+      <a class="btn primary" href="./">Buka Scrape Studio</a>
+    </div>
+  </main>
+  <script src="./zip-builder.js"></script>
+  <script src="./preview-studio.js"></script>
+</body>
+</html>

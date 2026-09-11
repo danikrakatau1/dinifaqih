@@ -1,0 +1,16 @@
+DINI ANIF — VISUAL EDITOR V2.4 PRO-150
+
+Main fixes:
+- Gallery photo click no longer acts as editor zoom/lightbox; it selects photo and opens inspector.
+- Existing photos: drag, resize, rotate, crop/focal, fit, opacity, radius, shadow, z-order.
+- Add new free-position photos.
+- Layers panel, multiselect, align/distribute, group, lock/hide, reorder.
+- Smart guides/grid/safe-area/measurements.
+- Desktop/tablet/mobile responsive overrides.
+- Undo/redo, autosave IndexedDB, checkpoints, recovery, dirty warning.
+- Batch gallery replacement and gallery reorder.
+- Canvas Fit/Zoom/Pan and Original/Edited view.
+- Preflight before export.
+- APPLY IndexedDB fix preserved.
+
+No project besar lain project integration or dependency is included.

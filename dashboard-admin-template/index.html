@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pilih Template — Faqih & Dini</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--bg:#090a0d;--card:#111318;--card2:#0d0f13;--line:#272a31;--text:#f4f0e8;--muted:#a8a59d;--gold:#d6b97c;--green:#77d5a2;--danger:#ff8f8f}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.wrap{max-width:1180px;margin:auto;padding:28px 18px 60px}.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:22px;box-shadow:0 18px 55px rgba(0,0,0,.22)}.top{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap}h1{margin:4px 0 7px;font-size:30px}.eyebrow{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold)}.muted{color:var(--muted)}.nav{display:flex;gap:8px;flex-wrap:wrap;margin-top:22px}.navlink,button,.btn{border:1px solid var(--line);border-radius:11px;padding:11px 14px;background:#0d0f13;color:#d7d3ca;text-decoration:none;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:7px}.navlink.active{background:#29261f;color:#f2d69d;border-color:#54462f}.btn.primary{background:#f0d49b;color:#17140d;border-color:#f0d49b}.btn.danger{border-color:rgba(255,143,143,.35);color:#ffb4b4;background:#211416}.btn[disabled]{opacity:.55;cursor:not-allowed}.work{margin-top:18px}.section-head{display:flex;justify-content:space-between;gap:12px;align-items:end;margin-bottom:16px;flex-wrap:wrap}.section-head h2{margin:0 0 5px}.template-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:18px}.template-card{overflow:hidden;padding:0}.preview{height:250px;position:relative;background:#0b0d11;border-bottom:1px solid var(--line);overflow:hidden;contain:paint}.preview iframe{position:absolute;inset:0;width:400%;height:400%;transform:scale(.25);transform-origin:0 0;border:0;pointer-events:none;background:#fff}.preview img{width:100%;height:100%;object-fit:cover;display:block}.stable-template-preview{position:absolute;inset:0;display:grid;place-content:center;text-align:center;gap:8px;background:radial-gradient(circle at 50% 25%,#242831,#0b0d11 70%);color:#d8d4cb}.stable-template-preview strong{font-size:23px}.stable-template-preview span{font-size:12px;color:#d6b97c;letter-spacing:.1em}.stable-template-preview small{font-size:11px;color:#85827b}.preview-loading{position:absolute;inset:0;display:grid;place-items:center;color:#777;background:linear-gradient(110deg,#0d0f13 20%,#15181e 40%,#0d0f13 60%);background-size:220% 100%;animation:tplShimmer 1.2s linear infinite;font-size:12px;letter-spacing:.08em}.preview.is-ready .preview-loading{display:none}@keyframes tplShimmer{to{background-position:-220% 0}}.badge{position:absolute;z-index:2;top:14px;left:14px;padding:8px 11px;border-radius:999px;background:rgba(10,13,12,.88);border:1px solid rgba(119,213,162,.35);color:var(--green);font-size:12px;font-weight:900;letter-spacing:.08em;backdrop-filter:blur(10px)}.template-body{padding:18px}.template-title{display:flex;justify-content:space-between;gap:12px;align-items:start}.template-title h3{margin:0;font-size:21px}.template-meta{margin:8px 0 16px;font-size:13px;color:var(--muted)}.actions{display:flex;gap:8px;flex-wrap:wrap}.actions .btn{flex:1;min-width:90px}.status{margin-top:14px;padding:11px 13px;border:1px solid var(--line);border-radius:12px;background:var(--card2);font-size:13px;color:var(--muted)}.status.ok{border-color:rgba(119,213,162,.28);color:#a7e6c2}.status.warn{border-color:rgba(214,185,124,.35);color:#e6cb94}#gate{display:none;min-height:100vh;place-items:center;padding:20px}#gate .card{max-width:520px;width:100%}.empty{padding:28px;text-align:center;border:1px dashed #353942;border-radius:16px;background:var(--card2)}
+@media(max-width:600px){.wrap{padding:18px 12px 40px}.navlink{flex:1;text-align:center;min-width:42%}.preview{height:220px}.actions .btn{min-width:calc(50% - 8px)}}
+</style>
+</head>
+<body>
+<div id="gate"><div class="card"><div class="eyebrow">Admin Area</div><h1>Session diperlukan</h1><p class="muted">Silakan login melalui Dashboard Admin Dini Anif terlebih dahulu.</p><a class="navlink active" href="/dashboard-admin">Ke Login Admin</a></div></div>
+<div id="app" class="wrap" style="display:none">
+  <div class="card">
+    <div class="top">
+      <div><div class="eyebrow">Wedding Management</div><h1>Pilih Template</h1><div class="muted">Kelola template yang tersedia untuk halaman utama Dini Anif.</div></div>
+      <button id="logout">Keluar</button>
+    </div>
+    <nav class="nav"><a class="navlink" href="/dashboard-admin">Dashboard</a><a class="navlink active" href="/dashboard-admin-template">Template</a><a class="navlink" href="/dashboard-admin-edit">Edit Template</a><a class="navlink" href="/dashboard-admin-fetch">Fetch</a></nav>
+  </div>
+
+  <main class="work">
+    <section class="card">
+      <div class="section-head"><div><div class="eyebrow">Template Library</div><h2>Template Dini Anif</h2><div class="muted">Hanya satu template yang dapat aktif sebagai halaman utama.</div></div></div>
+      <div id="templateGrid" class="template-grid"></div>
+      <div id="libraryStatus" class="status">Memuat library template…</div>
+    </section>
+  </main>
+</div>
+<script>
+const SUPABASE_URL="https://jfvmcerrsxjvbiogfqes.supabase.co";
+const SUPABASE_ANON_KEY="sb_publishable_3IqSDxkpxCGiDpxAEwdsXQ_AsJpsC4W";
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+
+const grid=document.getElementById('templateGrid');
+const libraryStatus=document.getElementById('libraryStatus');
+let templates=[];
+let syncPromise=null,lastRenderSignature='',lastSessionId='';
+
+function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+function fmtBytes(n){const x=Number(n||0);if(!x)return '';if(x<1024)return `${x} B`;if(x<1048576)return `${(x/1024).toFixed(1)} KB`;if(x<1073741824)return `${(x/1048576).toFixed(1)} MB`;return `${(x/1073741824).toFixed(2)} GB`}
+function normalize(rows){return Array.isArray(rows)?rows:[];}
+
+function render(){
+  const signature=JSON.stringify(templates.map(t=>[t.id,t.name,t.slug,t.source_path,t.thumbnail_url,t.status,!!t.is_active,t.storage_provider,t.b2_object_key,t.original_filename,t.file_size,t.manifest_json?.revision,t.manifest_json?.revision_history?.length]));
+  if(signature===lastRenderSignature)return;
+  lastRenderSignature=signature;
+  grid.replaceChildren();
+  templates.forEach(t=>{
+    const active=!!t.is_active;
+    const card=document.createElement('article');card.className='card template-card';
+    const source=t.source_path||'/';
+    const thumb=String(t.thumbnail_url||'').trim();
+    const media=thumb ? `<img src="${esc(thumb)}" alt="Preview ${esc(t.name)}" loading="lazy">` : `<div class="stable-template-preview"><strong>${esc(t.name||'Template')}</strong><span>${esc(t.slug||'')}</span><small>Preview tersedia melalui tombol Preview</small></div>`;
+    card.innerHTML=`
+      <div class="preview">${active?'<span class="badge">● AKTIF</span>':'<span class="badge" style="color:#e6cb94;border-color:rgba(214,185,124,.35)">DRAFT</span>'}${media}</div>
+      <div class="template-body">
+        <div class="template-title"><h3>${esc(t.name||'Template')}</h3></div>
+        <div class="template-meta">${t.slug==='template-1'?'Template bawaan dari halaman utama Dini Anif':'Template tersimpan di library'}${t.storage_provider==='backblaze-b2'&&t.b2_object_key?`<br>☁ B2 · ${esc(t.original_filename||'package.zip')}${t.file_size?` · ${fmtBytes(t.file_size)}`:''}`:''}</div>
+        <div class="actions">
+          <a class="btn" href="/dashboard-admin-template/preview.html?template=${encodeURIComponent(t.slug||t.id)}" target="_blank" rel="noopener">👁 Preview</a>
+          <a class="btn" href="/dashboard-admin-edit?template=${encodeURIComponent(t.slug||t.id)}">✏️ Edit</a>
+          <button class="btn primary" data-activate="${esc(t.id)}" ${active?'disabled':''}>${active?'✓ Sedang Tampil':'Tampilkan'}</button>
+          ${Array.isArray(t.manifest_json?.revision_history)&&t.manifest_json.revision_history.length?`<button class="btn" data-rollback="${esc(t.id)}">↶ Rollback</button>`:''}
+          <button class="btn danger" data-delete="${esc(t.id)}" ${(active||t.slug==='template-1')?'disabled title="Template aktif/original tidak dapat dihapus"':''}>🗑 Hapus</button>
+        </div>
+      </div>`;
+    grid.appendChild(card);
+  });
+  if(!templates.length)grid.innerHTML='<div class="empty">Belum ada template di database.</div>';
+  grid.querySelectorAll('[data-activate]').forEach(btn=>btn.addEventListener('click',()=>activateTemplate(btn.dataset.activate)));
+  grid.querySelectorAll('[data-rollback]').forEach(btn=>btn.addEventListener('click',()=>rollbackTemplate(btn.dataset.rollback)));
+  grid.querySelectorAll('[data-delete]').forEach(btn=>btn.addEventListener('click',()=>deleteTemplate(btn.dataset.delete)));
+}
+const TEMPLATE_BUCKET='template-packages';
+const TEMPLATE1_SEED='/template-1-original';
+function mimeForSeed(name){return name.endsWith('.html')?'text/html':name.endsWith('.json')?'application/json':'application/octet-stream'}
+async function migrateTemplate1Original(row){
+  if(!row||row.slug!=='template-1')return row;
+  const source=String(row.source_path||'').trim();
+  const hasSnapshot=!!row.manifest_json?.editor_snapshot_url;
+  if(source&&source!=='/'&&hasSnapshot)return row;
+  libraryStatus.className='status';libraryStatus.textContent='Menjaga Template 1 original sebagai snapshot mandiri…';
+  const names=['index.html','editor-snapshot.json','native-schema.json','native-data.json','manifest.json'];
+  const files={};
+  for(const name of names){
+    const r=await fetch(`${TEMPLATE1_SEED}/${name}?v=2.20`,{cache:'no-store'});
+    if(!r.ok)throw new Error(`Seed Template 1 ${name} HTTP ${r.status}`);
+    files[name]=await r.text();
+  }
+  for(const name of names){
+    const {error}=await sb.storage.from(TEMPLATE_BUCKET).upload(`template-1/${name}`,new Blob([files[name]],{type:mimeForSeed(name)}),{contentType:mimeForSeed(name),upsert:true,cacheControl:'3600'});
+    if(error)throw new Error(`Template 1 ${name}: ${error.message}`);
+  }
+  const sourceUrl=sb.storage.from(TEMPLATE_BUCKET).getPublicUrl('template-1/index.html').data.publicUrl;
+  const snapshotUrl=sb.storage.from(TEMPLATE_BUCKET).getPublicUrl('template-1/editor-snapshot.json').data.publicUrl;
+  let manifest={};try{manifest=JSON.parse(files['manifest.json'])||{}}catch{}
+  manifest={...manifest,editor_version:'2.21.0',renderer_version:'universal-2.21',asset_base:manifest.asset_base||location.origin+'/',editor_snapshot_url:snapshotUrl,source_of_truth:'editor-snapshot',template_original:true,migrated_at:new Date().toISOString()};
+  const {error:me}=await sb.storage.from(TEMPLATE_BUCKET).upload('template-1/manifest.json',new Blob([JSON.stringify(manifest,null,2)],{type:'application/json'}),{contentType:'application/json',upsert:true,cacheControl:'3600'});
+  if(me)throw new Error(`Template 1 manifest: ${me.message}`);
+  const upd=await sb.from('templates').update({source_path:sourceUrl,manifest_json:manifest,package_path:'supabase://template-packages/template-1/editor-snapshot.json',updated_at:new Date().toISOString()}).eq('id',row.id).select('*').single();
+  if(upd.error)throw upd.error;
+  return upd.data;
+}
+async function ensureTemplate1(){
+  const existing=await sb.from('templates').select('*').eq('slug','template-1').limit(1).maybeSingle();
+  if(existing.error)throw existing.error;
+  if(existing.data)return migrateTemplate1Original(existing.data);
+  // id sengaja tidak dikirim: Supabase membuat UUID asli untuk Template 1.
+  const inserted=await sb.from('templates').insert({name:'Template 1',slug:'template-1',source_path:'/',status:'active',is_active:true}).select('*').single();
+  if(inserted.error)throw inserted.error;
+  return migrateTemplate1Original(inserted.data);
+}
+async function loadTemplates(){
+  const {data,error}=await sb.from('templates').select('*').order('created_at',{ascending:true});
+  if(error){templates=[];lastRenderSignature='';render();libraryStatus.className='status warn';libraryStatus.textContent='Gagal memuat Template Library: '+error.message;return}
+  templates=normalize(data);
+  // Supabase is the only source of truth. If legacy data has no active row, promote the first row once in DB.
+  if(templates.length&&!templates.some(x=>x.is_active)){
+    const first=templates[0];
+    const promoted=await sb.from('templates').update({is_active:true,status:'active',updated_at:new Date().toISOString()}).eq('id',first.id).select('*').single();
+    if(!promoted.error)templates=templates.map(x=>String(x.id)===String(first.id)?promoted.data:x);
+  }
+  render();
+  libraryStatus.className='status ok';
+  libraryStatus.textContent=`${templates.length} template tersedia • ${templates.find(x=>x.is_active)?.name||'belum ada template aktif'} sedang tampil di halaman utama.`;
+}
+async function validateTemplateTarget(target){
+  const source=String(target?.source_path||'').trim();
+  if(!source||source==='/')throw new Error('Template belum memiliki snapshot publish.');
+  const url=source+(source.includes('?')?'&':'?')+'_health='+Date.now();
+  const r=await fetch(url,{cache:'no-store'});
+  if(!r.ok)throw new Error('Snapshot target HTTP '+r.status);
+  const html=await r.text();
+  if(!/<html[\s>]/i.test(html)||!/<body[\s>]/i.test(html))throw new Error('Snapshot target bukan HTML valid.');
+  const snap=target?.manifest_json?.editor_snapshot_url;
+  if(snap){const s=await fetch(snap+(snap.includes('?')?'&':'?')+'_health='+Date.now(),{cache:'no-store'});if(!s.ok)throw new Error('Editor snapshot target HTTP '+s.status)}
+  return true;
+}
+async function activateTemplate(id){
+  const target=templates.find(t=>String(t.id)===String(id));if(!target||target.is_active)return;
+  libraryStatus.className='status';libraryStatus.textContent='Validasi snapshot sebelum publish…';
+  try{
+    await validateTemplateTarget(target);
+    // Activate target first so a failure cannot leave production with no active template.
+    const {error:e2}=await sb.from('templates').update({is_active:true,status:'active',updated_at:new Date().toISOString()}).eq('id',id);
+    if(e2)throw e2;
+    const {error:e1}=await sb.from('templates').update({is_active:false,status:'draft'}).eq('is_active',true).neq('id',id);
+    if(e1)throw e1;
+    await loadTemplates();
+  }catch(e){libraryStatus.className='status warn';libraryStatus.textContent='Publish dibatalkan: '+(e.message||String(e))}
+}
+
+async function deleteB2Object(meta){
+  const key=meta?.object_key||meta?.b2_object_key;if(!key)return;
+  const {data:{session}}=await sb.auth.getSession();if(!session?.access_token)throw new Error('Session admin tidak ditemukan.');
+  const r=await fetch('/api/b2-sign-delete',{method:'POST',headers:{'content-type':'application/json','Authorization':'Bearer '+session.access_token},body:JSON.stringify({objectKey:key})});
+  const j=await r.json().catch(()=>({}));if(!r.ok||!j.ok)throw new Error(j.error||('B2 delete HTTP '+r.status));
+}
+async function removeStorageTree(prefix){
+  const paths=[];
+  async function walk(path,depth=0){
+    if(depth>8)return;
+    let offset=0;
+    while(true){
+      const {data,error}=await sb.storage.from(TEMPLATE_BUCKET).list(path,{limit:100,offset,sortBy:{column:'name',order:'asc'}});
+      if(error)throw error;
+      if(!data?.length)break;
+      for(const item of data){
+        const child=path?`${path}/${item.name}`:item.name;
+        if(item.id)paths.push(child);else await walk(child,depth+1);
+      }
+      if(data.length<100)break;offset+=data.length;
+    }
+  }
+  await walk(prefix);
+  for(let i=0;i<paths.length;i+=100){
+    const {error}=await sb.storage.from(TEMPLATE_BUCKET).remove(paths.slice(i,i+100));if(error)throw error;
+  }
+}
+async function deleteTemplate(id){
+  const t=templates.find(x=>String(x.id)===String(id));if(!t||t.is_active)return;
+  if(!confirm(`Hapus ${t.name}? Snapshot Supabase + paket Backblaze yang terhubung juga akan dibersihkan.`))return;
+  libraryStatus.className='status';libraryStatus.textContent=`Menghapus ${t.name} secara aman…`;
+  try{
+    const metas=[t.manifest_json?.package_storage,...(t.manifest_json?.revision_history||[]).map(x=>x.package_storage)].filter(Boolean);
+    const seen=new Set();
+    for(const meta of metas){const k=meta.object_key||meta.b2_object_key;if(k&&!seen.has(k)){seen.add(k);await deleteB2Object(meta)}}
+    await removeStorageTree(t.slug);
+    const {error}=await sb.from('templates').delete().eq('id',id);if(error)throw error;
+    lastRenderSignature='';await loadTemplates();
+    libraryStatus.className='status ok';libraryStatus.textContent=`${t.name} + storage terkait berhasil dihapus.`;
+  }catch(e){libraryStatus.className='status warn';libraryStatus.textContent='Delete dibatalkan/parsial: '+(e.message||String(e))}
+}
+async function rollbackTemplate(id){
+  const t=templates.find(x=>String(x.id)===String(id));if(!t)return;
+  const hist=Array.isArray(t.manifest_json?.revision_history)?t.manifest_json.revision_history:[];
+  const prev=hist[0];if(!prev)return;
+  if(!confirm(`Rollback ${t.name} ke revision sebelumnya?`))return;
+  const current={revision:t.manifest_json?.revision||'current',source_path:t.source_path,editor_snapshot_url:t.manifest_json?.editor_snapshot_url,asset_base:t.manifest_json?.asset_base||location.origin+'/',package_storage:t.manifest_json?.package_storage||null,saved_at:t.manifest_json?.saved_at||t.updated_at};
+  const manifest={...(t.manifest_json||{}),revision:prev.revision||'rollback',editor_snapshot_url:prev.editor_snapshot_url,asset_base:prev.asset_base||location.origin+'/',package_storage:prev.package_storage||null,revision_history:[current,...hist.slice(1)].slice(0,3),rolled_back_at:new Date().toISOString()};
+  const {error}=await sb.from('templates').update({source_path:prev.source_path,manifest_json:manifest,updated_at:new Date().toISOString()}).eq('id',id);if(error){libraryStatus.className='status warn';libraryStatus.textContent='Rollback gagal: '+error.message;return}
+  lastRenderSignature='';await loadTemplates();
+}
+
+async function sync(force=false){
+  if(syncPromise&&!force)return syncPromise;
+  syncPromise=(async()=>{
+    const {data:{session}}=await sb.auth.getSession();
+    const sid=session?.user?.id||'';
+    document.getElementById('app').style.display=session?'block':'none';
+    document.getElementById('gate').style.display=session?'none':'grid';
+    if(session&&(force||sid!==lastSessionId||!templates.length)){
+      lastSessionId=sid;
+      try{await ensureTemplate1();await loadTemplates()}catch(e){libraryStatus.className='status warn';libraryStatus.textContent='Gagal menyiapkan Template 1: '+e.message}
+    }
+  })().finally(()=>{syncPromise=null});
+  return syncPromise;
+}
+document.getElementById('logout').onclick=async()=>{await sb.auth.signOut();location.href='/dashboard-admin'};
+sb.auth.onAuthStateChange((event,session)=>{const sid=session?.user?.id||'';if(event==='SIGNED_OUT'||sid!==lastSessionId)sync(true)});sync(true);
+</script>
+</body></html>

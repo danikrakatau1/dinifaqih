@@ -1,0 +1,11 @@
+{
+  "version": "2.21.0",
+  "slug": "template-1",
+  "name": "Template 1",
+  "template_original": true,
+  "source_of_truth": "editor-snapshot",
+  "migration": "template-1-original-preservation",
+  "editor_snapshot_file": "editor-snapshot.json",
+  "asset_base": "https://dini-faqih.my.id/",
+  "renderer_version": "universal-2.21"
+}

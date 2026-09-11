@@ -1,0 +1,16 @@
+GENERATOR LINK TAMU
+====================
+
+Buka generator-tamu.html di browser.
+
+1. Ketik nama tamu.
+2. Klik + Tambah Tamu.
+3. Klik Copy untuk menyalin link personal.
+4. Kirim link tersebut melalui WhatsApp.
+5. Gunakan Download CSV untuk menyimpan daftar nama + link.
+
+Contoh:
+index.html?to=Budi%20Santoso
+
+Daftar tamu disimpan di localStorage browser pada perangkat yang digunakan.
+Tidak masuk database Supabase.

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Preview Template — Dini Anif</title>
+<style>html,body{margin:0;min-height:100%;background:#0b0c0f;color:#eee;font:14px system-ui}.state{min-height:100vh;display:grid;place-items:center;padding:28px;box-sizing:border-box;text-align:center}.state b{display:block;font-size:18px;margin-bottom:8px}.state small{opacity:.7}</style>
+</head>
+<body>
+<div class="state" id="state"><div><b>Memuat Preview…</b><small>Snapshot Draft Dini Anif</small></div></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(async()=>{
+  const SUPABASE_URL='https://jfvmcerrsxjvbiogfqes.supabase.co';
+  const SUPABASE_ANON_KEY='sb_publishable_3IqSDxkpxCGiDpxAEwdsXQ_AsJpsC4W';
+  const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+  const q=new URLSearchParams(location.search).get('template')||'';
+  const fail=(msg)=>{document.getElementById('state').innerHTML='<div><b>Preview gagal</b><small>'+String(msg).replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]))+'</small></div>'};
+  try{
+    if(!q)throw new Error('Template tidak ditentukan.');
+    let res=await sb.from('templates').select('id,name,slug,source_path,updated_at,manifest_json').eq('slug',q).limit(1).maybeSingle();
+    if(res.error)throw res.error;
+    if(!res.data&&/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(q))res=await sb.from('templates').select('id,name,slug,source_path,updated_at,manifest_json').eq('id',q).limit(1).maybeSingle();
+    if(res.error)throw res.error;
+    const row=res.data;if(!row)throw new Error('Template tidak ditemukan.');
+    const source=String(row.source_path||'').trim();if(!source||source==='/')throw new Error('Template ini memakai halaman utama bawaan.');
+    const u=new URL(source,location.href);
+    const r=await fetch(u.href+(u.search?'&':'?')+'_preview='+encodeURIComponent(row.updated_at||Date.now()),{cache:'no-store'});
+    if(!r.ok)throw new Error('Snapshot HTTP '+r.status);
+    let html=await r.text();
+    const manifest=row.manifest_json||{};
+    let assetBase=String(manifest.asset_base||'').trim();
+    if(!assetBase){
+      assetBase=row.slug==='template-1'?location.origin+'/':new URL('./',u.href).href;
+    }else{
+      try{
+        const au=new URL(assetBase,location.href);
+        assetBase=/\.[a-z0-9]{1,8}(?:$|[?#])/i.test(au.pathname)?new URL('./',au.href).href:(au.href.endsWith('/')?au.href:au.href+'/');
+      }catch{assetBase=location.origin+'/'}
+    }
+    html=html.replace(/<base\b[^>]*data-dini-template-base[^>]*>/ig,'');
+    html=html.replace(/<base\b[^>]*>/ig,'');
+    const safeBase=assetBase.replace(/"/g,'&quot;');
+    html=html.replace(/<head(\s[^>]*)?>/i,m=>m+'<base data-dini-template-base="1" href="'+safeBase+'">');
+    document.open();document.write(html);document.close();
+  }catch(e){fail(e.message||String(e));}
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "rewrites": [
+    { "source": "/dashboard-admin", "destination": "/dashboard-admin/index.html" },
+    { "source": "/dashboard-admin-template", "destination": "/dashboard-admin-template/index.html" },
+    { "source": "/dashboard-admin-fetch", "destination": "/dashboard-admin-fetch/index.html" },
+    { "source": "/dashboard-admin-edit", "destination": "/dashboard-admin-edit/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    }
+  ]
+}

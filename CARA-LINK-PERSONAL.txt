@@ -1,0 +1,31 @@
+LINK PERSONAL TAMU — FAQIH & DINI
+==================================
+
+Fitur:
+Nama tamu otomatis tampil di cover dan otomatis terisi pada kolom Nama
+di Ucapan & Doa.
+
+Format:
+https://dinifaqih.netlify.app/?to=Nama%20Tamu
+
+Contoh:
+https://dinifaqih.netlify.app/?to=Budi%20Santoso
+
+Hasil:
+Kepada Yth.
+Budi Santoso
+
+Kolom "Nama" pada Ucapan & Doa juga otomatis berisi:
+Budi Santoso
+
+Nama tetap bisa diedit oleh tamu sebelum mengirim ucapan.
+
+Untuk nama dengan karakter khusus, gunakan URL encoding. Cara termudah:
+ketik nama di browser/alat pembuat URL, atau gunakan spasi sebagai %20.
+
+Contoh beberapa tamu:
+?to=Budi%20Santoso
+?to=Keluarga%20Bapak%20Ahmad
+?to=Andi%20%26%20Sinta
+
+DESAIN TIDAK DIUBAH.
