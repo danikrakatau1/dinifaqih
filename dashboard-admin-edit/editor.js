@@ -684,9 +684,10 @@ function finishEditorToast(el,message,type='success',title=''){if(!el)return edi
    const q=new URLSearchParams(location.search).get('template');if(!q)return false;
    const t=editorToast('Memuat snapshot Draft dari Template Library…','loading','Buka Draft');
    try{
-     let lookup=await adminSb.from('templates').select('*').eq('slug',q).limit(1).maybeSingle();
-     if(lookup.error)throw lookup.error;
-     if(!lookup.data&&/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(q))lookup=await adminSb.from('templates').select('*').eq('id',q).limit(1).maybeSingle();
+     const isUuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(q);
+     let lookup=isUuid
+       ? await adminSb.from('templates').select('*').eq('id',q).limit(1).maybeSingle()
+       : await adminSb.from('templates').select('*').eq('slug',q).limit(1).maybeSingle();
      if(lookup.error)throw lookup.error;const data=lookup.data;if(!data)throw new Error('Template tidak ditemukan.');
      currentTemplateRecord=data;
      pendingB2Upload=data.manifest_json?.package_storage||((data.storage_provider==='backblaze-b2'&&data.b2_object_key)?{provider:'backblaze-b2',bucket:data.b2_bucket,object_key:data.b2_object_key,original_filename:data.original_filename,file_size:data.file_size,mime_type:data.mime_type,etag:data.b2_etag,uploaded_at:data.storage_uploaded_at}:null);

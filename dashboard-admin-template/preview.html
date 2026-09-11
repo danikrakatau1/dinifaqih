@@ -18,9 +18,10 @@
   const fail=(msg)=>{document.getElementById('state').innerHTML='<div><b>Preview gagal</b><small>'+String(msg).replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]))+'</small></div>'};
   try{
     if(!q)throw new Error('Template tidak ditentukan.');
-    let res=await sb.from('templates').select('id,name,slug,source_path,updated_at,manifest_json').eq('slug',q).limit(1).maybeSingle();
-    if(res.error)throw res.error;
-    if(!res.data&&/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(q))res=await sb.from('templates').select('id,name,slug,source_path,updated_at,manifest_json').eq('id',q).limit(1).maybeSingle();
+    const isUuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(q);
+    let res=isUuid
+      ? await sb.from('templates').select('id,name,slug,source_path,updated_at,manifest_json').eq('id',q).limit(1).maybeSingle()
+      : await sb.from('templates').select('id,name,slug,source_path,updated_at,manifest_json').eq('slug',q).limit(1).maybeSingle();
     if(res.error)throw res.error;
     const row=res.data;if(!row)throw new Error('Template tidak ditemukan.');
     const source=String(row.source_path||'').trim();if(!source||source==='/')throw new Error('Template ini memakai halaman utama bawaan.');

@@ -931,8 +931,10 @@ document.querySelectorAll('[data-native-reveal]').forEach(el=>io.observe(el));
     if(qs.get('autoEdit')!=='1')return;
     const template=qs.get('template')||'';
     const recordId=qs.get('record')||'';
+    const templateSlug=qs.get('slug')||'';
     const target=qs.get('source')||'';
     if(!template||!recordId||!target){toast('Template/record/source tidak lengkap.','error','Auto Edit gagal');return}
+    if(template!==recordId){toast('Identity template tidak konsisten. Buka ulang dari Template Library.','error','Auto Edit ditolak');return}
     const t=toast('Membangun editor dari source yang sama dengan Preview…','loading','Exact Template Edit');
     try{
       analysis=null;rebuild=null;source.value='';sourceBaseUrl='';
@@ -943,15 +945,16 @@ document.querySelectorAll('[data-native-reveal]').forEach(el=>io.observe(el));
       if(!analysis||!source.value.trim())throw new Error('Source template gagal dianalisis.');
       setProgress(true,'Exact Template Edit','Membangun Source Graph + native schema…');
       await build();
-      rebuild.manifest.editor_context_template=template;
+      rebuild.manifest.editor_context_template=recordId;
       rebuild.manifest.editor_context_record_id=recordId;
+      rebuild.manifest.editor_context_slug=templateSlug;
       rebuild.manifest.editor_context_source=target;
       const raw=JSON.stringify(rebuild);
       if(!raw)throw new Error('Source Graph handoff tidak terbentuk.');
       persistPreviewHandoff(raw);
       finishToast(t,'Source template cocok dengan Preview. Membuka Editor…','success','Exact Template siap');
       setProgress(false);
-      setTimeout(()=>{location.href='/dashboard-admin-edit?template='+encodeURIComponent(template)+'&handoff=1'},120);
+      setTimeout(()=>{location.href='/dashboard-admin-edit?template='+encodeURIComponent(recordId)+'&record='+encodeURIComponent(recordId)+'&handoff=1'},120);
     }catch(err){
       console.error('AUTO_EXACT_EDIT_FAILED',err);
       finishToast(t,err?.message||String(err),'error','Auto Edit gagal');

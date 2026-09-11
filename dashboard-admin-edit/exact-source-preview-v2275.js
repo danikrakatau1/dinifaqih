@@ -3,7 +3,8 @@
   const params=new URLSearchParams(location.search);
   if(params.get('handoff')!=='1')return;
   const template=String(params.get('template')||'').trim();
-  if(!template)return;
+  const recordId=String(params.get('record')||template).trim();
+  if(!template||!recordId)return;
   const frame=document.getElementById('previewFrame');
   if(!frame||!window.supabase?.createClient)return;
 
@@ -13,13 +14,18 @@
   let exactHtml='',sourceUrl='',armed=false,installing=false,installed=false,retry=0;
 
   const sameTemplateRow=async()=>{
-    let res=await sb.from('templates').select('id,name,slug,source_path,updated_at,manifest_json').eq('slug',template).limit(1).maybeSingle();
-    if(res.error)throw res.error;
-    if(!res.data&&/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(template)){
+    const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    let res;
+    if(uuid.test(recordId)){
+      res=await sb.from('templates').select('id,name,slug,source_path,updated_at,manifest_json').eq('id',recordId).limit(1).maybeSingle();
+    }else if(uuid.test(template)){
       res=await sb.from('templates').select('id,name,slug,source_path,updated_at,manifest_json').eq('id',template).limit(1).maybeSingle();
-      if(res.error)throw res.error;
+    }else{
+      res=await sb.from('templates').select('id,name,slug,source_path,updated_at,manifest_json').eq('slug',template).limit(1).maybeSingle();
     }
+    if(res.error)throw res.error;
     if(!res.data)throw new Error('Template record tidak ditemukan');
+    if(uuid.test(recordId)&&String(res.data.id)!==recordId)throw new Error('Template record mismatch');
     return res.data;
   };
 
@@ -77,11 +83,11 @@
     if(installed||installing||!exactHtml)return;
     installing=true;
     try{
-      frame.dataset.exactTemplateSource=template;
+      frame.dataset.exactTemplateSource=recordId;
       frame.dataset.exactTemplateUrl=sourceUrl;
       frame.srcdoc=exactHtml;
       installed=true;
-      console.info('EXACT_TEMPLATE_PREVIEW_V2276',{template,sourceUrl});
+      console.info('EXACT_TEMPLATE_PREVIEW_V2277',{template,recordId,sourceUrl});
     }finally{installing=false}
   };
 
