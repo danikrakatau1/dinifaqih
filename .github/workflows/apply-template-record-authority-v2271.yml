@@ -1,0 +1,52 @@
+name: Apply template record authority V2.27.1
+
+on:
+  push:
+    paths:
+      - '.github/scripts/fix-template-record-authority-v2271.py'
+      - '.github/workflows/apply-template-record-authority-v2271.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Apply record-authoritative edit patch
+        run: python .github/scripts/fix-template-record-authority-v2271.py
+
+      - name: Syntax checks
+        run: |
+          node --check dashboard-admin-fetch/studio.js
+          node --check dashboard-admin-edit/editor.js
+
+      - name: Record identity invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq 'data-edit="${esc(t.id)}"' dashboard-admin-template/index.html
+          grep -Fq "record:row.id" dashboard-admin-template/index.html
+          grep -Fq "const recordId=qs.get('record')||'';" dashboard-admin-fetch/studio.js
+          grep -Fq 'editor_context_record_id=recordId' dashboard-admin-fetch/studio.js
+          grep -Fq 'HANDOFF_RECORD_MISMATCH' dashboard-admin-edit/editor.js
+          git diff --check
+
+      - name: Commit production fix
+        shell: bash
+        run: |
+          git config user.name 'danikrakatau1'
+          git config user.email '320639863+danikrakatau1@users.noreply.github.com'
+          git add dashboard-admin-template/index.html dashboard-admin-fetch/studio.js dashboard-admin-edit/editor.js
+          if git diff --cached --quiet; then
+            echo 'No changes.'
+            exit 0
+          fi
+          git commit -m 'fix: resolve exact template record before edit v2.27.1'
+          git push origin main
