@@ -7,6 +7,13 @@
   const studioTemplate=String(studioParams.get('template')||'').trim();
   const studioStorageKey=base=>studioTemplate?`${base}:${encodeURIComponent(studioTemplate)}`:base;
   const studioWindowPrefix=()=>studioTemplate?`__DINI_ANIF_REBUILD__${encodeURIComponent(studioTemplate)}__`:'__DINI_ANIF_REBUILD__';
+  // V2.27.2 — legacy preview/native HTML caches are disposable. Never let them exhaust Web Storage and block Exact Template Edit.
+  function releaseLegacyPreviewStorage(){
+    const disposable=k=>k==='artSundaMerahPreview'||k?.startsWith?.('artSundaMerahPreview:')||k==='diniAnifNativeHtml'||k?.startsWith?.('diniAnifNativeHtml:');
+    for(const storage of [localStorage,sessionStorage]){
+      try{for(let i=storage.length-1;i>=0;i--){const k=storage.key(i);if(k&&disposable(k))storage.removeItem(k)}}catch(err){console.warn('legacy preview cache cleanup skipped',err)}
+    }
+  }
 
 
   // V1.1.3 — premium action feedback / toast system
@@ -746,12 +753,18 @@ document.querySelectorAll('[data-native-reveal]').forEach(el=>io.observe(el));
       report:{parity_score:analysis.parity,editable_coverage:100,unsupported_items:analysis.unsupported,detected:D,renderer:'source-native',cover_decor:lastCoverDecorAudit||null,source_graph_version:3,source_graph_audit:sourceGraphAudit(lastSourceGraph),critical_css:lastCriticalCssAudit,flatten_visuals:false}
     };
     const snapshotRaw=JSON.stringify(rebuild);
-    try{localStorage.setItem(studioStorageKey('diniAnifRebuildSnapshot'),snapshotRaw)}catch(err){console.warn('localStorage snapshot quota',err)}
+    // Exact Template Edit is an immediate same-tab handoff. Do not duplicate its multi-MB payload into persistent localStorage.
+    if(studioTemplate)releaseLegacyPreviewStorage();
+    if(!studioTemplate){try{localStorage.setItem(studioStorageKey('diniAnifRebuildSnapshot'),snapshotRaw)}catch(err){console.warn('localStorage snapshot quota',err)}}
     try{sessionStorage.setItem(studioStorageKey('diniAnifRebuildSnapshot'),snapshotRaw)}catch(err){console.warn('sessionStorage snapshot quota',err)}
-    try{window.name=studioWindowPrefix()+snapshotRaw}catch{}
-    try{localStorage.setItem(studioStorageKey('diniAnifNativeHtml'),nativeHtml);sessionStorage.setItem(studioStorageKey('diniAnifNativeHtml'),nativeHtml)}catch{}
-    localStorage.setItem(studioStorageKey('artSundaMerahPreview'),JSON.stringify(data));
-    sessionStorage.setItem(studioStorageKey('artSundaMerahPreview'),JSON.stringify(data));
+    try{window.name=studioWindowPrefix()+snapshotRaw}catch(err){console.warn('window.name snapshot handoff failed',err)}
+    // Legacy duplicate caches remain available only for manual/non-template Fetch, and are always best-effort.
+    if(!studioTemplate){
+      try{localStorage.setItem(studioStorageKey('diniAnifNativeHtml'),nativeHtml)}catch(err){console.warn('legacy nativeHtml local cache skipped',err)}
+      try{sessionStorage.setItem(studioStorageKey('diniAnifNativeHtml'),nativeHtml)}catch(err){console.warn('legacy nativeHtml session cache skipped',err)}
+      try{localStorage.setItem(studioStorageKey('artSundaMerahPreview'),JSON.stringify(data))}catch(err){console.warn('legacy preview local cache skipped',err)}
+      try{sessionStorage.setItem(studioStorageKey('artSundaMerahPreview'),JSON.stringify(data))}catch(err){console.warn('legacy preview session cache skipped',err)}
+    }
     $('#mappingBadge').textContent='Source Native';$('#mappingBadge').className='badge ok';
     $('#mappingTree').classList.remove('empty');
     const safeSections=Array.isArray(nativeSchema?.sections)?nativeSchema.sections:[];
@@ -849,7 +862,9 @@ document.querySelectorAll('[data-native-reveal]').forEach(el=>io.observe(el));
   }
   function persistPreviewHandoff(raw){
     let saved=0;
-    try{localStorage.setItem(studioStorageKey('diniAnifRebuildSnapshot'),raw);saved++}catch(err){console.warn('localStorage handoff failed',err)}
+    if(studioTemplate)releaseLegacyPreviewStorage();
+    // Exact edit prefers ephemeral same-tab storage; persistent localStorage is unnecessary and can be quota-constrained on mobile.
+    if(!studioTemplate){try{localStorage.setItem(studioStorageKey('diniAnifRebuildSnapshot'),raw);saved++}catch(err){console.warn('localStorage handoff failed',err)}}
     try{sessionStorage.setItem(studioStorageKey('diniAnifRebuildSnapshot'),raw);saved++}catch(err){console.warn('sessionStorage handoff failed',err)}
     try{window.name=studioWindowPrefix()+raw;saved++}catch(err){console.warn('window.name handoff failed',err)}
     return saved;
@@ -921,6 +936,7 @@ document.querySelectorAll('[data-native-reveal]').forEach(el=>io.observe(el));
     const t=toast('Membangun editor dari source yang sama dengan Preview…','loading','Exact Template Edit');
     try{
       analysis=null;rebuild=null;source.value='';sourceBaseUrl='';
+      releaseLegacyPreviewStorage();
       try{localStorage.removeItem(studioStorageKey('diniAnifRebuildSnapshot'));sessionStorage.removeItem(studioStorageKey('diniAnifRebuildSnapshot'));if(studioTemplate){localStorage.removeItem('diniAnifRebuildSnapshot');sessionStorage.removeItem('diniAnifRebuildSnapshot')}window.name=''}catch{}
       sourceUrl.value=target;
       await fetchSource();
@@ -943,8 +959,8 @@ document.querySelectorAll('[data-native-reveal]').forEach(el=>io.observe(el));
     }
   }
 
-  const existing=localStorage.getItem(studioStorageKey('diniAnifRebuildSnapshot'));
-  if(existing){try{rebuild=JSON.parse(existing);localStorage.setItem(studioStorageKey('artSundaMerahPreview'),JSON.stringify(rebuild.data));previewBtn.classList.remove('disabled');downloadBtn.disabled=false;$('#mappingBadge').textContent='Snapshot tersedia';$('#mappingBadge').className='badge ok';$('#studioMessage').textContent='Ada rebuild snapshot sebelumnya. Preview/Download siap digunakan.'}catch{}}
+  const existing=studioTemplate?null:localStorage.getItem(studioStorageKey('diniAnifRebuildSnapshot'));
+  if(existing){try{rebuild=JSON.parse(existing);try{localStorage.setItem(studioStorageKey('artSundaMerahPreview'),JSON.stringify(rebuild.data))}catch(err){console.warn('legacy preview restore cache skipped',err)}previewBtn.classList.remove('disabled');downloadBtn.disabled=false;$('#mappingBadge').textContent='Snapshot tersedia';$('#mappingBadge').className='badge ok';$('#studioMessage').textContent='Ada rebuild snapshot sebelumnya. Preview/Download siap digunakan.'}catch{}}
   if(new URLSearchParams(location.search).get('autoEdit')==='1')setTimeout(()=>autoEditFromTemplate(),80);
   window.DINI_ANIF_STUDIO={packageBlob};
 })();
