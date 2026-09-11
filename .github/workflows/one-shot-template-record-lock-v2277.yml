@@ -27,7 +27,7 @@ jobs:
         run: |
           git config user.name "danikrakatau1"
           git config user.email "danikrakatau1@gmail.com"
-          git rm .github/workflows/one-shot-template-record-lock-v2277.yml .github/scripts/v2277.py
+          git rm -f .github/workflows/one-shot-template-record-lock-v2277.yml .github/scripts/v2277.py
           git add dashboard-admin-template/index.html dashboard-admin-template/preview.html dashboard-admin-fetch/studio.js dashboard-admin-edit/editor.js dashboard-admin-edit/exact-source-preview-v2275.js
           git commit -m "fix: lock every template edit to immutable record UUID v2.27.7"
           git push origin main
