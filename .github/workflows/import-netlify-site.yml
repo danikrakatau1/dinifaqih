@@ -1,0 +1,49 @@
+name: Import preserved V2.26 site
+
+on:
+  push:
+    branches:
+      - import-v2.26-vercel
+
+permissions:
+  contents: write
+
+jobs:
+  import-site:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout import branch
+        uses: actions/checkout@v4
+        with:
+          ref: import-v2.26-vercel
+
+      - name: Download preserved static site from Netlify
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://dinifaqih.netlify.app"
+          while IFS= read -r line; do
+            [ -n "$line" ] || continue
+            sha="${line%%  *}"
+            path="${line#*  }"
+            mkdir -p "$(dirname "$path")"
+            encoded_path="$(python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe="/"))' "$path")"
+            echo "Fetching $path"
+            curl -fL --retry 5 --retry-delay 2 --retry-all-errors "$base/$encoded_path" -o "$path"
+          done < .site-manifest.sha256
+          sha256sum -c .site-manifest.sha256
+
+      - name: Commit verified V2.26 static site
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No static site changes to commit."
+            exit 0
+          fi
+          git commit -m "feat: import verified V2.26 static site"
+          git push origin HEAD:import-v2.26-vercel
