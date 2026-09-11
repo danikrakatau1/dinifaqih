@@ -27,10 +27,34 @@
     const source=String(row.source_path||'').trim();
     const u=new URL(source,location.href);
     let assetBase=String(row.manifest_json?.asset_base||'').trim();
-    if(!assetBase)assetBase=new URL('./',u.href).href;
-    else try{const au=new URL(assetBase,location.href);assetBase=/\.[a-z0-9]{1,8}(?:$|[?#])/i.test(au.pathname)?new URL('./',au.href).href:(au.href.endsWith('/')?au.href:au.href+'/')}catch{assetBase=new URL('./',u.href).href}
+
+    // V2.27.6 — Template 1 is the built-in Dini/Faqih app template. Its authored HTML
+    // intentionally uses root-relative /assets/... URLs, therefore the editor must use
+    // the app origin as its base exactly like dashboard-admin-template/preview.html and
+    // the public bootstrap in /index.html. Other templates continue to resolve against
+    // their own stored revision/source directory.
+    if(!assetBase){
+      assetBase=row.slug==='template-1'?location.origin+'/':new URL('./',u.href).href;
+    }else{
+      try{
+        const au=new URL(assetBase,location.href);
+        assetBase=/\.[a-z0-9]{1,8}(?:$|[?#])/i.test(au.pathname)?new URL('./',au.href).href:(au.href.endsWith('/')?au.href:au.href+'/');
+      }catch{assetBase=row.slug==='template-1'?location.origin+'/':new URL('./',u.href).href}
+    }
+
+    // A stale early Template-1 draft may carry a revision-folder asset_base. Root assets
+    // are authoritative for this built-in template, so force the same origin used by the
+    // working Preview/Public path.
+    if(row.slug==='template-1')assetBase=location.origin+'/';
+
     let out=String(html||'');
     out=out.replace(/<base\b[^>]*data-dini-template-base[^>]*>/ig,'').replace(/<base\b[^>]*>/ig,'');
+
+    if(row.slug==='template-1'){
+      const rev=encodeURIComponent(row.updated_at||Date.now());
+      out=out.replace(/((?:src|href)=["'])(\/assets\/(?:js|css)\/[^"'?#]+)(?:\?[^"']*)?(["'])/gi,(_,a,path,q)=>a+path+'?_tpl='+rev+q);
+    }
+
     const safeBase=assetBase.replace(/"/g,'&quot;');
     if(/<head(\s[^>]*)?>/i.test(out))out=out.replace(/<head(\s[^>]*)?>/i,m=>m+'<base data-dini-template-base="1" href="'+safeBase+'">');
     else out='<!doctype html><html><head><base data-dini-template-base="1" href="'+safeBase+'"></head><body>'+out+'</body></html>';
@@ -57,7 +81,7 @@
       frame.dataset.exactTemplateUrl=sourceUrl;
       frame.srcdoc=exactHtml;
       installed=true;
-      console.info('EXACT_TEMPLATE_PREVIEW_V2275',{template,sourceUrl});
+      console.info('EXACT_TEMPLATE_PREVIEW_V2276',{template,sourceUrl});
     }finally{installing=false}
   };
 
@@ -66,8 +90,6 @@
     const status=document.getElementById('dirtyState')?.textContent||'';
     const sourceGraph=/SOURCE GRAPH LOADED|FETCH SNAPSHOT LOADED/i.test(status);
     if(!sourceGraph&&retry++<20)return setTimeout(evaluate,120);
-    // For Template Library edit, exact DB source is the visual source of truth.
-    // Wait one tick so editor.js finishes its own srcdoc assignment, then replace it exactly once.
     setTimeout(installExact,30);
   };
 
@@ -79,11 +101,9 @@
       const u=new URL(sourceUrl,location.href);u.searchParams.set('_editor_exact',String(row.updated_at||Date.now()));
       const r=await fetch(u.href,{cache:'no-store'});if(!r.ok)throw new Error('Exact source HTTP '+r.status);
       exactHtml=normalize(await r.text(),row);armed=true;evaluate();
-    }catch(err){console.warn('EXACT_TEMPLATE_PREVIEW_V2275_FAILED',err)}
+    }catch(err){console.warn('EXACT_TEMPLATE_PREVIEW_V2276_FAILED',err)}
   })();
 
-  // If another editor rebuild later replaces srcdoc with a blank document before the user edits,
-  // restore the selected template once more. Do not fight intentional live mutations after a healthy preview exists.
   frame.addEventListener('load',()=>{
     if(!installed||installing)return;
     setTimeout(()=>{
