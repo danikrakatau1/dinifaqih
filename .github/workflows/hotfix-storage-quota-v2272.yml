@@ -1,0 +1,93 @@
+name: Hotfix Auto Edit Storage Quota V2.27.2
+
+on:
+  push:
+    paths:
+      - '.github/workflows/hotfix-storage-quota-v2272.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Patch storage quota handling
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('dashboard-admin-fetch/studio.js')
+          s = p.read_text(encoding='utf-8')
+
+          anchor = "  const studioWindowPrefix=()=>studioTemplate?`__DINI_ANIF_REBUILD__${encodeURIComponent(studioTemplate)}__`:'__DINI_ANIF_REBUILD__';\n"
+          insert = anchor + "  // V2.27.2 — legacy preview/native HTML caches are disposable. Never let them exhaust Web Storage and block Exact Template Edit.\n  function releaseLegacyPreviewStorage(){\n    const disposable=k=>k==='artSundaMerahPreview'||k?.startsWith?.('artSundaMerahPreview:')||k==='diniAnifNativeHtml'||k?.startsWith?.('diniAnifNativeHtml:');\n    for(const storage of [localStorage,sessionStorage]){\n      try{for(let i=storage.length-1;i>=0;i--){const k=storage.key(i);if(k&&disposable(k))storage.removeItem(k)}}catch(err){console.warn('legacy preview cache cleanup skipped',err)}\n    }\n  }\n"
+          if anchor not in s:
+              raise SystemExit('anchor studioWindowPrefix not found')
+          s = s.replace(anchor, insert, 1)
+
+          old = "    const snapshotRaw=JSON.stringify(rebuild);\n    try{localStorage.setItem(studioStorageKey('diniAnifRebuildSnapshot'),snapshotRaw)}catch(err){console.warn('localStorage snapshot quota',err)}\n    try{sessionStorage.setItem(studioStorageKey('diniAnifRebuildSnapshot'),snapshotRaw)}catch(err){console.warn('sessionStorage snapshot quota',err)}\n    try{window.name=studioWindowPrefix()+snapshotRaw}catch{}\n    try{localStorage.setItem(studioStorageKey('diniAnifNativeHtml'),nativeHtml);sessionStorage.setItem(studioStorageKey('diniAnifNativeHtml'),nativeHtml)}catch{}\n    localStorage.setItem(studioStorageKey('artSundaMerahPreview'),JSON.stringify(data));\n    sessionStorage.setItem(studioStorageKey('artSundaMerahPreview'),JSON.stringify(data));\n"
+          new = "    const snapshotRaw=JSON.stringify(rebuild);\n    // Exact Template Edit is an immediate same-tab handoff. Do not duplicate its multi-MB payload into persistent localStorage.\n    if(studioTemplate)releaseLegacyPreviewStorage();\n    if(!studioTemplate){try{localStorage.setItem(studioStorageKey('diniAnifRebuildSnapshot'),snapshotRaw)}catch(err){console.warn('localStorage snapshot quota',err)}}\n    try{sessionStorage.setItem(studioStorageKey('diniAnifRebuildSnapshot'),snapshotRaw)}catch(err){console.warn('sessionStorage snapshot quota',err)}\n    try{window.name=studioWindowPrefix()+snapshotRaw}catch(err){console.warn('window.name snapshot handoff failed',err)}\n    // Legacy duplicate caches remain available only for manual/non-template Fetch, and are always best-effort.\n    if(!studioTemplate){\n      try{localStorage.setItem(studioStorageKey('diniAnifNativeHtml'),nativeHtml)}catch(err){console.warn('legacy nativeHtml local cache skipped',err)}\n      try{sessionStorage.setItem(studioStorageKey('diniAnifNativeHtml'),nativeHtml)}catch(err){console.warn('legacy nativeHtml session cache skipped',err)}\n      try{localStorage.setItem(studioStorageKey('artSundaMerahPreview'),JSON.stringify(data))}catch(err){console.warn('legacy preview local cache skipped',err)}\n      try{sessionStorage.setItem(studioStorageKey('artSundaMerahPreview'),JSON.stringify(data))}catch(err){console.warn('legacy preview session cache skipped',err)}\n    }\n"
+          if old not in s:
+              raise SystemExit('build storage block not found')
+          s = s.replace(old, new, 1)
+
+          old = "  function persistPreviewHandoff(raw){\n    let saved=0;\n    try{localStorage.setItem(studioStorageKey('diniAnifRebuildSnapshot'),raw);saved++}catch(err){console.warn('localStorage handoff failed',err)}\n    try{sessionStorage.setItem(studioStorageKey('diniAnifRebuildSnapshot'),raw);saved++}catch(err){console.warn('sessionStorage handoff failed',err)}\n    try{window.name=studioWindowPrefix()+raw;saved++}catch(err){console.warn('window.name handoff failed',err)}\n    return saved;\n  }\n"
+          new = "  function persistPreviewHandoff(raw){\n    let saved=0;\n    if(studioTemplate)releaseLegacyPreviewStorage();\n    // Exact edit prefers ephemeral same-tab storage; persistent localStorage is unnecessary and can be quota-constrained on mobile.\n    if(!studioTemplate){try{localStorage.setItem(studioStorageKey('diniAnifRebuildSnapshot'),raw);saved++}catch(err){console.warn('localStorage handoff failed',err)}}\n    try{sessionStorage.setItem(studioStorageKey('diniAnifRebuildSnapshot'),raw);saved++}catch(err){console.warn('sessionStorage handoff failed',err)}\n    try{window.name=studioWindowPrefix()+raw;saved++}catch(err){console.warn('window.name handoff failed',err)}\n    return saved;\n  }\n"
+          if old not in s:
+              raise SystemExit('persistPreviewHandoff block not found')
+          s = s.replace(old, new, 1)
+
+          old = "      analysis=null;rebuild=null;source.value='';sourceBaseUrl='';\n      try{localStorage.removeItem(studioStorageKey('diniAnifRebuildSnapshot'));sessionStorage.removeItem(studioStorageKey('diniAnifRebuildSnapshot'));if(studioTemplate){localStorage.removeItem('diniAnifRebuildSnapshot');sessionStorage.removeItem('diniAnifRebuildSnapshot')}window.name=''}catch{}\n"
+          new = "      analysis=null;rebuild=null;source.value='';sourceBaseUrl='';\n      releaseLegacyPreviewStorage();\n      try{localStorage.removeItem(studioStorageKey('diniAnifRebuildSnapshot'));sessionStorage.removeItem(studioStorageKey('diniAnifRebuildSnapshot'));if(studioTemplate){localStorage.removeItem('diniAnifRebuildSnapshot');sessionStorage.removeItem('diniAnifRebuildSnapshot')}window.name=''}catch{}\n"
+          if old not in s:
+              raise SystemExit('autoEdit cleanup block not found')
+          s = s.replace(old, new, 1)
+
+          old = "  const existing=localStorage.getItem(studioStorageKey('diniAnifRebuildSnapshot'));\n  if(existing){try{rebuild=JSON.parse(existing);localStorage.setItem(studioStorageKey('artSundaMerahPreview'),JSON.stringify(rebuild.data));previewBtn.classList.remove('disabled');downloadBtn.disabled=false;$('#mappingBadge').textContent='Snapshot tersedia';$('#mappingBadge').className='badge ok';$('#studioMessage').textContent='Ada rebuild snapshot sebelumnya. Preview/Download siap digunakan.'}catch{}}\n"
+          new = "  const existing=studioTemplate?null:localStorage.getItem(studioStorageKey('diniAnifRebuildSnapshot'));\n  if(existing){try{rebuild=JSON.parse(existing);try{localStorage.setItem(studioStorageKey('artSundaMerahPreview'),JSON.stringify(rebuild.data))}catch(err){console.warn('legacy preview restore cache skipped',err)}previewBtn.classList.remove('disabled');downloadBtn.disabled=false;$('#mappingBadge').textContent='Snapshot tersedia';$('#mappingBadge').className='badge ok';$('#studioMessage').textContent='Ada rebuild snapshot sebelumnya. Preview/Download siap digunakan.'}catch{}}\n"
+          if old not in s:
+              raise SystemExit('existing snapshot restore block not found')
+          s = s.replace(old, new, 1)
+
+          p.write_text(s, encoding='utf-8')
+          print('V2.27.2 storage quota patch applied')
+          PY
+
+      - name: JavaScript syntax check
+        run: node --check dashboard-admin-fetch/studio.js
+
+      - name: Storage quota invariants
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('dashboard-admin-fetch/studio.js').read_text(encoding='utf-8')
+          assert 'function releaseLegacyPreviewStorage()' in s
+          assert "if(studioTemplate)releaseLegacyPreviewStorage();" in s
+          assert "if(!studioTemplate){try{localStorage.setItem(studioStorageKey('diniAnifRebuildSnapshot'),raw);saved++}" in s
+          bad="localStorage.setItem(studioStorageKey('artSundaMerahPreview'),JSON.stringify(data));"
+          assert bad not in s
+          assert "legacy preview local cache skipped" in s
+          print('quota invariants OK')
+          PY
+          git diff --check
+
+      - name: Commit production fix
+        shell: bash
+        run: |
+          if git diff --quiet -- dashboard-admin-fetch/studio.js; then
+            echo 'No production diff'; exit 1
+          fi
+          git config user.name 'danikrakatau1'
+          git config user.email '320639863+danikrakatau1@users.noreply.github.com'
+          git add dashboard-admin-fetch/studio.js
+          git commit -m 'fix: prevent mobile storage quota from blocking auto edit v2.27.2'
+          git push origin HEAD:main
