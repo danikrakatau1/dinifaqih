@@ -100,5 +100,6 @@
       console.error(e);status.textContent='Export gagal: '+(e.message||e);btn.textContent='Coba Lagi';
     }finally{btn.disabled=false;if(btn.textContent==='Sweeping…')btn.textContent=oldText}
   };
+  if(new URLSearchParams(location.search).get('download')==='1'){setTimeout(()=>document.getElementById('downloadCleanZip')?.click(),260);}
   addEventListener('beforeunload',()=>{urls.forEach(URL.revokeObjectURL);const s=document.getElementById('saveCleanZip');if(s?.dataset?.objectUrl)URL.revokeObjectURL(s.dataset.objectUrl)});
 })().catch(e=>{console.error(e);const el=document.getElementById('empty');el.hidden=false;el.textContent='Clean Preview gagal: '+e.message});

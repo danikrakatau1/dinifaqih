@@ -79,46 +79,6 @@
     }catch{return 0}
   };
 
-  // V2.27.9 — Exact Source Preview replaces the iframe after editor.js has already run,
-  // so opener alignment must be enforced on the exact document itself. Different imported
-  // templates use different ids/classes; match the semantic button label instead.
-  const centerOpenButtons=()=>{
-    try{
-      const d=frame.contentDocument,w=d?.defaultView;if(!d?.body||!w)return 0;
-      const candidates=[...d.querySelectorAll('button,a,[role="button"],input[type="button"],input[type="submit"]')];
-      const openers=candidates.filter(el=>{
-        const label=String(el.textContent||el.value||el.getAttribute('aria-label')||'').replace(/\s+/g,' ').trim();
-        return /buka\s+undangan/i.test(label);
-      });
-      openers.forEach(open=>{
-        const cs=w.getComputedStyle(open);
-        open.style.setProperty('width','max-content','important');
-        open.style.setProperty('max-width','calc(100% - 24px)','important');
-        open.style.setProperty('box-sizing','border-box','important');
-        open.style.setProperty('margin-left','auto','important');
-        open.style.setProperty('margin-right','auto','important');
-        open.style.setProperty('align-self','center','important');
-        open.style.setProperty('justify-self','center','important');
-        if(cs.position==='absolute'||cs.position==='fixed'){
-          open.style.setProperty('left','50%','important');
-          open.style.setProperty('right','auto','important');
-          open.style.setProperty('margin-left','0','important');
-          open.style.setProperty('margin-right','0','important');
-          open.style.setProperty('transform','translateX(-50%)','important');
-        }else{
-          open.style.setProperty('display','flex','important');
-          open.style.setProperty('justify-content','center','important');
-        }
-        open.dataset.diniCenteredOpener='v2279';
-      });
-      return openers.length;
-    }catch(err){console.warn('EXACT_TEMPLATE_CENTER_OPENER_V2279_FAILED',err);return 0}
-  };
-
-  const scheduleCenterOpenButtons=()=>{
-    [0,80,220,500,900,1600,2800].forEach(ms=>setTimeout(centerOpenButtons,ms));
-  };
-
   const installExact=()=>{
     if(installed||installing||!exactHtml)return;
     installing=true;
@@ -127,7 +87,7 @@
       frame.dataset.exactTemplateUrl=sourceUrl;
       frame.srcdoc=exactHtml;
       installed=true;
-      console.info('EXACT_TEMPLATE_PREVIEW_V2279',{template,recordId,sourceUrl});
+      console.info('EXACT_TEMPLATE_PREVIEW_V2280',{template,recordId,sourceUrl});
     }finally{installing=false}
   };
 
@@ -147,14 +107,12 @@
       const u=new URL(sourceUrl,location.href);u.searchParams.set('_editor_exact',String(row.updated_at||Date.now()));
       const r=await fetch(u.href,{cache:'no-store'});if(!r.ok)throw new Error('Exact source HTTP '+r.status);
       exactHtml=normalize(await r.text(),row);armed=true;evaluate();
-    }catch(err){console.warn('EXACT_TEMPLATE_PREVIEW_V2279_FAILED',err)}
+    }catch(err){console.warn('EXACT_TEMPLATE_PREVIEW_V2280_FAILED',err)}
   })();
 
   frame.addEventListener('load',()=>{
     if(!installed||installing)return;
-    scheduleCenterOpenButtons();
     setTimeout(()=>{
-      centerOpenButtons();
       if(meaningfulVisible()>0)return;
       if(retry>28)return;
       installed=false;retry++;installExact();
