@@ -1,0 +1,78 @@
+name: Hotfix editor live-sync engine
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/hotfix-editor-live-sync.yml
+
+permissions:
+  contents: write
+
+jobs:
+  hotfix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Patch editor live-sync fallbacks
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('dashboard-admin-edit/editor.js')
+          s=p.read_text(encoding='utf-8')
+
+          old=''' function nodeFor(doc,f){return f?.node_id?doc.querySelector(`[data-native-node-id="${CSS.escape(f.node_id)}"]`):doc.querySelector(`[data-native-edit-id="${CSS.escape(f.id)}"],[data-native-edit-ids~="${CSS.escape(f.id)}"]`)}'''
+          new=''' function nodeFor(doc,f){
+            if(!doc||!f)return null;
+            const id=String(f.id||'');
+            if(id){
+              const direct=doc.querySelector(`[data-native-edit-id="${CSS.escape(id)}"]`);if(direct)return direct;
+              const candidates=doc.querySelectorAll('[data-native-edit-ids]');
+              for(const el of candidates){const ids=(el.getAttribute('data-native-edit-ids')||'').split(/[\\s,]+/).filter(Boolean);if(ids.includes(id))return el}
+            }
+            if(f.node_id){const byNode=doc.querySelector(`[data-native-node-id="${CSS.escape(f.node_id)}"]`);if(byNode)return byNode}
+            return null
+          }'''
+          assert old in s, 'nodeFor signature not found'
+          s=s.replace(old,new,1)
+
+          old='function schedulePreview(){clearTimeout(previewTimer);previewTimer=setTimeout(()=>renderPreview(),300)}'
+          new='function schedulePreview(){clearTimeout(previewTimer);previewTimer=setTimeout(()=>renderPreview(true),300)}'
+          assert old in s, 'schedulePreview signature not found'
+          s=s.replace(old,new,1)
+
+          replacements=[
+            ("setDirty('Perubahan asset belum di-APPLY');liveApply(fieldId);renderNativeEditor();renderInspector();return a", "setDirty('Perubahan asset belum di-APPLY');if(!liveApply(fieldId))schedulePreview();renderNativeEditor();renderInspector();return a"),
+            ("setDirty('Perubahan asset belum di-APPLY');liveApply(fieldId);if(!quiet)", "setDirty('Perubahan asset belum di-APPLY');if(!liveApply(fieldId))schedulePreview();if(!quiet)"),
+            ("setDirty('Perubahan asset belum di-APPLY');liveApply(id);renderNativeEditor();selectField", "setDirty('Perubahan asset belum di-APPLY');if(!liveApply(id))schedulePreview();renderNativeEditor();selectField"),
+            ("native.values[id]='';setDirty();liveApply(id);renderNativeEditor();renderInspector()", "native.values[id]='';setDirty();if(!liveApply(id))schedulePreview();renderNativeEditor();renderInspector()"),
+            ("native.values[f.id]=val.value;setDirty();liveApply(f.id);const sidebar=", "native.values[f.id]=val.value;setDirty();if(!liveApply(f.id))schedulePreview();const sidebar="),
+            ("tt[el.dataset.transform]=el.tagName==='SELECT'?el.value:Number(el.value);setDirty();liveApply(f.id)", "tt[el.dataset.transform]=el.tagName==='SELECT'?el.value:Number(el.value);setDirty();if(!liveApply(f.id))schedulePreview()"),
+            ("transforms[f.id]={...(transforms[f.id]||{}),x:50,y:50};setDirty();liveApply(f.id);renderInspector()", "transforms[f.id]={...(transforms[f.id]||{}),x:50,y:50};setDirty();if(!liveApply(f.id))schedulePreview();renderInspector()"),
+            ("delete transforms[f.id];setDirty();liveApply(f.id);renderInspector()", "delete transforms[f.id];setDirty();if(!liveApply(f.id))schedulePreview();renderInspector()"),
+          ]
+          for a,b in replacements:
+            assert a in s, f'expected mutation path not found: {a[:70]}'
+            s=s.replace(a,b,1)
+
+          p.write_text(s,encoding='utf-8')
+          PY
+
+      - name: Syntax check
+        run: node --check dashboard-admin-edit/editor.js
+
+      - name: Commit hotfix
+        shell: bash
+        run: |
+          git config user.name "danikrakatau1"
+          git config user.email "320639863+danikrakatau1@users.noreply.github.com"
+          git add dashboard-admin-edit/editor.js
+          git diff --cached --quiet && exit 0
+          git commit -m "fix: repair editor live preview synchronization"
+          git push origin main
