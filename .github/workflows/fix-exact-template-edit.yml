@@ -1,0 +1,134 @@
+name: Fix exact template edit handoff
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-exact-template-edit.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Patch exact template edit flow
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          # 1) Template Library: Edit must rebuild from the exact same source_path used by Preview.
+          p = Path('dashboard-admin-template/index.html')
+          s = p.read_text(encoding='utf-8')
+          old = 'href="/dashboard-admin-edit?template=${encodeURIComponent(t.slug||t.id)}"'
+          new = 'href="/dashboard-admin-fetch?autoEdit=1&template=${encodeURIComponent(t.slug||t.id)}&source=${encodeURIComponent(source)}"'
+          if old not in s:
+              raise SystemExit('template Edit link anchor not found')
+          s = s.replace(old, new, 1)
+          p.write_text(s, encoding='utf-8')
+
+          # 2) Editor: in handoff mode bind the selected DB record only, then consume Source Graph handoff.
+          p = Path('dashboard-admin-edit/editor.js')
+          s = p.read_text(encoding='utf-8')
+          old = 'async function loadTemplateFromLibrary(){'
+          new = 'async function loadTemplateFromLibrary(recordOnly=false){'
+          if old not in s:
+              raise SystemExit('loadTemplateFromLibrary signature anchor not found')
+          s = s.replace(old, new, 1)
+
+          anchor = "    const sourcePath=String(data.source_path||'').trim();"
+          if anchor not in s:
+              raise SystemExit('editor sourcePath anchor not found')
+          s = s.replace(anchor, "    if(recordOnly)return true;\n" + anchor, 1)
+
+          old_boot = """async function bootEditor(){
+   const fromLibrary=await loadTemplateFromLibrary();
+   if(!fromLibrary&&!loadSnapshotHandoff()){"""
+          new_boot = """async function bootEditor(){
+   const handoffMode=new URLSearchParams(location.search).get('handoff')==='1';
+   if(handoffMode){
+     const bound=await loadTemplateFromLibrary(true);
+     if(bound&&loadSnapshotHandoff()){
+       dirty.textContent=`SOURCE GRAPH LOADED ✓ · ${native?.schema?.fields?.length||0} field`;
+       return;
+     }
+   }
+   const fromLibrary=await loadTemplateFromLibrary(false);
+   if(!fromLibrary&&!loadSnapshotHandoff()){"""
+          if old_boot not in s:
+              raise SystemExit('bootEditor anchor not found')
+          s = s.replace(old_boot, new_boot, 1)
+          p.write_text(s, encoding='utf-8')
+
+          # 3) Fetch Studio: auto-fetch source_path, rebuild native schema/html, then hand off to Editor.
+          p = Path('dashboard-admin-fetch/studio.js')
+          s = p.read_text(encoding='utf-8')
+          anchor = "  const existing=localStorage.getItem('diniAnifRebuildSnapshot');"
+          if anchor not in s:
+              raise SystemExit('studio auto-edit insertion anchor not found')
+          block = r'''  async function autoEditFromTemplate(){
+    const qs=new URLSearchParams(location.search);
+    if(qs.get('autoEdit')!=='1')return;
+    const template=qs.get('template')||'';
+    const target=qs.get('source')||'';
+    if(!template||!target){toast('Template/source tidak lengkap.','error','Auto Edit gagal');return}
+    const t=toast('Membangun editor dari source yang sama dengan Preview…','loading','Exact Template Edit');
+    try{
+      analysis=null;rebuild=null;source.value='';sourceBaseUrl='';
+      try{localStorage.removeItem('diniAnifRebuildSnapshot');sessionStorage.removeItem('diniAnifRebuildSnapshot');window.name=''}catch{}
+      sourceUrl.value=target;
+      await fetchSource();
+      if(!analysis||!source.value.trim())throw new Error('Source template gagal dianalisis.');
+      setProgress(true,'Exact Template Edit','Membangun Source Graph + native schema…');
+      await build();
+      const raw=currentSnapshotRaw();
+      if(!raw)throw new Error('Source Graph handoff tidak terbentuk.');
+      persistPreviewHandoff(raw);
+      finishToast(t,'Source template cocok dengan Preview. Membuka Editor…','success','Exact Template siap');
+      setProgress(false);
+      setTimeout(()=>{location.href='/dashboard-admin-edit?template='+encodeURIComponent(template)+'&handoff=1'},120);
+    }catch(err){
+      console.error('AUTO_EXACT_EDIT_FAILED',err);
+      finishToast(t,err?.message||String(err),'error','Auto Edit gagal');
+      setProgress(false);
+    }
+  }
+
+'''
+          s = s.replace(anchor, block + anchor, 1)
+
+          end_anchor = "  window.DINI_ANIF_STUDIO={packageBlob};"
+          if end_anchor not in s:
+              raise SystemExit('studio end anchor not found')
+          s = s.replace(end_anchor, "  if(new URLSearchParams(location.search).get('autoEdit')==='1')setTimeout(()=>autoEditFromTemplate(),80);\n" + end_anchor, 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+
+      - name: Syntax and invariant checks
+        shell: bash
+        run: |
+          node --check dashboard-admin-edit/editor.js
+          node --check dashboard-admin-fetch/studio.js
+          grep -Fq 'autoEdit=1&template=' dashboard-admin-template/index.html
+          grep -Fq 'SOURCE GRAPH LOADED' dashboard-admin-edit/editor.js
+          grep -Fq 'autoEditFromTemplate' dashboard-admin-fetch/studio.js
+
+      - name: Commit fix
+        shell: bash
+        run: |
+          git config user.name 'danikrakatau1'
+          git config user.email '320639863+danikrakatau1@users.noreply.github.com'
+          git add dashboard-admin-template/index.html dashboard-admin-fetch/studio.js dashboard-admin-edit/editor.js
+          if git diff --cached --quiet; then
+            echo 'No patch changes needed.'
+            exit 0
+          fi
+          git commit -m 'fix: rebuild editor from exact selected template source'
+          git push origin main
