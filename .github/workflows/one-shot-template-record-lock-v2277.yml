@@ -14,24 +14,18 @@ jobs:
         with:
           fetch-depth: 0
       - name: Apply UUID record-lock patch
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          import base64
-          code = base64.b64decode('ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCgojIDEpIFRlbXBsYXRlIGxpYnJhcnk6IFByZXZpZXcgKyBFZGl0IG11c3QgdXNlIGltbXV0YWJsZSBEQiBVVUlELCBuZXZlciBzbHVnLgpwID0gUGF0aCgiZGFzaGJvYXJkLWFkbWluLXRlbXBsYXRlL2luZGV4Lmh0bWwiKQpzID0gcC5yZWFkX3RleHQoZW5jb2Rpbmc9InV0Zi04IikKb2xkID0gJ2hyZWY9Ii9kYXNoYm9hcmQtYWRtaW4tdGVtcGxhdGUvcHJldmlldy5odG1sP3RlbXBsYXRlPSR7ZW5jb2RlVVJJQ29tcG9uZW50KHQuc2x1Z3x8dC5pZCl9IicKbmV3ID0gJ2hyZWY9Ii9kYXNoYm9hcmQtYWRtaW4tdGVtcGxhdGUvcHJldmlldy5odG1sP3RlbXBsYXRlPSR7ZW5jb2RlVVJJQ29tcG9uZW50KHQuaWQpfSIiJwppZiBvbGQgbm90IGluIHM6CiAgICByYWlzZSBTeXN0ZW1FeGl0KCJ0ZW1wbGF0ZSBwcmV2aWV3IGFuY2hvciBub3QgZm91bmQiKQpzID0gcy5yZXBsYWNlKG9sZCwgbmV3LCAxKQoKb2xkID0gImNvbnN0IHE9bmV3IFVSTFNlYXJjaFBhcmFtcyh7YXV0b0VkaXQ6JzEnLHRlbXBsYXRlOnJvdy5zbHVnfHxyb3cuaWQscmVjb3JkOnJvdy5pZCxzb3VyY2UsdXBkYXRlZDpTdHJpbmcocm93LnVwZGF0ZWRfYXR8fCcnKX0pOyIKbmV3ID0gImNvbnN0IHE9bmV3IFVSTFNlYXJjaFBhcmFtcyh7YXV0b0VkaXQ6JzEnLHRlbXBsYXRlOnJvdy5pZCxyZWNvcmQ6cm93LmlkLHNsdWc6cm93LnNsdWd8fCcnLHNvdXJjZSx1cGRhdGVkOlN0cmluZyhyb3cudXBkYXRlZF9hdHx8JycpfSk7IgppZiBvbGQgbm90IGluIHM6CiAgICByYWlzZSBTeXN0ZW1FeGl0KCJlZGl0IFVVSUQgcXVlcnkgYW5jaG9yIG5vdCBmb3VuZCIpCnMgPSBzLnJlcGxhY2Uob2xkLCBuZXcsIDEpCnAud3JpdGVfdGV4dChzLCBlbmNvZGluZz0idXRmLTgiKQoKIyAyKSBGZXRjaCBzdHVkaW86IHJlY29yZCBVVUlEIGlzIGNhbm9uaWNhbCBoYW5kb2ZmIGlkZW50aXR5LgpwID0gUGF0aCgiZGFzaGJvYXJkLWFkbWluLWZldGNoL3N0dWRpby5qcyIpCnMgPSBwLnJlYWRfdGV4dChlbmNvZGluZz0idXRmLTgiKQpvbGQgPSAiIiIgICAgY29uc3QgdGVtcGxhdGU9cXMuZ2V0KCd0ZW1wbGF0ZScpfHwnJzsKICAgIGNvbnN0IHJlY29yZElkPXFzLmdldCgncmVjb3JkJyl8fCc...TRUNCATED_FOR_BREVITY...')
-          exec(compile(code, '<v2277>', 'exec'))
-          PY
+        run: python3 .github/scripts/v2277.py
       - name: Syntax checks
         run: |
           node --check dashboard-admin-fetch/studio.js
           node --check dashboard-admin-edit/exact-source-preview-v2275.js
           node --check dashboard-admin-edit/editor.js
           git diff --check
-      - name: Commit patch and remove one-shot workflow
+      - name: Commit patch and remove one-shot helpers
         run: |
           git config user.name "danikrakatau1"
           git config user.email "danikrakatau1@gmail.com"
-          git rm .github/workflows/one-shot-template-record-lock-v2277.yml
+          git rm .github/workflows/one-shot-template-record-lock-v2277.yml .github/scripts/v2277.py
           git add dashboard-admin-template/index.html dashboard-admin-template/preview.html dashboard-admin-fetch/studio.js dashboard-admin-edit/editor.js dashboard-admin-edit/exact-source-preview-v2275.js
           git commit -m "fix: lock every template edit to immutable record UUID v2.27.7"
           git push origin main
