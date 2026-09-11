@@ -1,8 +1,11 @@
 (async()=>{
   const frame=document.getElementById('cleanFrame'),empty=document.getElementById('empty');let snap=null;
+  const previewTemplate=String(new URLSearchParams(location.search).get('template')||'standalone').trim()||'standalone';
+  const previewScopedKey=base=>`${base}:${encodeURIComponent(previewTemplate)}`;
+  const appliedKey=`native-applied:${previewTemplate}`;
   const openDB=()=>new Promise((res,rej)=>{const q=indexedDB.open('dini-anif-editor-v150',2);q.onupgradeneeded=()=>{const db=q.result;if(!db.objectStoreNames.contains('assets'))db.createObjectStore('assets');if(!db.objectStoreNames.contains('snapshots'))db.createObjectStore('snapshots')};q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)});
-  try{const db=await openDB();snap=await new Promise((res,rej)=>{const tx=db.transaction('snapshots');const q=tx.objectStore('snapshots').get('native-applied');q.onsuccess=()=>res(q.result||null);q.onerror=()=>rej(q.error)})}catch(e){console.warn('Applied snapshot IndexedDB read:',e)}
-  if(!snap){try{snap=JSON.parse(sessionStorage.getItem('diniAnifCleanPreviewApplied')||localStorage.getItem('diniAnifNativeApplied')||'null')}catch{}}
+  try{const db=await openDB();snap=await new Promise((res,rej)=>{const tx=db.transaction('snapshots');const q=tx.objectStore('snapshots').get(appliedKey);q.onsuccess=()=>res(q.result||null);q.onerror=()=>rej(q.error)})}catch(e){console.warn('Applied snapshot IndexedDB read:',e)}
+  if(!snap){try{snap=JSON.parse(sessionStorage.getItem(previewScopedKey('diniAnifCleanPreviewApplied'))||localStorage.getItem(previewScopedKey('diniAnifNativeApplied'))||'null')}catch{}}
   if(!snap?.html){frame.hidden=true;empty.hidden=false;return}empty.hidden=true;frame.hidden=false;
   const get=(db,key)=>new Promise((res,rej)=>{const tx=db.transaction('assets');const q=tx.objectStore('assets').get(key);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)});
   const blobs=new Map(),blobUrls=new Map(),urls=[];let html=snap.html;
