@@ -1,0 +1,47 @@
+name: Fix editor template context
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-editor-template-context.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Patch template-context loader
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('dashboard-admin-edit/editor.js')
+          s = p.read_text(encoding='utf-8')
+          old = """     let snapUrl=data.manifest_json?.editor_snapshot_url||'';\n     if(!snapUrl&&data.source_path&&data.source_path!=='/')snapUrl=data.source_path.replace(/\\/index\\.html(?:\\?.*)?$/,'/editor-snapshot.json');\n     if(!snapUrl)throw new Error('Template lama belum memiliki editor snapshot V2.14. Buka dari Fetch lalu Simpan Draft sekali.');\n     const r=await fetch(snapUrl,{cache:'no-store'});if(!r.ok)throw new Error(`Snapshot HTTP ${r.status}`);\n     const snap=await r.json();\n     if(!snap?.schema||!Array.isArray(snap.schema.fields)||!(snap.baseHtml||snap.html))throw new Error('Snapshot Draft tidak valid.');\n"""
+          new = """     const sourcePath=String(data.source_path||'').trim();\n     const manifestSnap=String(data.manifest_json?.editor_snapshot_url||'').trim();\n     const snapshotCandidates=[];\n     if(sourcePath&&sourcePath!=='/'){\n       try{\n         const u=new URL(sourcePath,location.href);\n         if(/\\/index\\.html$/i.test(u.pathname)){\n           u.pathname=u.pathname.replace(/\\/index\\.html$/i,'/editor-snapshot.json');\n           u.search='';u.hash='';snapshotCandidates.push(u.href);\n         }\n       }catch{}\n     }\n     if(manifestSnap&&!snapshotCandidates.includes(manifestSnap))snapshotCandidates.push(manifestSnap);\n     if(!snapshotCandidates.length)throw new Error('Template lama belum memiliki editor snapshot V2.14. Buka dari Fetch lalu Simpan Draft sekali.');\n     let snap=null,snapUrl='',lastSnapshotError='';\n     for(const candidate of snapshotCandidates){\n       try{\n         const rr=await fetch(candidate,{cache:'no-store'});\n         if(!rr.ok){lastSnapshotError=`${candidate} -> HTTP ${rr.status}`;continue}\n         const parsed=await rr.json();\n         if(!parsed?.schema||!Array.isArray(parsed.schema.fields)||!(parsed.baseHtml||parsed.html)){lastSnapshotError=`${candidate} -> snapshot tidak valid`;continue}\n         snap=parsed;snapUrl=candidate;break;\n       }catch(err){lastSnapshotError=`${candidate} -> ${err?.message||err}`}\n     }\n     if(!snap)throw new Error('Snapshot Draft tidak dapat dimuat. '+lastSnapshotError);\n"""
+          if old not in s:
+              raise SystemExit('Target loader block not found; aborting patch')
+          s = s.replace(old, new, 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+
+      - name: Syntax check
+        run: node --check dashboard-admin-edit/editor.js
+
+      - name: Commit fix
+        shell: bash
+        run: |
+          git config user.name "danikrakatau1"
+          git config user.email "320639863+danikrakatau1@users.noreply.github.com"
+          git add dashboard-admin-edit/editor.js
+          git commit -m "fix: keep editor bound to selected template revision"
+          git push origin main
