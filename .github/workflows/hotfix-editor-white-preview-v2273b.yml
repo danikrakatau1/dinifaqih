@@ -1,0 +1,54 @@
+name: Hotfix Editor White Preview V2.27.3b
+
+on:
+  push:
+    paths:
+      - '.github/workflows/hotfix-editor-white-preview-v2273b.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Patch exact-template live preview stabilizer
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('dashboard-admin-edit/editor.js')
+          s = p.read_text(encoding='utf-8')
+          old = "frame.onload=()=>{installFrameBridge();setTimeout(()=>{try{const d=liveDoc(),b=d?.body;"
+          if old not in s:
+              raise SystemExit('editor onload anchor missing')
+          stabilize = """frame.onload=()=>{installFrameBridge();setTimeout(()=>{try{const d=liveDoc(),w=d?.defaultView;if(!d?.body||!w)return;d.documentElement.style.setProperty('visibility','visible','important');d.documentElement.style.setProperty('opacity','1','important');d.body.style.setProperty('visibility','visible','important');d.body.style.setProperty('opacity','1','important');d.querySelectorAll('.e-con.e-parent').forEach(el=>el.classList.add('e-lazyloaded'));const cover=d.querySelector('#cover,.cover')||d.querySelector('.elementor-top-section,body>section');if(cover){cover.hidden=false;cover.removeAttribute('aria-hidden');cover.style.setProperty('display','block','important');cover.style.setProperty('visibility','visible','important');cover.style.setProperty('opacity','1','important');cover.querySelectorAll('.elementor-invisible,[data-native-reveal]').forEach(el=>{el.classList.remove('elementor-invisible');el.classList.add('native-visible');el.style.setProperty('visibility','visible','important');el.style.setProperty('opacity','1','important')});cover.querySelectorAll('img').forEach(el=>{el.style.setProperty('visibility','visible','important');el.style.setProperty('opacity','1','important')})}const open=d.querySelector('[data-native-open],#tombolbuka,.tombolbuka');if(open){open.classList.remove('elementor-invisible');open.classList.add('native-visible','btnVisibleAfterLoad');open.style.setProperty('display','block','important');open.style.setProperty('visibility','visible','important');open.style.setProperty('opacity','1','important');open.style.setProperty('transform','none','important');open.style.setProperty('pointer-events','auto','important')}d.documentElement.setAttribute('data-dini-editor-live-stabilized','v2273b');installFrameBridge()}catch(err){console.warn('EDITOR_LIVE_STABILIZER',err)}},60);setTimeout(()=>{try{const d=liveDoc(),b=d?.body;"""
+          s = s.replace(old, stabilize, 1)
+          p.write_text(s, encoding='utf-8')
+          if "data-dini-editor-live-stabilized','v2273b" not in s:
+              raise SystemExit('stabilizer invariant failed')
+          PY
+
+      - name: JavaScript syntax and diff checks
+        run: |
+          node --check dashboard-admin-edit/editor.js
+          git diff --check
+          grep -q "data-dini-editor-live-stabilized','v2273b" dashboard-admin-edit/editor.js
+
+      - name: Commit production fix
+        run: |
+          git config user.name 'danikrakatau1'
+          git config user.email '320639863+danikrakatau1@users.noreply.github.com'
+          git add dashboard-admin-edit/editor.js
+          if git diff --cached --quiet; then
+            echo 'No changes to commit'
+          else
+            git commit -m 'fix: stabilize exact template live preview v2.27.3b'
+            git push origin main
+          fi
