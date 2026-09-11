@@ -1,0 +1,130 @@
+name: Hotfix Editor Force Visible V2.27.4
+
+on:
+  push:
+    paths:
+      - '.github/workflows/hotfix-editor-force-visible-v2274.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Patch editor live preview visibility
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('dashboard-admin-edit/editor.js')
+          s = path.read_text(encoding='utf-8')
+
+          css_anchor = """     #dini-anifActionToast.error{background:rgba(120,28,28,.96)}\n   `;doc.head.appendChild(st);"""
+          css_repl = """     #dini-anifActionToast.error{background:rgba(120,28,28,.96)}\n   `;\n   if(!forExport)st.textContent+=`\n     html,body{visibility:visible!important;opacity:1!important}\n     [data-native-reveal],.elementor-invisible{visibility:visible!important;opacity:1!important}\n     [data-native-reveal]{transform:none!important}\n     #wptime-plugin-preloader,.wptime-plugin-preloader,.preloader,.preloader-plus,.page-loader,.page-loading,.loading-screen,.loader-wrapper,.e-page-transition,.animsition-loading,.pace,.pace-active,[id*=\\"preloader\\" i],[class*=\\"preloader\\" i]{display:none!important;visibility:hidden!important;opacity:0!important;pointer-events:none!important}\n   `;\n   doc.head.appendChild(st);"""
+          if css_anchor not in s:
+              raise SystemExit('editor parity CSS anchor missing')
+          s = s.replace(css_anchor, css_repl, 1)
+
+          render_anchor = " function renderPreview(force=false){"
+          if render_anchor not in s:
+              raise SystemExit('renderPreview anchor missing')
+
+          helper = r''' function stabilizeEditorPreview(){
+   const d=liveDoc(),w=d?.defaultView;if(!d?.body||!w)return null;
+   const root=d.documentElement,body=d.body;
+   for(const el of [root,body]){
+     el.style.setProperty('visibility','visible','important');
+     el.style.setProperty('opacity','1','important');
+     [...el.classList].filter(c=>/(^|[-_])(loading|preload|preloader)([-_]|$)/i.test(c)).forEach(c=>el.classList.remove(c));
+   }
+   d.querySelectorAll('.e-con.e-parent').forEach(el=>el.classList.add('e-lazyloaded'));
+   const known='#wptime-plugin-preloader,.wptime-plugin-preloader,.preloader,.preloader-plus,.page-loader,.page-loading,.loading-screen,.loader-wrapper,.e-page-transition,.animsition-loading,.pace,.pace-active,[id*="preloader" i],[class*="preloader" i]';
+   const removed=new Set();
+   d.querySelectorAll(known).forEach(el=>{el.style.setProperty('display','none','important');el.style.setProperty('visibility','hidden','important');el.style.setProperty('opacity','0','important');el.style.setProperty('pointer-events','none','important');removed.add(el)});
+   const opener=[...d.querySelectorAll('[data-native-open],#tombolbuka,.tombolbuka,#openInvitation,[data-open-invitation],[data-action="open-invitation"],a,button,[role="button"]')].find(el=>el.matches('[data-native-open],#tombolbuka,.tombolbuka,#openInvitation,[data-open-invitation],[data-action="open-invitation"]')||/\b(buka\s+undangan|open\s+invitation)\b/i.test((el.textContent||'').replace(/\s+/g,' ').trim()));
+   const cover=d.querySelector('#cover')||opener?.closest?.('.elementor-top-section,section,[data-element_type="section"]')||d.querySelector('.elementor-top-section,body>section');
+   d.querySelectorAll('.elementor-invisible,[data-native-reveal]').forEach(el=>{
+     el.classList.remove('elementor-invisible');el.classList.add('native-visible');
+     el.style.setProperty('visibility','visible','important');el.style.setProperty('opacity','1','important');
+     if(el.hasAttribute('data-native-reveal'))el.style.setProperty('transform','none','important');
+   });
+   if(cover){
+     cover.hidden=false;cover.removeAttribute('aria-hidden');
+     cover.style.setProperty('display','block','important');cover.style.setProperty('visibility','visible','important');cover.style.setProperty('opacity','1','important');
+     cover.querySelectorAll('.elementor-widget,.elementor-widget-container,h1,h2,h3,h4,h5,h6,p,span,a,button,img,picture,svg,video').forEach(el=>{
+       const cs=w.getComputedStyle(el);
+       if(cs.visibility==='hidden')el.style.setProperty('visibility','visible','important');
+       if(Number(cs.opacity||1)===0)el.style.setProperty('opacity','1','important');
+     });
+   }
+   if(opener){
+     opener.classList.remove('elementor-invisible');opener.classList.add('native-visible','btnVisibleAfterLoad');
+     opener.style.setProperty('visibility','visible','important');opener.style.setProperty('opacity','1','important');opener.style.setProperty('transform','none','important');opener.style.setProperty('pointer-events','auto','important');
+   }
+   const vw=Math.max(1,w.innerWidth||body.clientWidth||1),vh=Math.max(1,w.innerHeight||body.clientHeight||1);
+   d.querySelectorAll('body *').forEach(el=>{
+     if(removed.has(el)||el===cover||cover?.contains?.(el))return;
+     let cs,r;try{cs=w.getComputedStyle(el);r=el.getBoundingClientRect()}catch{return}
+     const z=parseInt(cs.zIndex||'0',10)||0,area=(r.width*r.height)/(vw*vh);
+     const sig=((el.id||'')+' '+(typeof el.className==='string'?el.className:'')).toLowerCase();
+     const loaderHint=/(preload|loader|loading|page-transition|splash|pace)/.test(sig);
+     if(loaderHint&&area>.45&&(cs.position==='fixed'||cs.position==='absolute'||z>100)){
+       el.style.setProperty('display','none','important');removed.add(el);return;
+     }
+     const m=String(cs.backgroundColor||'').match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?/i);
+     const white=m&&Number(m[1])>244&&Number(m[2])>244&&Number(m[3])>244&&Number(m[4]??1)>.92;
+     const empty=(el.textContent||'').trim().length<2&&!el.querySelector('img,video,canvas');
+     if(white&&empty&&area>.82&&z>500&&(cs.position==='fixed'||cs.position==='absolute')){
+       el.style.setProperty('display','none','important');removed.add(el);
+     }
+   });
+   const meaningful=[...d.querySelectorAll('h1,h2,h3,h4,p,a,button,img,video,[data-native-edit-id],[data-native-edit-ids]')];
+   const visible=meaningful.filter(el=>{try{const cs=w.getComputedStyle(el),r=el.getBoundingClientRect();return cs.display!=='none'&&cs.visibility!=='hidden'&&Number(cs.opacity||1)>.01&&r.width>2&&r.height>2}catch{return false}});
+   root.setAttribute('data-dini-editor-force-visible','v2274');
+   root.setAttribute('data-dini-editor-visible-count',String(visible.length));
+   root.setAttribute('data-dini-editor-blockers-removed',String(removed.size));
+   if(!isDirty)dirty.textContent=`SOURCE GRAPH LOADED ✓ · ${native?.schema?.fields?.length||0} field · DOM ${meaningful.length} · VIS ${visible.length} · BLOCK ${removed.size}`;
+   return {meaningful:meaningful.length,visible:visible.length,removed:removed.size};
+ }
+'''
+          if 'function stabilizeEditorPreview()' not in s:
+              s = s.replace(render_anchor, helper + render_anchor, 1)
+
+          load_anchor = "frame.onload=()=>{installFrameBridge();"
+          load_repl = "frame.onload=()=>{installFrameBridge();[20,120,420,1200].forEach(ms=>setTimeout(()=>{try{stabilizeEditorPreview()}catch(e){console.warn('EDITOR_FORCE_VISIBLE',e)}},ms));"
+          if load_anchor not in s:
+              raise SystemExit('frame onload anchor missing')
+          s = s.replace(load_anchor, load_repl, 1)
+
+          path.write_text(s, encoding='utf-8')
+          print('patched editor.js v2.27.4')
+          PY
+
+      - name: Verify syntax and invariants
+        shell: bash
+        run: |
+          node --check dashboard-admin-edit/editor.js
+          git diff --check
+          grep -q "data-dini-editor-force-visible','v2274'" dashboard-admin-edit/editor.js
+          grep -q "SOURCE GRAPH LOADED" dashboard-admin-edit/editor.js
+          grep -q "preloader-plus" dashboard-admin-edit/editor.js
+
+      - name: Commit production fix
+        shell: bash
+        run: |
+          if ! git diff --quiet; then
+            git config user.name 'danikrakatau1'
+            git config user.email '320639863+danikrakatau1@users.noreply.github.com'
+            git add dashboard-admin-edit/editor.js
+            git commit -m 'fix: force editor source graph visible v2.27.4'
+            git push origin main
+          fi
