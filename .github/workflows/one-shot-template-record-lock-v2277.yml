@@ -14,7 +14,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Apply UUID record-lock patch
-        run: python3 .github/scripts/v2277.py
+        run: |
+          sed -i "s/EXACT_TEMPLATE_PREVIEW_V2275/EXACT_TEMPLATE_PREVIEW_V2276/g" .github/scripts/v2277.py
+          python3 .github/scripts/v2277.py
       - name: Syntax checks
         run: |
           node --check dashboard-admin-fetch/studio.js
