@@ -6,7 +6,6 @@ permissions:
   contents: write
 jobs:
   patch:
-    if: github.event.head_commit.message == 'ci: run exact parity and delete repair v2.28.1'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
