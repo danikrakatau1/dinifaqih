@@ -63,7 +63,7 @@ function render(){
         <div class="template-meta">${t.slug==='template-1'?'Template bawaan dari halaman utama Dini Anif':'Template tersimpan di library'}${t.storage_provider==='backblaze-b2'&&t.b2_object_key?`<br>☁ B2 · ${esc(t.original_filename||'package.zip')}${t.file_size?` · ${fmtBytes(t.file_size)}`:''}`:''}</div>
         <div class="actions">
           <a class="btn" href="/dashboard-admin-template/preview.html?template=${encodeURIComponent(t.slug||t.id)}" target="_blank" rel="noopener">👁 Preview</a>
-          <a class="btn" href="/dashboard-admin-edit?template=${encodeURIComponent(t.slug||t.id)}">✏️ Edit</a>
+          <a class="btn" href="/dashboard-admin-fetch?autoEdit=1&template=${encodeURIComponent(t.slug||t.id)}&source=${encodeURIComponent(source)}">✏️ Edit</a>
           <button class="btn primary" data-activate="${esc(t.id)}" ${active?'disabled':''}>${active?'✓ Sedang Tampil':'Tampilkan'}</button>
           ${Array.isArray(t.manifest_json?.revision_history)&&t.manifest_json.revision_history.length?`<button class="btn" data-rollback="${esc(t.id)}">↶ Rollback</button>`:''}
           <button class="btn danger" data-delete="${esc(t.id)}" ${(active||t.slug==='template-1')?'disabled title="Template aktif/original tidak dapat dihapus"':''}>🗑 Hapus</button>

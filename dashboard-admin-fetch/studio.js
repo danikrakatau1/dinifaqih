@@ -907,7 +907,36 @@ document.querySelectorAll('[data-native-reveal]').forEach(el=>io.observe(el));
   fetchBtn.onclick=fetchSource;
   sourceUrl.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();fetchSource()}});
 
+  async function autoEditFromTemplate(){
+    const qs=new URLSearchParams(location.search);
+    if(qs.get('autoEdit')!=='1')return;
+    const template=qs.get('template')||'';
+    const target=qs.get('source')||'';
+    if(!template||!target){toast('Template/source tidak lengkap.','error','Auto Edit gagal');return}
+    const t=toast('Membangun editor dari source yang sama dengan Preview…','loading','Exact Template Edit');
+    try{
+      analysis=null;rebuild=null;source.value='';sourceBaseUrl='';
+      try{localStorage.removeItem('diniAnifRebuildSnapshot');sessionStorage.removeItem('diniAnifRebuildSnapshot');window.name=''}catch{}
+      sourceUrl.value=target;
+      await fetchSource();
+      if(!analysis||!source.value.trim())throw new Error('Source template gagal dianalisis.');
+      setProgress(true,'Exact Template Edit','Membangun Source Graph + native schema…');
+      await build();
+      const raw=currentSnapshotRaw();
+      if(!raw)throw new Error('Source Graph handoff tidak terbentuk.');
+      persistPreviewHandoff(raw);
+      finishToast(t,'Source template cocok dengan Preview. Membuka Editor…','success','Exact Template siap');
+      setProgress(false);
+      setTimeout(()=>{location.href='/dashboard-admin-edit?template='+encodeURIComponent(template)+'&handoff=1'},120);
+    }catch(err){
+      console.error('AUTO_EXACT_EDIT_FAILED',err);
+      finishToast(t,err?.message||String(err),'error','Auto Edit gagal');
+      setProgress(false);
+    }
+  }
+
   const existing=localStorage.getItem('diniAnifRebuildSnapshot');
   if(existing){try{rebuild=JSON.parse(existing);localStorage.setItem('artSundaMerahPreview',JSON.stringify(rebuild.data));previewBtn.classList.remove('disabled');downloadBtn.disabled=false;$('#mappingBadge').textContent='Snapshot tersedia';$('#mappingBadge').className='badge ok';$('#studioMessage').textContent='Ada rebuild snapshot sebelumnya. Preview/Download siap digunakan.'}catch{}}
+  if(new URLSearchParams(location.search).get('autoEdit')==='1')setTimeout(()=>autoEditFromTemplate(),80);
   window.DINI_ANIF_STUDIO={packageBlob};
 })();

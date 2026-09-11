@@ -666,7 +666,7 @@ function finishEditorToast(el,message,type='success',title=''){if(!el)return edi
      setTimeout(()=>location.href='/dashboard-admin-template',options.autoFromB2?1300:900);
    }catch(e){finishEditorToast(t,e.message||String(e),'error','Simpan Draft gagal');saveDraftBtn.disabled=false}
  }
- async function loadTemplateFromLibrary(){
+ async function loadTemplateFromLibrary(recordOnly=false){
    if(!adminSb)return false;
    const q=new URLSearchParams(location.search).get('template');if(!q)return false;
    const t=editorToast('Memuat snapshot Draft dari Template Library…','loading','Buka Draft');
@@ -678,7 +678,8 @@ function finishEditorToast(el,message,type='success',title=''){if(!el)return edi
      currentTemplateRecord=data;
      pendingB2Upload=data.manifest_json?.package_storage||((data.storage_provider==='backblaze-b2'&&data.b2_object_key)?{provider:'backblaze-b2',bucket:data.b2_bucket,object_key:data.b2_object_key,original_filename:data.original_filename,file_size:data.file_size,mime_type:data.mime_type,etag:data.b2_etag,uploaded_at:data.storage_uploaded_at}:null);
      if(pendingB2Upload)setB2State('success',`✓ ${pendingB2Upload.original_filename||'Paket B2'} · ${fmtBytes(pendingB2Upload.file_size)} · ${pendingB2Upload.bucket}/${pendingB2Upload.object_key}`,100);
-     const sourcePath=String(data.source_path||'').trim();
+     if(recordOnly)return true;
+    const sourcePath=String(data.source_path||'').trim();
      const manifestSnap=String(data.manifest_json?.editor_snapshot_url||'').trim();
      const snapshotCandidates=[];
      if(sourcePath&&sourcePath!=='/'){
@@ -833,7 +834,15 @@ function finishEditorToast(el,message,type='success',title=''){if(!el)return edi
    if(localStorage.getItem(LEGACY_DRAFT_KEY)) localStorage.removeItem(LEGACY_DRAFT_KEY);
  }catch{}
  async function bootEditor(){
-   const fromLibrary=await loadTemplateFromLibrary();
+   const handoffMode=new URLSearchParams(location.search).get('handoff')==='1';
+   if(handoffMode){
+     const bound=await loadTemplateFromLibrary(true);
+     if(bound&&loadSnapshotHandoff()){
+       dirty.textContent=`SOURCE GRAPH LOADED ✓ · ${native?.schema?.fields?.length||0} field`;
+       return;
+     }
+   }
+   const fromLibrary=await loadTemplateFromLibrary(false);
    if(!fromLibrary&&!loadSnapshotHandoff()){
      try{
        const scoped=JSON.parse(localStorage.getItem(templateRecoveryKey())||'null');
