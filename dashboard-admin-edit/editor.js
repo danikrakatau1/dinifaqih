@@ -835,15 +835,17 @@ function finishEditorToast(el,message,type='success',title=''){if(!el)return edi
    try{
      const pack=JSON.parse(raw),schema=pack?.native?.schema||pack?.schema?.native,html=pack?.native?.html||'';
      const handoffTemplate=String(pack?.manifest?.editor_context_template||'').trim();
+     const handoffRecordId=String(pack?.manifest?.editor_context_record_id||'').trim();
      const handoffSource=String(pack?.manifest?.editor_context_source||pack?.manifest?.source_url||pack?.native?.source_url||'').trim();
      if(requestedTemplate&&handoffTemplate!==requestedTemplate){console.warn('HANDOFF_TEMPLATE_MISMATCH',{expected:requestedTemplate,received:handoffTemplate});return false}
+     if(currentTemplateRecord?.id&&handoffRecordId&&String(currentTemplateRecord.id)!==handoffRecordId){console.warn('HANDOFF_RECORD_MISMATCH',{expected:currentTemplateRecord.id,received:handoffRecordId});return false}
      if(currentTemplateRecord?.source_path&&handoffSource&&!sameSource(currentTemplateRecord.source_path,handoffSource)){console.warn('HANDOFF_SOURCE_MISMATCH',{expected:currentTemplateRecord.source_path,received:handoffSource});return false}
      if(!schema||!Array.isArray(schema.fields)||!html)return false;
      native={schema:deep(schema),baseHtml:html,manifest:{...deep(pack.manifest||{}),source_url:deep(pack.manifest||{}).source_url||pack?.native?.source_url||''},values:Object.fromEntries(schema.fields.map(f=>[f.id,f.value??'']))};
      dirty.textContent=`FETCH SNAPSHOT LOADED ✓ · ${schema.field_count||schema.fields.length} field`;saveDraftBtn.disabled=false;
      renderNativeEditor();renderPreview(true);renderInspector();
      try{localStorage.setItem(draftKey(),JSON.stringify({schema:native.schema,baseHtml:native.baseHtml,manifest:native.manifest,values:native.values}))}catch{}
-     try{sessionStorage.removeItem(handoffKey());localStorage.removeItem(handoffKey());if(typeof window.name==='string'&&window.name.startsWith(handoffWindowPrefix()))window.name=''}catch{}
+     try{if(typeof window.name==='string'&&window.name.startsWith(handoffWindowPrefix()))window.name=''}catch{}
      editorToast(`Snapshot khusus ${templateContextId()} dari Fetch dimuat otomatis.`, 'success','Editor terhubung');
      return true
    }catch(e){console.warn('snapshot handoff',e);return false}

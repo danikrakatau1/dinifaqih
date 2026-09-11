@@ -915,8 +915,9 @@ document.querySelectorAll('[data-native-reveal]').forEach(el=>io.observe(el));
     const qs=new URLSearchParams(location.search);
     if(qs.get('autoEdit')!=='1')return;
     const template=qs.get('template')||'';
+    const recordId=qs.get('record')||'';
     const target=qs.get('source')||'';
-    if(!template||!target){toast('Template/source tidak lengkap.','error','Auto Edit gagal');return}
+    if(!template||!recordId||!target){toast('Template/record/source tidak lengkap.','error','Auto Edit gagal');return}
     const t=toast('Membangun editor dari source yang sama dengan Preview…','loading','Exact Template Edit');
     try{
       analysis=null;rebuild=null;source.value='';sourceBaseUrl='';
@@ -927,6 +928,7 @@ document.querySelectorAll('[data-native-reveal]').forEach(el=>io.observe(el));
       setProgress(true,'Exact Template Edit','Membangun Source Graph + native schema…');
       await build();
       rebuild.manifest.editor_context_template=template;
+      rebuild.manifest.editor_context_record_id=recordId;
       rebuild.manifest.editor_context_source=target;
       const raw=JSON.stringify(rebuild);
       if(!raw)throw new Error('Source Graph handoff tidak terbentuk.');
