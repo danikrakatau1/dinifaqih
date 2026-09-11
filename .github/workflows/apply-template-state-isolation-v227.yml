@@ -1,0 +1,55 @@
+name: Apply template state isolation V2.27
+
+on:
+  push:
+    paths:
+      - '.github/scripts/fix-template-state-isolation-v227.py'
+      - '.github/workflows/apply-template-state-isolation-v227.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Apply V2.27 template isolation patch
+        run: python .github/scripts/fix-template-state-isolation-v227.py
+
+      - name: JavaScript syntax checks
+        run: |
+          node --check dashboard-admin-edit/editor.js
+          node --check dashboard-admin-fetch/studio.js
+          node --check dashboard-admin-edit/clean-preview.js
+
+      - name: Isolation invariant checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq "diniAnifNativeDraft-v170" dashboard-admin-edit/editor.js
+          grep -Fq "HANDOFF_TEMPLATE_MISMATCH" dashboard-admin-edit/editor.js
+          grep -Fq "HANDOFF_SOURCE_MISMATCH" dashboard-admin-edit/editor.js
+          grep -Fq "appliedSnapshotIdbKey()" dashboard-admin-edit/editor.js
+          grep -Fq "editor_context_template:studioTemplate" dashboard-admin-fetch/studio.js
+          grep -Fq "rebuild.manifest.editor_context_template=template" dashboard-admin-fetch/studio.js
+          grep -Fq 'native-applied:${previewTemplate}' dashboard-admin-edit/clean-preview.js
+          git diff --check
+
+      - name: Commit production fix
+        shell: bash
+        run: |
+          git config user.name 'danikrakatau1'
+          git config user.email '320639863+danikrakatau1@users.noreply.github.com'
+          git add dashboard-admin-edit/editor.js dashboard-admin-fetch/studio.js dashboard-admin-edit/clean-preview.js
+          if git diff --cached --quiet; then
+            echo 'No engine changes to commit.'
+            exit 0
+          fi
+          git commit -m 'fix: isolate editor state per template v2.27'
+          git push origin main
