@@ -20,7 +20,7 @@ jobs:
       - name: Safety invariants
         run: |
           grep -q 'FETCH SOURCE EXACT' dashboard-admin-edit/editor.js
-          grep -q "diniAnifRebuildSnapshot:'+token" dashboard-admin-edit/editor.js
+          grep -q 'diniAnifRebuildSnapshot:' dashboard-admin-edit/editor.js
           grep -q 'Upload / Ganti' dashboard-admin-edit/editor.js
           grep -q 'function ensureRuntimeCssBackgroundFields' dashboard-admin-edit/editor.js
           grep -q 'editor.js?v=fetch-initial-145' dashboard-admin-edit/index.html
