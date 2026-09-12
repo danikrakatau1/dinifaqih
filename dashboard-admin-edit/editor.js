@@ -425,7 +425,36 @@ function finishEditorToast(el,message,type='success',title=''){if(!el)return edi
      if(!fs.length)return;e.preventDefault();e.stopPropagation();e.stopImmediatePropagation?.();selectField(fs[0].id,true)
    },true);
    if(selectedFieldId)highlightSelection()}
- function renderPreview(force=false){if(!native){frame.removeAttribute('srcdoc');frame.src='./invitation.html?editor=1';return}if(!force&&frame.srcdoc&&liveDoc())return;const html=rebuildHtml();frame.onload=()=>{installFrameBridge();setTimeout(()=>{try{const d=liveDoc(),b=d?.body;if(!b)return;const els=[...b.querySelectorAll('*')].filter(el=>{const cs=d.defaultView.getComputedStyle(el),r=el.getBoundingClientRect();return cs.display!=='none'&&cs.visibility!=='hidden'&&Number(cs.opacity||1)>0&&r.width>2&&r.height>2});if(!els.length){console.warn('Editor preview blank guard triggered');frame.removeAttribute('srcdoc');frame.src='./invitation.html?editor=1&blankguard=1';editorToast('Draft preview lama tidak kompatibel. Import ulang Rebuild ZIP terbaru.','info','Preview dipulihkan')}}catch(e){console.warn('blank guard',e)}},700)};frame.removeAttribute('src');frame.srcdoc='';requestAnimationFrame(()=>{frame.srcdoc=html})}
+ function renderPreview(force=false){
+   if(!native){
+     frame.removeAttribute('src');
+     if(new URLSearchParams(location.search).get('mode')==='fetch'){
+       frame.srcdoc='<!doctype html><html><body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#fff;color:#555;font:14px system-ui;text-align:center;padding:30px;box-sizing:border-box"><div><b>Belum ada snapshot Fetch yang cocok.</b><br><small>Kembali ke Source-Native Preview lalu klik Buka Editor.</small></div></body></html>';
+     }else{
+       frame.removeAttribute('srcdoc');frame.src='./invitation.html?editor=1';
+     }
+     return
+   }
+   if(!force&&frame.srcdoc&&liveDoc())return;
+   const html=rebuildHtml();
+   frame.onload=()=>{
+     installFrameBridge();
+     // A source can legitimately begin hidden while its own animation/runtime initializes.
+     // Never replace it with invitation.html: doing so loads an unrelated template.
+     setTimeout(()=>{
+       try{
+         const d=liveDoc(),b=d?.body;if(!b)return;
+         const els=[...b.querySelectorAll('*')].filter(el=>{const cs=d.defaultView.getComputedStyle(el),r=el.getBoundingClientRect();return cs.display!=='none'&&cs.visibility!=='hidden'&&Number(cs.opacity||1)>0&&r.width>2&&r.height>2});
+         if(!els.length){
+           console.warn('Editor source is still initializing; preserving exact Fetch snapshot');
+           editorToast('Source masih melakukan inisialisasi/animasi. Snapshot Fetch dipertahankan dan tidak diganti template lain.','info','Preview masih memuat');
+           setTimeout(()=>{try{installFrameBridge()}catch{}},1200);
+         }
+       }catch(e){console.warn('source readiness guard',e)}
+     },700)
+   };
+   frame.removeAttribute('src');frame.srcdoc='';requestAnimationFrame(()=>{frame.srcdoc=html})
+ }
  function highlightSelection(){const doc=liveDoc();if(!doc)return;doc.querySelectorAll('.native-selected-outline').forEach(n=>n.classList.remove('native-selected-outline'));const f=fieldById(selectedFieldId),el=f&&nodeFor(doc,f);if(el){el.classList.add('native-selected-outline');try{el.scrollIntoView({block:'center',behavior:'smooth'})}catch{}}}
  function mediaAcceptFor(f,v){const x=String(v||'').toLowerCase().split('#')[0].split('?')[0];if(f.kind==='image'||f.kind==='background'||/\.(png|jpe?g|webp|gif|svg|avif)$/.test(x))return 'image/*';if(f.kind==='video'||/\.(mp4|webm|mov|m4v|ogv)$/.test(x))return 'video/*';if(f.kind==='audio'||/\.(mp3|wav|ogg|m4a|aac|flac)$/.test(x))return 'audio/*';if(f.kind==='url'&&(/\/wp-content\/uploads\//.test(x)||/\/uploads\//.test(x)))return '*/*';return ''}
  function assetLike(f,v){return !!mediaAcceptFor(f,v)}
@@ -780,6 +809,18 @@ function finishEditorToast(el,message,type='success',title=''){if(!el)return edi
  backupBtn.onclick=()=>{if(!native)return;const blob=new Blob([JSON.stringify({schema:native.schema,manifest:native.manifest,values:native.values,transforms},null,2)],{type:'application/json'}),u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download='dini-anif-native-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)};
  resetBtn.onclick=async()=>{if(!confirm('Reset editor dan hapus draft lokal?'))return;localStorage.removeItem(DRAFT_KEY);localStorage.removeItem(LEGACY_DRAFT_KEY);await deleteAppliedSnapshot();location.reload()};
  function snapshotHandoffRaw(){
+   const params=new URLSearchParams(location.search),mode=params.get('mode')||'',token=params.get('handoff')||'';
+   // Fetch flow MUST use the exact scoped snapshot selected by Source-Native Preview.
+   // Never fall back to a generic "last snapshot" key because that can cross-load another template.
+   if(mode==='fetch'){
+     if(!token)return '';
+     const key='diniAnifRebuildSnapshot:'+token;
+     try{const v=sessionStorage.getItem(key);if(v)return v}catch{}
+     try{const v=localStorage.getItem(key);if(v)return v}catch{}
+     try{const prefix='__DINI_ANIF_REBUILD_SCOPED__'+token+'__';if(typeof window.name==='string'&&window.name.startsWith(prefix))return window.name.slice(prefix.length)}catch{}
+     return ''
+   }
+   // Legacy non-Fetch flows keep their previous compatibility fallback.
    try{const v=sessionStorage.getItem('diniAnifRebuildSnapshot');if(v)return v}catch{}
    try{const v=localStorage.getItem('diniAnifRebuildSnapshot');if(v)return v}catch{}
    try{if(typeof window.name==='string'&&window.name.startsWith('__DINI_ANIF_REBUILD__'))return window.name.slice('__DINI_ANIF_REBUILD__'.length)}catch{}

@@ -29,13 +29,32 @@
     return getLocalRaw();
   }
   function showEmpty(message){frame.hidden=true;empty.hidden=false;if(diag)diag.textContent=message||'Snapshot handoff tidak ditemukan.'}
+  function newEditorHandoffToken(){
+    try{return crypto.randomUUID()}catch{return 'h-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2)}
+  }
+  function persistEditorHandoff(raw,token){
+    const key='diniAnifRebuildSnapshot:'+token;let saved=0;
+    try{sessionStorage.setItem(key,raw);saved++}catch(err){console.warn('scoped session handoff failed',err)}
+    try{localStorage.setItem(key,raw);saved++}catch(err){console.warn('scoped local handoff failed',err)}
+    try{window.name='__DINI_ANIF_REBUILD_SCOPED__'+token+'__'+raw;saved++}catch(err){console.warn('scoped window.name handoff failed',err)}
+    return saved
+  }
   async function main(){
     const handoff=await getHandoff(),raw=handoff.raw;
     if(!raw){showEmpty(handoff.warning?('Preview server gagal: '+handoff.warning):'Snapshot handoff tidak ditemukan.');return}
     let pack;try{pack=JSON.parse(raw)}catch(err){showEmpty('Snapshot JSON gagal dibaca: '+err.message);return}
+    const editorHandoffToken=newEditorHandoffToken();
+    const editorHandoffSaved=persistEditorHandoff(raw,editorHandoffToken);
+    const openEditorBtn=document.getElementById('openEditorBtn');
+    if(openEditorBtn)openEditorBtn.onclick=e=>{
+      e.preventDefault();
+      const saved=persistEditorHandoff(raw,editorHandoffToken);
+      if(!saved){alert('Snapshot Editor terlalu besar dan tidak dapat disimpan untuk handoff. Kembali ke Fetch lalu Generate ulang.');return}
+      location.href='/dashboard-admin-edit/?mode=fetch&handoff='+encodeURIComponent(editorHandoffToken);
+    };
     empty.hidden=true;frame.hidden=false;
     const nativeHtml=pack.native?.html || (()=>{try{return sessionStorage.getItem('diniAnifNativeHtml')||localStorage.getItem('diniAnifNativeHtml')||''}catch{return ''}})();
-    meta.textContent=`Parity ${pack.report?.parity_score??'—'}% · Editable ${pack.report?.editable_coverage??100}% · Unsupported ${pack.report?.unsupported_items??0} · ${nativeHtml?'SOURCE NATIVE':'Legacy'} · ${handoff.source}${handoff.warning?' · fallback':''}`;
+    meta.textContent=`Parity ${pack.report?.parity_score??'—'}% · Editable ${pack.report?.editable_coverage??100}% · Unsupported ${pack.report?.unsupported_items??0} · ${nativeHtml?'SOURCE NATIVE':'Legacy'} · ${handoff.source}${handoff.warning?' · fallback':''} · Editor handoff ${editorHandoffToken.slice(0,8)} ${editorHandoffSaved}/3`;
     if(nativeHtml){
       frame.removeAttribute('src');
       frame.setAttribute('sandbox','allow-scripts allow-forms allow-popups allow-modals allow-downloads');
