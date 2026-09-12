@@ -1,0 +1,49 @@
+name: Fix Fetch Preview Editor Identity
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/fix-fetch-preview-editor-identity.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply narrow handoff fix
+        run: python3 scripts/fix-fetch-preview-editor-identity.py
+
+      - name: Syntax checks
+        run: |
+          node --check dashboard-admin-fetch/preview-studio.js
+          node --check dashboard-admin-edit/editor.js
+
+      - name: Safety invariants
+        run: |
+          grep -q 'diniAnifRebuildSnapshot:' dashboard-admin-fetch/preview-studio.js
+          grep -q 'diniAnifRebuildSnapshot:' dashboard-admin-edit/editor.js
+          grep -q 'mode=fetch&handoff' dashboard-admin-fetch/preview-studio.js
+          ! grep -q 'blankguard=1' dashboard-admin-edit/editor.js
+          grep -q 'generateAsset(fieldId' dashboard-admin-edit/editor.js
+          grep -q 'Upload / Ganti' dashboard-admin-edit/editor.js
+          grep -q 'ensureRuntimeCssBackgroundFields' dashboard-admin-edit/editor.js
+          grep -q 'rebuildHtml()' dashboard-admin-edit/editor.js
+          ! grep -q 'exact-source-preview' dashboard-admin-edit/index.html
+          ! grep -q 'force-visible-v2274' dashboard-admin-edit/index.html
+          ! grep -q 'preview-rescue' dashboard-admin-edit/index.html
+          ! grep -q 'fetch-handoff-frame' dashboard-admin-edit/index.html
+
+      - name: Commit fix
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'fix: lock Fetch Preview to exact Editor snapshot without fallback'
+          git push origin HEAD:main
