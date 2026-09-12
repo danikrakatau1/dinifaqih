@@ -12,7 +12,7 @@
 <script>
 (async()=>{
   const SUPABASE_URL='https://jfvmcerrsxjvbiogfqes.supabase.co';
-  const SUPABASE_ANON_KEY='sb_publishable_3IqSDxkpxCGiDpxXQ_AsJpsC4W';
+  const SUPABASE_ANON_KEY='sb_publishable_3IqSDxkpxCGiDpxAEwdsXQ_AsJpsC4W';
   const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
   const q=new URLSearchParams(location.search).get('template')||'';
   const fail=(msg)=>{document.getElementById('state').innerHTML='<div><b>Preview gagal</b><small>'+String(msg).replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]))+'</small></div>'};
