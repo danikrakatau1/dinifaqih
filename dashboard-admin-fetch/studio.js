@@ -3,17 +3,6 @@
   const source=$('#sourceInput'), analyzeBtn=$('#analyzeBtn'), buildBtn=$('#buildBtn'), previewBtn=$('#previewBtn'), downloadBtn=$('#downloadBtn');
   const clone=v=>structuredClone(v);
   let analysis=null, rebuild=null, sourceBaseUrl='';
-  const studioParams=new URLSearchParams(location.search);
-  const studioTemplate=String(studioParams.get('template')||'').trim();
-  const studioStorageKey=base=>studioTemplate?`${base}:${encodeURIComponent(studioTemplate)}`:base;
-  const studioWindowPrefix=()=>studioTemplate?`__DINI_ANIF_REBUILD__${encodeURIComponent(studioTemplate)}__`:'__DINI_ANIF_REBUILD__';
-  // V2.27.2 — legacy preview/native HTML caches are disposable. Never let them exhaust Web Storage and block Exact Template Edit.
-  function releaseLegacyPreviewStorage(){
-    const disposable=k=>k==='artSundaMerahPreview'||k?.startsWith?.('artSundaMerahPreview:')||k==='diniAnifNativeHtml'||k?.startsWith?.('diniAnifNativeHtml:');
-    for(const storage of [localStorage,sessionStorage]){
-      try{for(let i=storage.length-1;i>=0;i--){const k=storage.key(i);if(k&&disposable(k))storage.removeItem(k)}}catch(err){console.warn('legacy preview cache cleanup skipped',err)}
-    }
-  }
 
 
   // V1.1.3 — premium action feedback / toast system
@@ -745,7 +734,7 @@ document.querySelectorAll('[data-native-reveal]').forEach(el=>io.observe(el));
     lastCoverDecorAudit={version:'2.26',embedded:false,preserved:!!lastCriticalCssAudit?.preserved,bytes:lastCriticalCssAudit?.bytes||0,stylesheets:lastCriticalCssAudit?.stylesheets||0,rules:lastCriticalCssAudit?.rules||0,reason:lastCriticalCssAudit?.preserved?'source-graph-v3-css-cascade-preserved':'source-graph-no-flatten'};
     const nativeSchema=sourceNativeSchema(analysis);
     rebuild={
-      manifest:{format:'dini-anif-rebuild-package',version:3,engine:'source-native-rebuild-v2.27-template-isolation',created_at:new Date().toISOString(),invitation_id:(globalThis.crypto?.randomUUID?.()||('inv-'+Date.now()+'-'+Math.random().toString(36).slice(2))),template:'source-native',source_url:sourceBaseUrl||'',editor_context_template:studioTemplate||'',editor_context_source:studioTemplate?(sourceBaseUrl||''):'',visual_manifest:lastVisualManifest,source_graph:lastSourceGraph,identity_sanitized:true},
+      manifest:{format:'dini-anif-rebuild-package',version:3,engine:'source-native-rebuild-v2.26-smart-source-ownership',created_at:new Date().toISOString(),invitation_id:(globalThis.crypto?.randomUUID?.()||('inv-'+Date.now()+'-'+Math.random().toString(36).slice(2))),template:'source-native',source_url:sourceBaseUrl||'',visual_manifest:lastVisualManifest,source_graph:lastSourceGraph,identity_sanitized:true},
       schema:{editable_coverage:100,mode:'source-native',native:nativeSchema,legacy_groups:['cover','motionHero','couple','saveDate','event','live','gallery','story','gift','rsvp','wishes','closing','brand','media','backgrounds']},
       data,
       native:{html:nativeHtml,schema:nativeSchema,source_url:sourceBaseUrl||''},
@@ -753,18 +742,12 @@ document.querySelectorAll('[data-native-reveal]').forEach(el=>io.observe(el));
       report:{parity_score:analysis.parity,editable_coverage:100,unsupported_items:analysis.unsupported,detected:D,renderer:'source-native',cover_decor:lastCoverDecorAudit||null,source_graph_version:3,source_graph_audit:sourceGraphAudit(lastSourceGraph),critical_css:lastCriticalCssAudit,flatten_visuals:false}
     };
     const snapshotRaw=JSON.stringify(rebuild);
-    // Exact Template Edit is an immediate same-tab handoff. Do not duplicate its multi-MB payload into persistent localStorage.
-    if(studioTemplate)releaseLegacyPreviewStorage();
-    if(!studioTemplate){try{localStorage.setItem(studioStorageKey('diniAnifRebuildSnapshot'),snapshotRaw)}catch(err){console.warn('localStorage snapshot quota',err)}}
-    try{sessionStorage.setItem(studioStorageKey('diniAnifRebuildSnapshot'),snapshotRaw)}catch(err){console.warn('sessionStorage snapshot quota',err)}
-    try{window.name=studioWindowPrefix()+snapshotRaw}catch(err){console.warn('window.name snapshot handoff failed',err)}
-    // Legacy duplicate caches remain available only for manual/non-template Fetch, and are always best-effort.
-    if(!studioTemplate){
-      try{localStorage.setItem(studioStorageKey('diniAnifNativeHtml'),nativeHtml)}catch(err){console.warn('legacy nativeHtml local cache skipped',err)}
-      try{sessionStorage.setItem(studioStorageKey('diniAnifNativeHtml'),nativeHtml)}catch(err){console.warn('legacy nativeHtml session cache skipped',err)}
-      try{localStorage.setItem(studioStorageKey('artSundaMerahPreview'),JSON.stringify(data))}catch(err){console.warn('legacy preview local cache skipped',err)}
-      try{sessionStorage.setItem(studioStorageKey('artSundaMerahPreview'),JSON.stringify(data))}catch(err){console.warn('legacy preview session cache skipped',err)}
-    }
+    try{localStorage.setItem('diniAnifRebuildSnapshot',snapshotRaw)}catch(err){console.warn('localStorage snapshot quota',err)}
+    try{sessionStorage.setItem('diniAnifRebuildSnapshot',snapshotRaw)}catch(err){console.warn('sessionStorage snapshot quota',err)}
+    try{window.name='__DINI_ANIF_REBUILD__'+snapshotRaw}catch{}
+    try{localStorage.setItem('diniAnifNativeHtml',nativeHtml);sessionStorage.setItem('diniAnifNativeHtml',nativeHtml)}catch{}
+    localStorage.setItem('artSundaMerahPreview',JSON.stringify(data));
+    sessionStorage.setItem('artSundaMerahPreview',JSON.stringify(data));
     $('#mappingBadge').textContent='Source Native';$('#mappingBadge').className='badge ok';
     $('#mappingTree').classList.remove('empty');
     const safeSections=Array.isArray(nativeSchema?.sections)?nativeSchema.sections:[];
@@ -784,7 +767,7 @@ document.querySelectorAll('[data-native-reveal]').forEach(el=>io.observe(el));
   }
 
   async function packageBlob(){
-    const raw=currentSnapshotRaw();if(!raw)throw new Error('Belum ada rebuild snapshot.');
+    const raw=localStorage.getItem('diniAnifRebuildSnapshot');if(!raw)throw new Error('Belum ada rebuild snapshot.');
     const p=JSON.parse(raw);const entries=[
       {name:'manifest.json',data:JSON.stringify(p.manifest,null,2)},
       {name:'schema.json',data:JSON.stringify(p.schema,null,2)},
@@ -855,18 +838,16 @@ document.querySelectorAll('[data-native-reveal]').forEach(el=>io.observe(el));
   }
   function currentSnapshotRaw(){
     if(rebuild){try{return JSON.stringify(rebuild)}catch{}}
-    try{const v=localStorage.getItem(studioStorageKey('diniAnifRebuildSnapshot'));if(v)return v}catch{}
-    try{const v=sessionStorage.getItem(studioStorageKey('diniAnifRebuildSnapshot'));if(v)return v}catch{}
-    const prefix=studioWindowPrefix();if(typeof window.name==='string'&&window.name.startsWith(prefix)) return window.name.slice(prefix.length);
+    try{const v=localStorage.getItem('diniAnifRebuildSnapshot');if(v)return v}catch{}
+    try{const v=sessionStorage.getItem('diniAnifRebuildSnapshot');if(v)return v}catch{}
+    if(typeof window.name==='string'&&window.name.startsWith('__DINI_ANIF_REBUILD__')) return window.name.slice('__DINI_ANIF_REBUILD__'.length);
     return '';
   }
   function persistPreviewHandoff(raw){
     let saved=0;
-    if(studioTemplate)releaseLegacyPreviewStorage();
-    // Exact edit prefers ephemeral same-tab storage; persistent localStorage is unnecessary and can be quota-constrained on mobile.
-    if(!studioTemplate){try{localStorage.setItem(studioStorageKey('diniAnifRebuildSnapshot'),raw);saved++}catch(err){console.warn('localStorage handoff failed',err)}}
-    try{sessionStorage.setItem(studioStorageKey('diniAnifRebuildSnapshot'),raw);saved++}catch(err){console.warn('sessionStorage handoff failed',err)}
-    try{window.name=studioWindowPrefix()+raw;saved++}catch(err){console.warn('window.name handoff failed',err)}
+    try{localStorage.setItem('diniAnifRebuildSnapshot',raw);saved++}catch(err){console.warn('localStorage handoff failed',err)}
+    try{sessionStorage.setItem('diniAnifRebuildSnapshot',raw);saved++}catch(err){console.warn('sessionStorage handoff failed',err)}
+    try{window.name='__DINI_ANIF_REBUILD__'+raw;saved++}catch(err){console.warn('window.name handoff failed',err)}
     return saved;
   }
   async function publishPreviewSnapshot(raw){
@@ -903,7 +884,7 @@ document.querySelectorAll('[data-native-reveal]').forEach(el=>io.observe(el));
   if(previewNavBtn)previewNavBtn.addEventListener('click',openPreview);
   $('#uploadHtmlBtn').onclick=()=>$('#htmlFileInput').click();
   $('#htmlFileInput').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;const t=toast('Membaca file HTML…','loading','Upload HTML');try{source.value=await f.text();sourceBaseUrl='';$('#sourceUrl').value='';$('#fetchMeta').textContent='';$('#sourceBadge').textContent=f.name;$('#sourceBadge').className='badge ok';finishToast(t,f.name+' berhasil dimuat.','success','Upload sukses')}catch(err){finishToast(t,err.message,'error','Upload gagal')}};
-  $('#clearBtn').onclick=()=>{source.value='';sourceBaseUrl='';analysis=null;rebuild=null;localStorage.removeItem(studioStorageKey('diniAnifRebuildSnapshot'));sessionStorage.removeItem(studioStorageKey('diniAnifRebuildSnapshot'));localStorage.removeItem(studioStorageKey('artSundaMerahPreview'));sessionStorage.removeItem(studioStorageKey('artSundaMerahPreview'));window.name='';location.reload()};
+  $('#clearBtn').onclick=()=>{source.value='';sourceBaseUrl='';analysis=null;rebuild=null;localStorage.removeItem('diniAnifRebuildSnapshot');sessionStorage.removeItem('diniAnifRebuildSnapshot');localStorage.removeItem('artSundaMerahPreview');sessionStorage.removeItem('artSundaMerahPreview');window.name='';location.reload()};
 
 
   const fetchBtn=$('#fetchSourceBtn'), sourceUrl=$('#sourceUrl'), fetchMeta=$('#fetchMeta');
@@ -926,46 +907,7 @@ document.querySelectorAll('[data-native-reveal]').forEach(el=>io.observe(el));
   fetchBtn.onclick=fetchSource;
   sourceUrl.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();fetchSource()}});
 
-  async function autoEditFromTemplate(){
-    const qs=new URLSearchParams(location.search);
-    if(qs.get('autoEdit')!=='1')return;
-    const editorTarget=qs.get('editor')||'';
-    const template=qs.get('template')||'';
-    const recordId=qs.get('record')||'';
-    const templateSlug=qs.get('slug')||'';
-    const target=qs.get('source')||'';
-    if(!template||!recordId||!target){toast('Template/record/source tidak lengkap.','error','Auto Edit gagal');return}
-    if(template!==recordId){toast('Identity template tidak konsisten. Buka ulang dari Template Library.','error','Auto Edit ditolak');return}
-    const t=toast('Membangun editor dari source yang sama dengan Preview…','loading','Exact Template Edit');
-    try{
-      analysis=null;rebuild=null;source.value='';sourceBaseUrl='';
-      releaseLegacyPreviewStorage();
-      try{localStorage.removeItem(studioStorageKey('diniAnifRebuildSnapshot'));sessionStorage.removeItem(studioStorageKey('diniAnifRebuildSnapshot'));if(studioTemplate){localStorage.removeItem('diniAnifRebuildSnapshot');sessionStorage.removeItem('diniAnifRebuildSnapshot')}window.name=''}catch{}
-      sourceUrl.value=target;
-      await fetchSource();
-      if(!analysis||!source.value.trim())throw new Error('Source template gagal dianalisis.');
-      setProgress(true,'Exact Template Edit','Membangun Source Graph + native schema…');
-      await build();
-      rebuild.manifest.editor_context_template=recordId;
-      rebuild.manifest.editor_context_record_id=recordId;
-      rebuild.manifest.editor_context_slug=templateSlug;
-      rebuild.manifest.editor_context_source=target;
-      const raw=JSON.stringify(rebuild);
-      if(!raw)throw new Error('Source Graph handoff tidak terbentuk.');
-      persistPreviewHandoff(raw);
-      finishToast(t,'Source template cocok dengan Preview. Membuka Editor…','success','Exact Template siap');
-      setProgress(false);
-      const editorBase=editorTarget==='v229'?'/dashboard-admin-edit-v229/':'/dashboard-admin-edit';
-      setTimeout(()=>{location.href=editorBase+'?template='+encodeURIComponent(recordId)+'&record='+encodeURIComponent(recordId)+'&handoff=1'},120);
-    }catch(err){
-      console.error('AUTO_EXACT_EDIT_FAILED',err);
-      finishToast(t,err?.message||String(err),'error','Auto Edit gagal');
-      setProgress(false);
-    }
-  }
-
-  const existing=studioTemplate?null:localStorage.getItem(studioStorageKey('diniAnifRebuildSnapshot'));
-  if(existing){try{rebuild=JSON.parse(existing);try{localStorage.setItem(studioStorageKey('artSundaMerahPreview'),JSON.stringify(rebuild.data))}catch(err){console.warn('legacy preview restore cache skipped',err)}previewBtn.classList.remove('disabled');downloadBtn.disabled=false;$('#mappingBadge').textContent='Snapshot tersedia';$('#mappingBadge').className='badge ok';$('#studioMessage').textContent='Ada rebuild snapshot sebelumnya. Preview/Download siap digunakan.'}catch{}}
-  if(new URLSearchParams(location.search).get('autoEdit')==='1')setTimeout(()=>autoEditFromTemplate(),80);
+  const existing=localStorage.getItem('diniAnifRebuildSnapshot');
+  if(existing){try{rebuild=JSON.parse(existing);localStorage.setItem('artSundaMerahPreview',JSON.stringify(rebuild.data));previewBtn.classList.remove('disabled');downloadBtn.disabled=false;$('#mappingBadge').textContent='Snapshot tersedia';$('#mappingBadge').className='badge ok';$('#studioMessage').textContent='Ada rebuild snapshot sebelumnya. Preview/Download siap digunakan.'}catch{}}
   window.DINI_ANIF_STUDIO={packageBlob};
 })();
