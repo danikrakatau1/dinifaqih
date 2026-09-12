@@ -23,7 +23,7 @@
       const replacement=" function syncLiveTextValuesForApply(){const doc=liveDoc();if(!doc||!native)return 0;let n=0;for(const f of native.schema.fields||[]){if(f.kind!=='text')continue;const el=nodeFor(doc,f);if(!el)continue;const value=el.matches?.('input,textarea,select')?String(el.value??''):String(el.textContent??'');if(native.values[f.id]!==value){native.values[f.id]=value;n++}}return n}\n applyBtn.onclick=async()=>{if(!native)return editorToast('Import Rebuild ZIP dulu.','error','Belum ada template');const textSynced=syncLiveTextValuesForApply();const t=editorToast('Menyimpan snapshot final + asset ke IndexedDB…','loading','APPLY');try{";
       if(!src.includes(old))throw new Error('Anchor APPLY V1.11.1 tidak ditemukan');
       src=src.replace(old,replacement);
-      src=src.replace("finishEditorToast(t,\`${assets.length} asset + semua perubahan tersimpan di IndexedDB tanpa batas localStorage kecil.\`,'success','APPLY sukses')","finishEditorToast(t,\`${assets.length} asset + ${textSynced} teks disinkronkan · snapshot IndexedDB tersimpan.\`,'success','APPLY sukses')");
+      src=src.replace("finishEditorToast(t,\`\${assets.length} asset + semua perubahan tersimpan di IndexedDB tanpa batas localStorage kecil.\`,'success','APPLY sukses')","finishEditorToast(t,\`\${assets.length} asset + \${textSynced} teks disinkronkan · snapshot IndexedDB tersimpan.\`,'success','APPLY sukses')");
     }
 
     {
