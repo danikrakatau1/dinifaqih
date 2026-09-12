@@ -1,3 +1,4 @@
+# V2.29 recovery builder trigger 2
 name: Build V2.29 Recovery
 
 on:
@@ -50,7 +51,7 @@ jobs:
           ! grep -q 'force-visible-v2274.js' dashboard-admin-edit-v229/index.html
           ! grep -q 'preview-rescue.js' dashboard-admin-edit-v229/index.html
           ! grep -q 'fetch-handoff-frame' dashboard-admin-edit-v229/index.html
-          test "$(grep -c 'src="./editor.js' dashboard-admin-edit-v229/index.html)" = '1'
+          test "$(grep -c 'src=\"./editor.js' dashboard-admin-edit-v229/index.html)" = '1'
 
       - name: Commit recovery route
         run: |
