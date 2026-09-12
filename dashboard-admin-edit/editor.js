@@ -423,15 +423,14 @@ function finishEditorToast(el,message,type='success',title=''){if(!el)return edi
    // V2.28.2 PARITY LOCK: the visible Exact Source DOM is already the final visual truth.
    // Never replay every Source Graph field here; overlapping ownership can mutate the
    // captured page after the user has already approved what is visible in Editor.
-   const raw=parityDoctype(live)+live.documentElement.outerHTML;
-   const doc=parseNative(raw);
-   // Only generated/uploaded object URLs need conversion to persistent asset paths.
-   // Everything else stays byte-for-byte as captured from the live Editor DOM.
-   for(const [fieldId,a] of generatedAssets){
-     if(!a?.path)continue;
-     const f=fieldById(fieldId);if(!f)continue;
-     try{applyField(doc,f,a.path)}catch{}
+   let raw=parityDoctype(live)+live.documentElement.outerHTML;
+   // V2.28.3: preserve the approved DOM literally. Uploaded/generated files are already
+   // represented by blob URLs in the live DOM, so replace only those URL strings with
+   // their persistent package paths. Never call applyField/applyTransform during APPLY.
+   for(const [,a] of generatedAssets){
+     if(a?.previewUrl&&a?.path)raw=raw.split(a.previewUrl).join(a.path);
    }
+   const doc=parseNative(raw);
    doc.querySelectorAll('.native-selected-outline').forEach(n=>n.classList.remove('native-selected-outline'));
    doc.querySelectorAll('[data-dini-anif-editor-parity],[data-dini-anif-action-runtime],#dini-anif-editor-hit-css').forEach(n=>n.remove());
    doc.documentElement.removeAttribute('data-dini-editor-live-stabilized');
@@ -852,7 +851,9 @@ function finishEditorToast(el,message,type='success',title=''){if(!el)return edi
    const base=(currentTemplateRecord?.slug||native?.manifest?.slug||'dini-anif-editor-current').replace(/[^a-zA-Z0-9._-]+/g,'-').replace(/^-+|-+$/g,'')||'dini-anif-editor-current';
    return `${base}-current-${new Date().toISOString().replace(/[:.]/g,'-')}.zip`;
  }
- zipBtn.onclick=async()=>{if(!native)return editorToast('Import ZIP dulu.','error','Belum ada template');if(isDirty)return editorToast('Klik APPLY dulu agar ZIP sama dengan Preview Bersih.','info','Belum APPLY');const snap=await getAppliedSnapshot();if(!snap)return editorToast('Snapshot APPLY belum ada.','error','Belum APPLY');const t=editorToast('Melokalkan dependency source untuk Production ZIP…','loading','Clean Dependency Sweep');try{const clean=await localizeProductionHtml(snap.html,msg=>{if(t?.querySelector){const el=t.querySelector('.toast-message');if(el)el.textContent=msg}}),entries=[{name:'index.html',data:clean.html},{name:'source-native.html',data:clean.html},{name:'native-schema.json',data:JSON.stringify(snap.schema,null,2)},{name:'native-data.json',data:JSON.stringify(snap.values,null,2)},{name:'dependency-audit.json',data:JSON.stringify(clean.audit,null,2)},{name:'visual-manifest.json',data:JSON.stringify(snap.manifest?.visual_manifest||{version:3,sources:[]},null,2)},{name:'source-graph.json',data:JSON.stringify(snap.manifest?.source_graph||{version:3,visuals:[],interactions:[]},null,2)},{name:'manifest.json',data:JSON.stringify({...snap.manifest,editor:'v2.26.0',revision:snap.revision,dependency_audit:{localized:clean.audit.localized_count,failed:clean.audit.failed_count,remaining_runtime:clean.audit.remaining_runtime_dependency_count}},null,2)}];const db=await openDB();for(const a of snap.assets||[]){const blob=await new Promise((res,rej)=>{const tx=db.transaction('assets');const q=tx.objectStore('assets').get(a.key);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)});if(blob)entries.push({name:a.path,data:blob})}for(const [path,blob] of clean.blobs)entries.push({name:path,data:blob});entries.push({name:'README-CLEAN-DEPENDENCY.txt',data:`Dini Anif Production ZIP V2.26.0\nLocalized runtime dependencies: ${clean.audit.localized_count}\nFailed localization: ${clean.audit.failed_count}\nRemaining runtime dependencies: ${clean.audit.remaining_runtime_dependency_count}\n\nLihat dependency-audit.json untuk detail.\n`});const blob=await window.UNDANGAN_ZIP.buildZip(entries),u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download='dini-anif-native-production-v226-smart-source.zip';a.click();setTimeout(()=>URL.revokeObjectURL(u),1500);finishEditorToast(t,`Localized ${clean.audit.localized_count} dependency · gagal ${clean.audit.failed_count} · sisa runtime ${clean.audit.remaining_runtime_dependency_count}.`,clean.audit.remaining_runtime_dependency_count===0&&clean.audit.failed_count===0?'success':'info','Production ZIP siap')}catch(e){finishEditorToast(t,e.message,'error','Dependency Sweep gagal')}};
+ // V2.28.3: no second ZIP renderer. The earlier zipBtn handler opens the exact
+ // Clean Preview revision with download=1, so Preview Bersih and downloaded ZIP share
+ // the same immutable applied snapshot and the same exporter.
 
  backupBtn.onclick=()=>{if(!native)return;const blob=new Blob([JSON.stringify({schema:native.schema,manifest:native.manifest,values:native.values,transforms},null,2)],{type:'application/json'}),u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download='dini-anif-native-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)};
  resetBtn.onclick=async()=>{if(!confirm('Reset editor dan hapus draft lokal untuk template ini?'))return;localStorage.removeItem(draftKey());localStorage.removeItem(templateRecoveryKey());localStorage.removeItem(pendingB2Key());localStorage.removeItem(handoffKey());sessionStorage.removeItem(handoffKey());try{if(typeof window.name==='string'&&window.name.startsWith(handoffWindowPrefix()))window.name=''}catch{}await deleteAppliedSnapshot();location.reload()};
