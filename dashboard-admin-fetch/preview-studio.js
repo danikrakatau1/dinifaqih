@@ -49,12 +49,12 @@
     if(openEditorBtn)openEditorBtn.onclick=e=>{
       e.preventDefault();
       const saved=persistEditorHandoff(raw,editorHandoffToken);
-      if(!saved){alert('Snapshot Editor terlalu besar dan tidak dapat disimpan untuk handoff. Kembali ke Fetch lalu Generate ulang.');return}
-      location.href='/dashboard-admin-edit/?mode=fetch&handoff='+encodeURIComponent(editorHandoffToken);
+      if(!saved){alert('Snapshot Fetch Editor terlalu besar dan tidak dapat disimpan untuk handoff. Kembali ke Fetch lalu Generate ulang.');return}
+      location.href='/dashboard-admin-fetch-editor/?mode=fetch&handoff='+encodeURIComponent(editorHandoffToken);
     };
     empty.hidden=true;frame.hidden=false;
     const nativeHtml=pack.native?.html || (()=>{try{return sessionStorage.getItem('diniAnifNativeHtml')||localStorage.getItem('diniAnifNativeHtml')||''}catch{return ''}})();
-    meta.textContent=`Parity ${pack.report?.parity_score??'—'}% · Editable ${pack.report?.editable_coverage??100}% · Unsupported ${pack.report?.unsupported_items??0} · ${nativeHtml?'SOURCE NATIVE':'Legacy'} · ${handoff.source}${handoff.warning?' · fallback':''} · Editor handoff ${editorHandoffToken.slice(0,8)} ${editorHandoffSaved}/3`;
+    meta.textContent=`Parity ${pack.report?.parity_score??'—'}% · Editable ${pack.report?.editable_coverage??100}% · Unsupported ${pack.report?.unsupported_items??0} · ${nativeHtml?'SOURCE NATIVE':'Legacy'} · ${handoff.source}${handoff.warning?' · fallback':''} · Fetch Editor handoff ${editorHandoffToken.slice(0,8)} ${editorHandoffSaved}/3`;
     if(nativeHtml){
       frame.removeAttribute('src');
       frame.setAttribute('sandbox','allow-scripts allow-forms allow-popups allow-modals allow-downloads');
