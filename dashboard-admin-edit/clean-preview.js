@@ -1,12 +1,15 @@
 (async()=>{
   const frame=document.getElementById('cleanFrame'),empty=document.getElementById('empty');let snap=null;
-  const previewTemplate=String(new URLSearchParams(location.search).get('template')||'standalone').trim()||'standalone';
+  const cleanParams=new URLSearchParams(location.search);
+  const previewTemplate=String(cleanParams.get('template')||'standalone').trim()||'standalone';
+  const requestedRevision=String(cleanParams.get('rev')||'').trim();
   const previewScopedKey=base=>`${base}:${encodeURIComponent(previewTemplate)}`;
-  const appliedKey=`native-applied:${previewTemplate}`;
+  const appliedKey=requestedRevision?`native-applied:${previewTemplate}:${requestedRevision}`:`native-applied:${previewTemplate}`;
   const openDB=()=>new Promise((res,rej)=>{const q=indexedDB.open('dini-anif-editor-v150',2);q.onupgradeneeded=()=>{const db=q.result;if(!db.objectStoreNames.contains('assets'))db.createObjectStore('assets');if(!db.objectStoreNames.contains('snapshots'))db.createObjectStore('snapshots')};q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)});
   try{const db=await openDB();snap=await new Promise((res,rej)=>{const tx=db.transaction('snapshots');const q=tx.objectStore('snapshots').get(appliedKey);q.onsuccess=()=>res(q.result||null);q.onerror=()=>rej(q.error)})}catch(e){console.warn('Applied snapshot IndexedDB read:',e)}
-  if(!snap){try{snap=JSON.parse(sessionStorage.getItem(previewScopedKey('diniAnifCleanPreviewApplied'))||localStorage.getItem(previewScopedKey('diniAnifNativeApplied'))||'null')}catch{}}
-  if(!snap?.html){frame.hidden=true;empty.hidden=false;return}empty.hidden=true;frame.hidden=false;
+  if(snap&&requestedRevision&&snap.revision!==requestedRevision)snap=null;
+  if(!snap&&!requestedRevision){try{snap=JSON.parse(sessionStorage.getItem(previewScopedKey('diniAnifCleanPreviewApplied'))||localStorage.getItem(previewScopedKey('diniAnifNativeApplied'))||'null')}catch{}}
+  if(!snap?.html){frame.hidden=true;empty.hidden=false;empty.textContent=requestedRevision?`Snapshot APPLY ${requestedRevision} tidak ditemukan. Kembali ke Editor dan APPLY ulang.`:'Belum ada snapshot APPLY. Kembali ke Editor lalu klik APPLY.';return}empty.hidden=true;frame.hidden=false;
   const get=(db,key)=>new Promise((res,rej)=>{const tx=db.transaction('assets');const q=tx.objectStore('assets').get(key);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)});
   const blobs=new Map(),blobUrls=new Map(),urls=[];let html=snap.html;
   try{
@@ -83,7 +86,7 @@
     try{
       const clean=await localizeProductionHtml(snap.html,p=>{status.textContent=`Sweep ${p.processed}/${p.total} · lokal ${p.localized} · gagal ${p.failed}`});
       status.textContent='Menyusun ZIP…';
-      const entries=[{name:'index.html',data:clean.html},{name:'source-native.html',data:clean.html},{name:'native-schema.json',data:JSON.stringify(snap.schema||{},null,2)},{name:'native-data.json',data:JSON.stringify(snap.values||{},null,2)},{name:'dependency-audit.json',data:JSON.stringify(clean.audit,null,2)},{name:'manifest.json',data:JSON.stringify({...snap.manifest,exported_at:new Date().toISOString(),preview:'clean-parity-v1.8.0',editor:'v1.8.0',revision:snap.revision,dependency_audit:{localized:clean.audit.localized_count,failed:clean.audit.failed_count,remaining_runtime:clean.audit.remaining_runtime_dependency_count}},null,2)},{name:'README-CLEAN-DEPENDENCY.txt',data:`Dini Anif Production ZIP V1.8.0\nLocalized runtime dependencies: ${clean.audit.localized_count}\nFailed localization: ${clean.audit.failed_count}\nRemaining runtime dependencies: ${clean.audit.remaining_runtime_dependency_count}\n`}];
+      const entries=[{name:'index.html',data:clean.html},{name:'source-native.html',data:clean.html},{name:'native-schema.json',data:JSON.stringify(snap.schema||{},null,2)},{name:'native-data.json',data:JSON.stringify(snap.values||{},null,2)},{name:'dependency-audit.json',data:JSON.stringify(clean.audit,null,2)},{name:'manifest.json',data:JSON.stringify({...snap.manifest,exported_at:new Date().toISOString(),preview:'clean-parity-v2.28.2',editor:'v2.28.2',revision:snap.revision,dependency_audit:{localized:clean.audit.localized_count,failed:clean.audit.failed_count,remaining_runtime:clean.audit.remaining_runtime_dependency_count}},null,2)},{name:'README-CLEAN-DEPENDENCY.txt',data:`Dini Anif Production ZIP V1.8.0\nLocalized runtime dependencies: ${clean.audit.localized_count}\nFailed localization: ${clean.audit.failed_count}\nRemaining runtime dependencies: ${clean.audit.remaining_runtime_dependency_count}\n`}];
       for(const a of snap.assets||[]){const b=blobs.get(a.path);if(b)entries.push({name:a.path,data:b})}
       for(const [path,b] of clean.blobs)entries.push({name:path,data:b});
       const blob=await window.UNDANGAN_ZIP.buildZip(entries);
