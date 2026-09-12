@@ -64,6 +64,7 @@ function render(){
         <div class="actions">
           <a class="btn" href="/dashboard-admin-template/preview.html?template=${encodeURIComponent(t.id)}" target="_blank" rel="noopener">👁 Preview</a>
           <button class="btn" data-edit="${esc(t.id)}">✏️ Edit</button>
+          <button class="btn" data-edit-v229="${esc(t.id)}" title="Golden V2.26 renderer + UUID isolation">🧪 Edit V2.29</button>
           <button class="btn primary" data-activate="${esc(t.id)}" ${active?'disabled':''}>${active?'✓ Sedang Tampil':'Tampilkan'}</button>
           ${Array.isArray(t.manifest_json?.revision_history)&&t.manifest_json.revision_history.length?`<button class="btn" data-rollback="${esc(t.id)}">↶ Rollback</button>`:''}
           <button class="btn danger" data-delete="${esc(t.id)}" ${(active||t.slug==='template-1')?'disabled title="Template aktif/original tidak dapat dihapus"':''}>🗑 Hapus</button>
@@ -73,6 +74,7 @@ function render(){
   });
   if(!templates.length)grid.innerHTML='<div class="empty">Belum ada template di database.</div>';
   grid.querySelectorAll('[data-edit]').forEach(btn=>btn.addEventListener('click',()=>editTemplate(btn.dataset.edit,btn)));
+  grid.querySelectorAll('[data-edit-v229]').forEach(btn=>btn.addEventListener('click',()=>editTemplateV229(btn.dataset.editV229,btn)));
   grid.querySelectorAll('[data-activate]').forEach(btn=>btn.addEventListener('click',()=>activateTemplate(btn.dataset.activate)));
   grid.querySelectorAll('[data-rollback]').forEach(btn=>btn.addEventListener('click',()=>rollbackTemplate(btn.dataset.rollback)));
   grid.querySelectorAll('[data-delete]').forEach(btn=>btn.addEventListener('click',()=>deleteTemplate(btn.dataset.delete)));
@@ -94,6 +96,22 @@ async function editTemplate(id,btn){
     if(btn){btn.disabled=false;btn.textContent=oldText}
   }
 }
+
+async function editTemplateV229(id,btn){
+  const oldText=btn?.textContent||'🧪 Edit V2.29';
+  if(btn){btn.disabled=true;btn.textContent='V2.29…'}
+  libraryStatus.className='status';libraryStatus.textContent='V2.29 mengunci UUID record yang dipilih…';
+  try{
+    const latest=await sb.from('templates').select('id,name,slug,source_path,updated_at').eq('id',id).single();
+    if(latest.error)throw latest.error;
+    const row=latest.data;if(!row||String(row.id)!==String(id))throw new Error('Record UUID template tidak cocok.');
+    const source=String(row.source_path||'').trim();if(!source||source==='/')throw new Error('Template belum memiliki source snapshot yang dapat diedit.');
+    libraryStatus.className='status ok';libraryStatus.textContent=`V2.29: membangun Source Graph ${row.name} dari UUID ${row.id}…`;
+    const q=new URLSearchParams({autoEdit:'1',editor:'v229',template:row.id,record:row.id,slug:row.slug||'',source,updated:String(row.updated_at||'')});
+    location.href='/dashboard-admin-fetch?'+q.toString();
+  }catch(e){libraryStatus.className='status warn';libraryStatus.textContent='V2.29 gagal: '+(e.message||String(e));if(btn){btn.disabled=false;btn.textContent=oldText}}
+}
+
 
 const TEMPLATE_BUCKET='template-packages';
 const TEMPLATE1_SEED='/template-1-original';

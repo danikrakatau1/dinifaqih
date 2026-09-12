@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <base href="/dashboard-admin-edit-v229/"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Dini Anif — Template Editor V2.29 Recovery</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/admin-auth-guard.js"></script>
+</head>
+<body class="editor-body">
+<div class="editor-shell">
+  <aside class="editor-panel">
+    <div class="editor-head">
+      <h1>DINI ANIF — TEMPLATE EDITOR <span style="color:#d6b97c">V2.29 RECOVERY</span></h1>
+      <p>Golden V2.26 Smart Source Ownership + UUID isolation V2.29. Satu renderer saja; tanpa exact-source/rescue/fallback visual lain.</p>
+      <div class="editor-actions">
+        <button type="button" onclick="location.href='/dashboard-admin'">Dashboard</button><button type="button" onclick="location.href='/dashboard-admin-fetch'">Fetch</button>
+        <button id="importZipBtn">Import ZIP (cadangan)</button><button id="generateAllAssetsBtn">Generate Semua Aset</button><input id="importZipInput" type="file" accept=".zip,application/zip" hidden><button id="resetBtn">Reset</button>
+        <button id="applyBtn" class="primary">APPLY</button>
+        <a id="cleanPreviewBtn" href="./invitation.html?clean=1" target="_blank">Preview Bersih</a>
+        <button id="downloadZipBtn">Download ZIP</button>
+        <button id="saveDraftBtn" class="primary" disabled>💾 Simpan / Update Draft</button>
+        <button id="b2UploadBtn" class="b2-action">☁ Upload Editor Current ke Backblaze B2</button>
+        <button id="downloadDataBtn">Backup JSON</button>
+        <div id="b2UploadState" class="b2-upload-state" data-state="idle"><strong>Backblaze B2</strong><span>Belum ada paket yang di-upload.</span><progress id="b2UploadProgress" max="100" value="0"></progress></div>
+      </div>
+    </div>
+    <div id="editorSections"></div>
+  </aside>
+  <main class="preview-pane">
+    <div class="preview-toolbar">Live Preview <span id="dirtyState" class="dirty">Perubahan belum di-apply</span></div>
+    <div class="preview-frame-wrap"><iframe id="previewFrame" title="Dynamic Native Preview V1.5.9"></iframe></div>
+  </main>
+  <aside class="inspector-panel" id="inspectorPanel">
+    <div class="inspector-head"><strong>Visual Inspector</strong><span id="selectionBadge">Belum ada elemen</span></div>
+    <div id="inspectorBody" class="inspector-empty">Klik teks, foto, background, tombol, atau elemen editable di preview.</div>
+  </aside>
+</div>
+<script src="/assets/js/visual-resolver.js"></script>
+<script src="./defaults.js"></script>
+<script src="./package-manifest.js"></script>
+<script src="./zip-builder.js"></script>
+<script src="./editor.js?v=2290"></script>
+</body>
+</html>

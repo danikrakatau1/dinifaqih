@@ -929,6 +929,7 @@ document.querySelectorAll('[data-native-reveal]').forEach(el=>io.observe(el));
   async function autoEditFromTemplate(){
     const qs=new URLSearchParams(location.search);
     if(qs.get('autoEdit')!=='1')return;
+    const editorTarget=qs.get('editor')||'';
     const template=qs.get('template')||'';
     const recordId=qs.get('record')||'';
     const templateSlug=qs.get('slug')||'';
@@ -954,7 +955,8 @@ document.querySelectorAll('[data-native-reveal]').forEach(el=>io.observe(el));
       persistPreviewHandoff(raw);
       finishToast(t,'Source template cocok dengan Preview. Membuka Editor…','success','Exact Template siap');
       setProgress(false);
-      setTimeout(()=>{location.href='/dashboard-admin-edit?template='+encodeURIComponent(recordId)+'&record='+encodeURIComponent(recordId)+'&handoff=1'},120);
+      const editorBase=editorTarget==='v229'?'/dashboard-admin-edit-v229/':'/dashboard-admin-edit';
+      setTimeout(()=>{location.href=editorBase+'?template='+encodeURIComponent(recordId)+'&record='+encodeURIComponent(recordId)+'&handoff=1'},120);
     }catch(err){
       console.error('AUTO_EXACT_EDIT_FAILED',err);
       finishToast(t,err?.message||String(err),'error','Auto Edit gagal');
