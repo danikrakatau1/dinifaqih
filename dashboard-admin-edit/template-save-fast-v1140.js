@@ -4,7 +4,7 @@
   window.__DINI_TEMPLATE_SAVE_FAST_1140__=true;
 
   const SUPABASE_URL='https://jfvmcerrsxjvbiogfqes.supabase.co';
-  const SUPABASE_KEY='sb_publishable_3IqSDxkpxCGiDpxXQ_AsJpsC4W';
+  const SUPABASE_KEY='sb_publishable_3IqSDxkpxCGiDpxAEwdsXQ_AsJpsC4W';
   const BUCKET='template-packages';
   const DB_NAME='dini-anif-editor-v150',DB_VERSION=2,GLOBAL_KEY='native-applied';
   const sb=window.supabase?.createClient?.(SUPABASE_URL,SUPABASE_KEY);
