@@ -1,5 +1,9 @@
 (() => {
-  const frame=document.getElementById('rebuildPreviewFrame'),empty=document.getElementById('previewEmpty'),meta=document.getElementById('previewMeta'),diag=document.getElementById('previewDiag');
+  const frame=document.getElementById('rebuildPreviewFrame'),empty=document.getElementById('previewEmpty'),meta=document.getElementById('previewMeta'),diag=document.getElementById('previewDiag'),openEditorBtn=document.getElementById('openEditorBtn');
+  const EDITOR_HANDOFF_KEY='diniAnifRebuildSnapshot:standalone';
+  const EDITOR_WINDOW_PREFIX='__DINI_ANIF_REBUILD__standalone__';
+  let currentEditorRaw='';
+
   function decodeSnapshotFromUrl(){
     try{const hash=location.hash||'';const m=hash.match(/(?:^#|&)snapshot=([^&]+)/);if(!m)return null;let b64=m[1].replace(/-/g,'+').replace(/_/g,'/');while(b64.length%4)b64+='=';const binary=atob(b64);const bytes=Uint8Array.from(binary,c=>c.charCodeAt(0));return new TextDecoder().decode(bytes)}catch(err){console.warn('URL snapshot decode failed:',err);return null}
   }
@@ -9,6 +13,15 @@
     try{raw=localStorage.getItem('diniAnifRebuildSnapshot')}catch{} if(raw)return {raw,source:'localStorage'};
     if(typeof window.name==='string'&&window.name.startsWith('__DINI_ANIF_REBUILD__'))return {raw:window.name.slice('__DINI_ANIF_REBUILD__'.length),source:'window.name'};
     return {raw:'',source:'none'};
+  }
+  function persistEditorHandoff(raw){
+    if(!raw)return 0;
+    let saved=0;
+    // V2.28.4 — Editor isolation uses :standalone for the Fetch -> Preview -> Editor path.
+    // Keep this ephemeral so a large Source Graph never depends on localStorage quota.
+    try{sessionStorage.setItem(EDITOR_HANDOFF_KEY,raw);saved++}catch(err){console.warn('Editor session handoff failed:',err)}
+    try{window.name=EDITOR_WINDOW_PREFIX+raw;saved++}catch(err){console.warn('Editor window.name handoff failed:',err)}
+    return saved;
   }
   async function getHandoff(){
     const id=new URLSearchParams(location.search).get('id');
@@ -33,9 +46,11 @@
     const handoff=await getHandoff(),raw=handoff.raw;
     if(!raw){showEmpty(handoff.warning?('Preview server gagal: '+handoff.warning):'Snapshot handoff tidak ditemukan.');return}
     let pack;try{pack=JSON.parse(raw)}catch(err){showEmpty('Snapshot JSON gagal dibaca: '+err.message);return}
+    currentEditorRaw=raw;
+    const editorSaved=persistEditorHandoff(raw);
     empty.hidden=true;frame.hidden=false;
     const nativeHtml=pack.native?.html || (()=>{try{return sessionStorage.getItem('diniAnifNativeHtml')||localStorage.getItem('diniAnifNativeHtml')||''}catch{return ''}})();
-    meta.textContent=`Parity ${pack.report?.parity_score??'—'}% · Editable ${pack.report?.editable_coverage??100}% · Unsupported ${pack.report?.unsupported_items??0} · ${nativeHtml?'SOURCE NATIVE':'Legacy'} · ${handoff.source}${handoff.warning?' · fallback':''}`;
+    meta.textContent=`Parity ${pack.report?.parity_score??'—'}% · Editable ${pack.report?.editable_coverage??100}% · Unsupported ${pack.report?.unsupported_items??0} · ${nativeHtml?'SOURCE NATIVE':'Legacy'} · ${handoff.source}${handoff.warning?' · fallback':''} · Editor handoff ${editorSaved}/2`;
     if(nativeHtml){
       frame.removeAttribute('src');
       frame.setAttribute('sandbox','allow-scripts allow-forms allow-popups allow-modals allow-downloads');
@@ -43,6 +58,17 @@
     }else{
       try{localStorage.setItem('artSundaMerahPreview',JSON.stringify(pack.data));sessionStorage.setItem('artSundaMerahPreview',JSON.stringify(pack.data))}catch{}
       frame.src='./invitation.html?rebuildPreview=1&ts='+Date.now();
+    }
+    if(openEditorBtn){
+      openEditorBtn.onclick=e=>{
+        e.preventDefault();
+        if(!currentEditorRaw){showEmpty('Snapshot Preview belum siap untuk Editor.');return}
+        const saved=persistEditorHandoff(currentEditorRaw);
+        if(!saved){alert('Snapshot terlalu besar untuk handoff browser. Kembali ke Fetch lalu buka Preview ulang.');return}
+        const q=new URLSearchParams({mode:'fetch'});
+        if(handoff.id)q.set('previewId',handoff.id);
+        location.href='/dashboard-admin-edit/?'+q.toString();
+      };
     }
     document.getElementById('downloadPreviewZip').onclick=async()=>{
       const entries=[
@@ -54,7 +80,7 @@
         {name:'source-native.html',data:nativeHtml||''},
         {name:'native-schema.json',data:JSON.stringify(pack.native?.schema||{},null,2)},
         {name:'visual-manifest.json',data:JSON.stringify(pack.manifest?.visual_manifest||{version:3,sources:[]},null,2)},{name:'source-graph.json',data:JSON.stringify(pack.manifest?.source_graph||{version:3,visuals:[],interactions:[]},null,2)},
-        {name:'README.txt',data:'DINI ANIF REBUILD PACKAGE V2.23 — UNIVERSAL VISUAL RESOLVER\nPreview memakai source-native.html.\n'}
+        {name:'README.txt',data:'DINI ANIF REBUILD PACKAGE V2.28.4 — FETCH PREVIEW EDITOR HANDOFF\nPreview memakai source-native.html.\n'}
       ];
       const blob=await window.UNDANGAN_ZIP.buildZip(entries),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='dini-anif-source-native-rebuild.zip';a.click();setTimeout(()=>URL.revokeObjectURL(url),1500);
     };
