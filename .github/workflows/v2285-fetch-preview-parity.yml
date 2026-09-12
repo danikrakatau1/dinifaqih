@@ -1,0 +1,48 @@
+name: v2285 fetch preview parity
+on:
+  push:
+    paths:
+      - '.github/workflows/v2285-fetch-preview-parity.yml'
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch Fetch Preview parity
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('dashboard-admin-fetch/preview-studio.js')
+          s = p.read_text(encoding='utf-8')
+          old = "const q=new URLSearchParams({mode:'fetch'});"
+          new = "const q=new URLSearchParams({mode:'fetch',handoff:'1'});"
+          if old not in s and new not in s:
+              raise SystemExit('preview-studio anchor missing')
+          s = s.replace(old, new, 1)
+          p.write_text(s, encoding='utf-8')
+
+          p = Path('dashboard-admin-edit/editor.js')
+          s = p.read_text(encoding='utf-8')
+          old = "const html=rebuildHtml();frame.onload="
+          new = "const exactHandoff=editorParams.get('handoff')==='1';const html=exactHandoff?native.baseHtml:rebuildHtml();frame.onload="
+          if old not in s and new not in s:
+              raise SystemExit('editor renderPreview anchor missing')
+          s = s.replace(old, new, 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+      - name: Validate
+        run: |
+          node --check dashboard-admin-fetch/preview-studio.js
+          node --check dashboard-admin-edit/editor.js
+          grep -q "mode:'fetch',handoff:'1'" dashboard-admin-fetch/preview-studio.js
+          grep -q "exactHandoff?native.baseHtml:rebuildHtml()" dashboard-admin-edit/editor.js
+      - name: Commit
+        run: |
+          git config user.name "danikrakatau1"
+          git config user.email "danikrakatau1@gmail.com"
+          git add dashboard-admin-fetch/preview-studio.js dashboard-admin-edit/editor.js
+          git commit -m "fix: Fetch Preview opens exact same DOM in Editor v2.28.5" || true
+          git push
