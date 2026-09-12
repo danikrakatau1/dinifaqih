@@ -1,0 +1,116 @@
+name: Recover Editor Baseline 839aa2f
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/recover-editor-baseline-839aa2f.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Restore known-good Editor and Fetch core
+        run: |
+          git rm -rf dashboard-admin-edit dashboard-admin-fetch dashboard-admin-edit-v229 || true
+          git checkout 839aa2f -- dashboard-admin-edit dashboard-admin-fetch
+
+      - name: Keep latest UUID library routing but bypass experimental renderers
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('dashboard-admin-template/index.html')
+          s=p.read_text()
+
+          # Remove experimental V2.29 button + binding/function if present.
+          s=s.replace('          <button class="btn" data-edit-v229="${esc(t.id)}" title="Golden V2.26 renderer + UUID isolation">🧪 Edit V2.29</button>\n','')
+          s=s.replace("  grid.querySelectorAll('[data-edit-v229]').forEach(btn=>btn.addEventListener('click',()=>editTemplateV229(btn.dataset.editV229,btn)));\n",'')
+          start=s.find('\nasync function editTemplateV229(')
+          if start!=-1:
+              end=s.find('\n\nconst TEMPLATE_BUCKET=',start)
+              if end!=-1:
+                  s=s[:start]+s[end:]
+
+          # Replace current Edit flow with strict UUID -> baseline Editor.
+          a=s.find('async function editTemplate(id,btn){')
+          b=s.find('\n\nconst TEMPLATE_BUCKET=',a)
+          if a<0 or b<0:
+              raise SystemExit('editTemplate block anchor not found')
+          fn='''async function editTemplate(id,btn){
+  const oldText=btn?.textContent||'✏️ Edit';
+  if(btn){btn.disabled=true;btn.textContent='Memuat…'}
+  libraryStatus.className='status';libraryStatus.textContent='Mengunci UUID template yang dipilih…';
+  try{
+    const latest=await sb.from('templates').select('id,name,slug,source_path,manifest_json,updated_at').eq('id',id).single();
+    if(latest.error)throw latest.error;
+    const row=latest.data;
+    if(!row||String(row.id)!==String(id))throw new Error('UUID record template tidak cocok.');
+    const snap=String(row.manifest_json?.editor_snapshot_url||'').trim();
+    if(!snap)throw new Error('Template belum memiliki editor snapshot. Buka Fetch dan Simpan Draft sekali.');
+    libraryStatus.className='status ok';libraryStatus.textContent=`Membuka ${row.name} pada Editor baseline dengan UUID terkunci…`;
+    const q=new URLSearchParams({template:row.id,record:row.id,v:'baseline839'});
+    location.href='/dashboard-admin-edit/?'+q.toString();
+  }catch(e){
+    libraryStatus.className='status warn';libraryStatus.textContent='Edit gagal: '+(e.message||String(e));
+    if(btn){btn.disabled=false;btn.textContent=oldText}
+  }
+}'''
+          s=s[:a]+fn+s[b:]
+          p.write_text(s)
+          PY
+
+      - name: Add strict UUID guard without touching renderer
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('dashboard-admin-edit/editor.js')
+          s=p.read_text()
+          old="""   const q=new URLSearchParams(location.search).get('template');if(!q)return false;\n   const t=editorToast('Memuat snapshot Draft dari Template Library…','loading','Buka Draft');\n   try{\n     let lookup=await adminSb.from('templates').select('*').eq('slug',q).limit(1).maybeSingle();\n     if(lookup.error)throw lookup.error;\n     if(!lookup.data&&/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(q))lookup=await adminSb.from('templates').select('*').eq('id',q).limit(1).maybeSingle();\n"""
+          new="""   const params=new URLSearchParams(location.search),q=params.get('template'),record=params.get('record')||'';if(!q)return false;\n   const t=editorToast('Memuat snapshot Draft dari Template Library…','loading','Buka Draft');\n   try{\n     if(record&&record!==q)throw new Error('Template mismatch: UUID request dan record berbeda.');\n     const isUuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(q);\n     let lookup=isUuid?await adminSb.from('templates').select('*').eq('id',q).limit(1).maybeSingle():await adminSb.from('templates').select('*').eq('slug',q).limit(1).maybeSingle();\n     if(lookup.error)throw lookup.error;\n"""
+          if old not in s:
+              raise SystemExit('baseline library-load anchor not found')
+          s=s.replace(old,new,1)
+          s=s.replace("     if(lookup.error)throw lookup.error;const data=lookup.data;if(!data)throw new Error('Template tidak ditemukan.');", "     if(lookup.error)throw lookup.error;const data=lookup.data;if(!data)throw new Error('Template tidak ditemukan.');if(record&&String(data.id)!==record)throw new Error('Template mismatch: row Supabase berbeda dari UUID yang dipilih.');",1)
+          p.write_text(s)
+          PY
+
+      - name: Baseline architecture and syntax checks
+        run: |
+          node --check dashboard-admin-edit/editor.js
+          node --check dashboard-admin-edit/clean-preview.js
+          node --check dashboard-admin-fetch/studio.js
+          node --check dashboard-admin-fetch/preview-studio.js
+          grep -q "generateAsset(fieldId" dashboard-admin-edit/editor.js
+          grep -q "Upload / Ganti" dashboard-admin-edit/editor.js
+          grep -q "ensureRuntimeCssBackgroundFields" dashboard-admin-edit/editor.js
+          grep -q "source-native-rebuild-v2.26-smart-source-ownership" dashboard-admin-fetch/studio.js
+          grep -q "renderPreview(force=false)" dashboard-admin-edit/editor.js
+          grep -q "rebuildHtml({forExport:true})" dashboard-admin-edit/editor.js
+          ! grep -q "exact-source-preview" dashboard-admin-edit/index.html
+          ! grep -q "force-visible-v2274" dashboard-admin-edit/index.html
+          ! grep -q "preview-rescue" dashboard-admin-edit/index.html
+          ! grep -q "fetch-handoff-frame" dashboard-admin-edit/index.html
+          ! test -d dashboard-admin-edit-v229
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          s=Path('dashboard-admin-template/index.html').read_text()
+          blocks=re.findall(r'<script(?:\s[^>]*)?>([\s\S]*?)</script>',s,re.I)
+          Path('/tmp/template-inline.js').write_text(blocks[-1])
+          PY
+          node --check /tmp/template-inline.js
+
+      - name: Commit stable recovery
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A dashboard-admin-edit dashboard-admin-fetch dashboard-admin-template/index.html dashboard-admin-edit-v229
+          git commit -m 'recovery: restore known-good editable engine 839aa2f with UUID lock'
+          git push origin HEAD:main
