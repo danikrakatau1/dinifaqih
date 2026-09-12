@@ -18,12 +18,26 @@
   const readKey=async key=>{const db=await openDB();return new Promise((res,rej)=>{const tx=db.transaction('snapshots');const q=tx.objectStore('snapshots').get(key);q.onsuccess=()=>res(q.result||null);q.onerror=()=>rej(q.error)})};
   const writeKey=async(key,value)=>{const db=await openDB();return new Promise((res,rej)=>{const tx=db.transaction('snapshots','readwrite');tx.objectStore('snapshots').put(value,key);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);tx.onabort=()=>rej(tx.error||new Error('IndexedDB transaction aborted'))})};
 
-  function patchPreviewHref(){
-    const a=document.getElementById('cleanPreviewBtn');if(!a)return;
+  function scopedPreviewUrl(){
     const q=new URLSearchParams();
     if(recordId){q.set('template',recordId);q.set('record',recordId)}
     else if(handoffId)q.set('handoff',handoffId);
-    a.href='./clean-preview.html'+(q.toString()?`?${q.toString()}`:'');
+    return './clean-preview.html'+(q.toString()?`?${q.toString()}`:'');
+  }
+  function patchPreviewHref(){
+    const a=document.getElementById('cleanPreviewBtn');if(!a)return;
+    a.href=scopedPreviewUrl();
+    if(typeof a.onclick==='function'&&a.dataset.templateScopePreview1140!=='1'){
+      const original=a.onclick;a.dataset.templateScopePreview1140='1';
+      a.onclick=function scopedCleanPreview(e){
+        const realOpen=window.open;
+        window.open=function(url,target,...rest){
+          const next=/^(?:\.\/)?clean-preview\.html(?:[?#].*)?$/i.test(String(url||''))?scopedPreviewUrl():url;
+          return realOpen.call(window,next,target,...rest);
+        };
+        try{return original.call(this,e)}finally{window.open=realOpen}
+      };
+    }
   }
 
   function install(){
