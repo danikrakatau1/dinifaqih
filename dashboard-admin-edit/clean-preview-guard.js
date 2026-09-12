@@ -12,36 +12,39 @@
     for (const n of nodes) {
       const value = String(n.nodeValue || '');
       if (!/content\s+is\s+protected/i.test(value)) continue;
+      const parent = n.parentElement;
       const cleaned = value.replace(bad, '').trim();
       removed++;
-      if (cleaned) n.nodeValue = cleaned;
-      else {
-        const p = n.parentElement;
-        n.remove();
-        if (p && !String(p.textContent || '').trim() && !p.querySelector('img,video,audio,iframe,svg,canvas,input,button,a')) p.remove();
-      }
+      if (cleaned) n.nodeValue = cleaned; else n.remove();
+      if (parent && !String(parent.textContent || '').trim() && !parent.querySelector('img,video,audio,iframe,svg,canvas,input,button,a')) parent.remove();
     }
-    doc.querySelectorAll('script').forEach(s => {
-      const sig = `${s.src || ''}\n${s.textContent || ''}`;
-      if (/content\s+is\s+protected|wccp|wp[-_ ]?content[-_ ]?copy[-_ ]?protection|disable[^\n]{0,20}right[^\n]{0,20}click/i.test(sig)) { s.remove(); removed++; }
+    doc.querySelectorAll('body *').forEach(el => {
+      const t = String(el.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
+      if ((t === 'error:' || t === 'error') && !el.querySelector('img,video,audio,iframe,svg,canvas,input,button,a')) { el.remove(); removed++; }
     });
     return removed;
   }
 
-  const run = () => {
+  let observer = null;
+  function install() {
     try {
-      const n = scrub(frame.contentDocument);
-      if (n) {
-        const status = document.getElementById('sweepStatus');
-        if (status && !status.textContent) status.textContent = `Protection residue dibersihkan: ${n}`;
-      }
+      const doc = frame.contentDocument;
+      if (!doc?.documentElement) return;
+      scrub(doc);
+      observer?.disconnect();
+      let timer = 0;
+      observer = new MutationObserver(() => {
+        clearTimeout(timer);
+        timer = setTimeout(() => scrub(doc), 25);
+      });
+      observer.observe(doc.documentElement, {subtree:true, childList:true, characterData:true});
+      setTimeout(() => { scrub(doc); observer?.disconnect(); }, 8000);
     } catch (err) { console.warn('CLEAN_PREVIEW_GUARD', err); }
-  };
+  }
 
   frame.addEventListener('load', () => {
-    run();
-    setTimeout(run, 120);
-    setTimeout(run, 600);
+    setTimeout(install, 10);
+    setTimeout(install, 250);
   });
-  setTimeout(run, 800);
+  [600,1400,3000].forEach(ms => setTimeout(install, ms));
 })();
