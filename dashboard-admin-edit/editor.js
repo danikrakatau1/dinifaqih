@@ -425,6 +425,22 @@ function finishEditorToast(el,message,type='success',title=''){if(!el)return edi
      if(!fs.length)return;e.preventDefault();e.stopPropagation();e.stopImmediatePropagation?.();selectField(fs[0].id,true)
    },true);
    if(selectedFieldId)highlightSelection()}
+ function renderFetchSourceInitial(){
+   const params=new URLSearchParams(location.search);
+   if(params.get('mode')!=='fetch'||!params.get('handoff')||!native?.baseHtml)return false;
+   // First Fetch render MUST be the exact source-native HTML that the Preview just displayed.
+   // Do not rebuild/replay fields before the user changes anything; baseHtml already owns the
+   // Source Graph edit markers, so installFrameBridge can attach full V2.26 editability directly.
+   const html=String(native.baseHtml||'');
+   frame.onload=()=>{
+     installFrameBridge();
+     dirty.textContent=`FETCH SOURCE EXACT ✓ · ${native?.schema?.field_count||native?.schema?.fields?.length||0} field`;
+   };
+   frame.removeAttribute('src');
+   frame.srcdoc='';
+   requestAnimationFrame(()=>{frame.srcdoc=html});
+   return true
+ }
  function renderPreview(force=false){
    if(!native){
      frame.removeAttribute('src');
@@ -833,7 +849,7 @@ function finishEditorToast(el,message,type='success',title=''){if(!el)return edi
      if(!schema||!Array.isArray(schema.fields)||!html)return false;
      native={schema:deep(schema),baseHtml:html,manifest:{...deep(pack.manifest||{}),source_url:deep(pack.manifest||{}).source_url||pack?.native?.source_url||''},values:Object.fromEntries(schema.fields.map(f=>[f.id,f.value??'']))};
      dirty.textContent=`FETCH SNAPSHOT LOADED ✓ · ${schema.field_count||schema.fields.length} field`;saveDraftBtn.disabled=false;
-     renderNativeEditor();renderPreview(true);renderInspector();
+     renderNativeEditor();if(!renderFetchSourceInitial())renderPreview(true);renderInspector();
      try{localStorage.setItem(DRAFT_KEY,JSON.stringify({schema:native.schema,baseHtml:native.baseHtml,manifest:native.manifest,values:native.values}))}catch{}
      editorToast('Snapshot dari Fetch/Preview dimuat otomatis. Tidak perlu Import ZIP ulang.','success','Editor terhubung');
      return true
