@@ -502,7 +502,17 @@ html,body{margin:0;min-height:100%;}
       clickable.classList.remove('elementor-invisible');
       openControl.classList?.remove('elementor-invisible');
     }
+    // V1.4.6 — deterministic Source-Native runtime parity.
+    // The rebuilt document must NOT execute arbitrary source-page JS inside the Editor origin.
+    // Source-Native already reconstructs the visual/runtime behavior below, so freeze only
+    // executable source scripts while preserving inert JSON/template payloads.
+    doc.querySelectorAll('script').forEach(sc=>{
+      const type=String(sc.getAttribute('type')||'').trim().toLowerCase();
+      const executable=!type||['text/javascript','application/javascript','module','text/ecmascript','application/ecmascript'].includes(type);
+      if(executable)sc.remove();
+    });
     const safe=doc.createElement('script');
+    safe.setAttribute('data-dini-source-native-runtime','v1.4.6');
     const forceOpenStyle=doc.createElement('style');
     forceOpenStyle.setAttribute('data-native-open-visibility','1');
     forceOpenStyle.textContent=`
@@ -763,7 +773,7 @@ document.querySelectorAll('[data-native-reveal]').forEach(el=>io.observe(el));
       return `<div class="mapping-group"><strong>✓ ${label}</strong><small>${textCount} text · ${imageCount} image · ${bgCount} bg · ${videoCount} video</small></div>`;
     }).join('');
     $('#mappingTree').innerHTML=rows+(safeSections.length>18?`<div class="mapping-group"><strong>+ ${safeSections.length-18} section lainnya</strong><small>source-native mapping</small></div>`:'');
-    previewBtn.classList.remove('disabled');downloadBtn.disabled=false;$('#studioMessage').textContent='Source-native rebuild V1.3 siap. Preview sekarang memakai struktur source baru, bukan blueprint Art Sunda.';
+    previewBtn.classList.remove('disabled');downloadBtn.disabled=false;$('#studioMessage').textContent='Source-Native Rebuild siap ✓ · Source Graph V3 · Engine V2.26 · Runtime V1.4.6. Struktur dan visual berasal dari source yang sedang di-Fetch.';
   }
 
   async function packageBlob(){

@@ -431,10 +431,25 @@ function finishEditorToast(el,message,type='success',title=''){if(!el)return edi
    // First Fetch render MUST be the exact source-native HTML that the Preview just displayed.
    // Do not rebuild/replay fields before the user changes anything; baseHtml already owns the
    // Source Graph edit markers, so installFrameBridge can attach full V2.26 editability directly.
-   const html=String(native.baseHtml||'');
+   // V1.4.6 — old snapshots can still contain executable source-page scripts.
+   // Preview isolates them with a unique-origin sandbox, but Editor needs same-origin DOM access
+   // for 100% editability. Freeze arbitrary source JS here and keep only our deterministic
+   // Source-Native runtime. This makes Preview/Editor visual runtime deterministic without
+   // sacrificing installFrameBridge()/Visual Inspector access.
+   const sourceDoc=parseNative(String(native.baseHtml||''));
+   let frozenSourceScripts=0;
+   sourceDoc.querySelectorAll('script').forEach(sc=>{
+     const type=String(sc.getAttribute('type')||'').trim().toLowerCase();
+     const executable=!type||['text/javascript','application/javascript','module','text/ecmascript','application/ecmascript'].includes(type);
+     if(!executable)return;
+     const body=String(sc.textContent||'');
+     const keep=sc.hasAttribute('data-dini-source-native-runtime') || (/hydrateRuntimeBackgroundGeometry/.test(body)&&/startNativeCountdown/.test(body));
+     if(!keep){sc.remove();frozenSourceScripts++}
+   });
+   const html=serialize(sourceDoc);
    frame.onload=()=>{
      installFrameBridge();
-     dirty.textContent=`FETCH SOURCE EXACT ✓ · ${native?.schema?.field_count||native?.schema?.fields?.length||0} field`;
+     dirty.textContent=`FETCH SOURCE EXACT ✓ · ${native?.schema?.field_count||native?.schema?.fields?.length||0} field · JS frozen ${frozenSourceScripts}`;
    };
    frame.removeAttribute('src');
    frame.srcdoc='';
