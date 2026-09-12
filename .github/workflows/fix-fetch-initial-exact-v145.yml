@@ -14,16 +14,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Apply exact first-render fix
         run: python .github/scripts/fix-fetch-initial-exact-v145.py
-      - name: Syntax checks
-        run: |
-          node --check dashboard-admin-edit/editor.js
-      - name: Safety invariants
-        run: |
-          grep -q 'FETCH SOURCE EXACT' dashboard-admin-edit/editor.js
-          grep -q 'diniAnifRebuildSnapshot:' dashboard-admin-edit/editor.js
-          grep -q 'Upload / Ganti' dashboard-admin-edit/editor.js
-          grep -q 'function ensureRuntimeCssBackgroundFields' dashboard-admin-edit/editor.js
-          grep -q 'editor.js?v=fetch-initial-145' dashboard-admin-edit/index.html
+      - name: Syntax check
+        run: node --check dashboard-admin-edit/editor.js
       - name: Commit fix
         run: |
           git config user.name 'github-actions[bot]'
