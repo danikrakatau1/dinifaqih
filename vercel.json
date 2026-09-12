@@ -5,11 +5,20 @@
     { "source": "/dashboard-admin", "destination": "/dashboard-admin/index.html" },
     { "source": "/dashboard-admin-template", "destination": "/dashboard-admin-template/index.html" },
     { "source": "/dashboard-admin-fetch", "destination": "/dashboard-admin-fetch/index.html" },
-    { "source": "/dashboard-admin-edit", "destination": "/dashboard-admin-edit/index.html" }
+    { "source": "/dashboard-admin-edit", "destination": "/dashboard-admin-edit/index.html" },
+    { "source": "/dashboard-admin-fetch-editor", "destination": "/dashboard-admin-fetch-editor/index.html" },
+    { "source": "/buat-tamu", "destination": "/buat%20tamu.html" },
+    { "source": "/:guestSlug([a-z0-9-]+)", "destination": "/guest-entry.html?guest_slug=:guestSlug" }
   ],
   "headers": [
     {
       "source": "/api/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    },
+    {
+      "source": "/guest-entry.html",
       "headers": [
         { "key": "Cache-Control", "value": "no-store" }
       ]

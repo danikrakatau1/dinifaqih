@@ -3,204 +3,66 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="dashboard-version" content="V2 Editorial Dark — FIX Font">
-<title>Dashboard V2 Editorial Dark — FIX Font | Faqih & Dini</title>
+<meta name="dashboard-version" content="Universal Guest V1">
+<title>Dashboard Tamu — Faqih & Dini</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-:root{--bg:#0b0c0f;--surface:#121419;--surface2:#17191f;--line:#292c34;--text:#f4f0e8;--muted:#9c9a94;--gold:#d8b77a;--gold2:#b99150;--danger:#3a2428;--success:#1d3328}
-*{box-sizing:border-box}html{background:var(--bg)}body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:radial-gradient(circle at 85% 0%,rgba(216,183,122,.10),transparent 32%),radial-gradient(circle at 0% 100%,rgba(216,183,122,.06),transparent 28%),var(--bg);color:var(--text);min-height:100vh}body:before{content:"";position:fixed;inset:0;pointer-events:none;background-image:linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px);background-size:36px 36px;mask-image:linear-gradient(to bottom,black,transparent 75%)}
-.wrap{max-width:1280px;margin:0 auto;padding:30px 22px 70px}.card{background:linear-gradient(145deg,rgba(25,27,33,.96),rgba(16,18,22,.96));border:1px solid var(--line);border-radius:22px;padding:24px;box-shadow:0 18px 55px rgba(0,0,0,.28);margin-bottom:18px;backdrop-filter:blur(12px)}
-#login{max-width:460px;margin:9vh auto;padding:30px}.card h1,h1,h2{font-family:Georgia,"Times New Roman",serif;font-weight:500;letter-spacing:-.02em}h1{font-size:32px;margin:0 0 7px}h2{font-size:22px;margin:0 0 9px}.muted{color:var(--muted)}.small{font-size:12px;color:#85847f}
-label{display:block;font-weight:650;margin:16px 0 7px;color:#d9d5cc}input,select{width:100%;padding:13px 14px;border:1px solid #30333b;border-radius:12px;font-size:15px;background:#0e1014;color:var(--text);outline:none;transition:.2s}input:focus,select:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(216,183,122,.10)}button{appearance:none;-webkit-appearance:none;border:1px solid #353842;border-radius:12px;padding:11px 15px;cursor:pointer;font-weight:700;color:#f4f0e8;background:#1a1c21;transition:transform .16s,background .16s,border-color .16s,box-shadow .16s}button:hover{transform:translateY(-1px);background:#20232a;border-color:#464a55}button:focus-visible{outline:2px solid rgba(216,183,122,.75);outline-offset:2px}button:disabled{opacity:1;cursor:not-allowed;transform:none;background:#25272d;color:#a8a7a2;border-color:#30333a}.primary{background:linear-gradient(135deg,var(--gold),var(--gold2));color:#15130f;border-color:#d8b77a;box-shadow:0 8px 22px rgba(216,183,122,.16)}.danger{background:var(--danger);color:#efc5c9;border-color:#573238}.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}#app{display:none}.notice{margin-top:12px;padding:12px 14px;border-radius:12px;background:#17191e;color:#c9c6be;border:1px solid var(--line);font-size:13px}
-.nav{display:flex;gap:8px;flex-wrap:wrap;margin:22px 0 2px;padding:5px;background:#0e1014;border:1px solid var(--line);border-radius:14px;width:max-content;max-width:100%}.nav button{background:transparent;color:#9d9b95;border-color:transparent}.nav button.active{background:#25231e;color:#f0d6a3;border-color:#4a402f;box-shadow:0 5px 15px rgba(0,0,0,.2)}
-.panel{display:none}.panel.active{display:block}.search{max-width:320px}.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:15px;margin-top:16px}table{width:100%;border-collapse:collapse;min-width:760px}th,td{text-align:left;padding:14px 12px;border-bottom:1px solid #252830;vertical-align:top}th{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#888983}td{color:#d9d6ce}tbody tr:hover{background:rgba(255,255,255,.018)}.link{word-break:break-all;font-size:13px;color:#c8b180}.status{display:inline-block;padding:6px 10px;border-radius:999px;font-size:11px;font-weight:750}.status.hadir{background:var(--success);color:#9fe0b7}.status.tidak{background:#351f23;color:#e7a7ad}.status.belum{background:#25262a;color:#aaa9a3}.action-btns{display:flex;gap:7px;flex-wrap:wrap}.empty{text-align:center;padding:34px;color:#777770}
-.asset-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px}.asset-card{border:1px solid var(--line);border-radius:18px;padding:14px;background:#15171c}.preview{height:210px;border-radius:13px;overflow:hidden;background:#0d0f13;display:grid;place-items:center;margin-bottom:12px;border:1px solid #252830}.preview img{width:100%;height:100%;object-fit:cover}.preview audio{width:92%}.asset-title{font-weight:700;margin-bottom:5px}.asset-key{font-size:12px;color:#85847f;word-break:break-all}.asset-card input[type=file]{font-size:13px;padding:8px}.asset-actions{display:flex;gap:8px;margin-top:10px}.asset-actions button{flex:1}
-.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}.stat{padding:19px;border:1px solid var(--line);border-radius:18px;background:linear-gradient(145deg,#181a20,#111318);position:relative;overflow:hidden}.stat:after{content:"";position:absolute;width:90px;height:90px;border-radius:50%;right:-35px;top:-35px;background:rgba(216,183,122,.07)}.stat strong{display:block;font-size:30px;font-family:Georgia,"Times New Roman",serif;font-weight:500;color:#f5e7cc}.stat span{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#898983}
-@media(max-width:820px){.wrap{padding:18px 14px 50px}.stat-grid{grid-template-columns:repeat(2,1fr)}.card{padding:18px;border-radius:18px}h1{font-size:27px}}@media(max-width:520px){#login{margin:5vh 14px}.nav{width:100%}.nav button{flex:1}.toolbar{width:100%}.search{max-width:none}.toolbar>button{flex:1}.stat strong{font-size:26px}}
+:root{--bg:#0b0c0f;--card:#15171c;--card2:#111318;--line:#2b2e35;--text:#f3efe7;--muted:#97958f;--gold:#d8b77a;--gold2:#b89150;--danger:#47262b;--green:#17351f}*{box-sizing:border-box}html{background:var(--bg)}body{margin:0;min-height:100vh;background:radial-gradient(circle at 80% 0,rgba(216,183,122,.08),transparent 30%),var(--bg);color:var(--text);font:14px/1.45 Inter,system-ui,-apple-system,"Segoe UI",sans-serif}.wrap{max-width:1280px;margin:auto;padding:28px 22px 70px}.card{background:linear-gradient(145deg,#181a20,#111318);border:1px solid var(--line);border-radius:22px;padding:24px;margin-bottom:18px;box-shadow:0 18px 50px rgba(0,0,0,.24)}h1,h2{font-family:Georgia,"Times New Roman",serif;font-weight:500;margin:0 0 10px}h1{font-size:31px}h2{font-size:23px}.muted{color:var(--muted)}.small{font-size:12px;color:#8d8b84}label{display:block;margin:16px 0 7px;font-weight:700;color:#ddd8cf}input,select{width:100%;padding:13px 14px;border:1px solid #32353d;border-radius:12px;background:#0e1014;color:var(--text);font:inherit;outline:none}input:focus,select:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(216,183,122,.10)}button,a.btn{border:1px solid #383b44;border-radius:12px;padding:11px 15px;background:#1b1d22;color:#f5f1e9;font-weight:750;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;transition:.16s}button:hover,a.btn:hover{transform:translateY(-1px);background:#22252b}.primary{background:linear-gradient(135deg,var(--gold),var(--gold2));color:#17130d;border-color:#d8b77a}.danger{background:var(--danger);color:#f0c5ca;border-color:#65343b}.whatsapp{background:#dcefe1!important;color:#17351f!important;border-color:#b9d8c0!important}.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.top{display:flex;justify-content:space-between;gap:15px;align-items:flex-start;flex-wrap:wrap}.notice{display:none;margin-top:13px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#17191e}.notice.good{border-color:#315640;color:#bde8ca}.notice.bad{border-color:#693840;color:#f0c2c7}.contract{display:grid;gap:5px;margin-top:14px;padding:14px;border:1px solid #473b2a;border-radius:14px;background:#18150f}.contract strong,.contract code{color:#e2c78f}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:18px 0}.stat{padding:18px;border:1px solid var(--line);border-radius:17px;background:var(--card2)}.stat strong{display:block;font:500 29px Georgia,serif;color:#f4e4c6}.stat span{font-size:11px;color:#93918a;text-transform:uppercase;letter-spacing:.07em}.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:15px;margin-top:16px}table{width:100%;border-collapse:collapse;min-width:850px}th,td{padding:14px 12px;border-bottom:1px solid #272a31;text-align:left;vertical-align:top}th{font-size:11px;color:#8c8d88;text-transform:uppercase;letter-spacing:.07em}.link{color:#d2bb8b;word-break:break-all}.slug{font-size:11px;color:#87857f;margin-top:4px}.status{display:inline-block;padding:6px 10px;border-radius:999px;font-size:11px;font-weight:800}.status.hadir{background:#1d3328;color:#9fe0b7}.status.tidak{background:#351f23;color:#e7a7ad}.status.belum{background:#26272b;color:#aaa9a3}.actions{display:flex;gap:7px;flex-wrap:wrap}.actions select{min-width:190px}.empty{text-align:center;padding:34px;color:#777}.search{max-width:320px}.login{max-width:460px;margin:9vh auto;padding:30px}.hidden{display:none!important}@media(max-width:800px){.wrap{padding:18px 14px 50px}.stats{grid-template-columns:repeat(2,1fr)}.card{padding:18px;border-radius:18px}}@media(max-width:520px){.toolbar{width:100%}.toolbar>*{flex:1}.search{max-width:none}.actions>*{flex:1}.actions select{min-width:100%}}
 </style>
 </head>
 <body>
-<div id="login" class="card">
+<div id="login" class="card login">
   <h1>🔐 Login Admin</h1><div class="muted">Dashboard Undangan Faqih & Dini</div>
-  <label for="email">Email admin</label><input id="email" type="email" autocomplete="username" placeholder="email admin">
-  <label for="password">Password</label><input id="password" type="password" autocomplete="current-password" placeholder="password">
-  <div class="toolbar"><button class="primary" id="loginBtn">Masuk</button></div>
-  <div id="loginStatus" class="notice" style="display:none"></div>
+  <label>Email admin</label><input id="email" type="email" autocomplete="username" placeholder="email admin">
+  <label>Password</label><input id="password" type="password" autocomplete="current-password" placeholder="password">
+  <div class="toolbar" style="margin-top:16px"><button class="primary" id="loginBtn">Masuk</button></div>
+  <div id="loginStatus" class="notice bad"></div>
 </div>
 
-<div id="app" class="wrap">
+<div id="app" class="wrap hidden">
   <div class="card">
-    <div style="display:flex;justify-content:space-between;gap:15px;align-items:flex-start;flex-wrap:wrap">
-      <div><div class="small" style="letter-spacing:.16em;text-transform:uppercase;color:#bda06d;margin-bottom:7px">Wedding Management</div><h1>Dashboard Admin</h1><div class="muted">Faqih & Dini <span style="color:#6e6e68">—</span> kelola tamu, foto, dan musik.</div></div>
-      <button id="logout">Keluar</button>
+    <div class="top">
+      <div><div class="small" style="letter-spacing:.15em;text-transform:uppercase;color:#bda06d">Wedding Management</div><h1>Dashboard Tamu</h1><div class="muted">Guest universal — link stabil, template aktif bisa berganti.</div></div>
+      <div class="toolbar"><a class="btn" href="/buat-tamu-legacy.html">Foto & Musik Legacy</a><button id="logout">Keluar</button></div>
     </div>
-    <div class="nav">
-      <button class="active" data-tab="guests">👥 Tamu</button>
-      <button data-tab="photos">📸 Foto</button>
-      <button data-tab="music">🎵 Musik</button>
-    </div>
-    <div id="appStatus" class="notice" style="display:none"></div>
+    <div class="contract"><strong>Universal Guest V1</strong><span>Tamu tidak lagi terikat UUID template. Link personal selalu membuka template yang sedang aktif.</span><code>https://dini-faqih.my.id/rozak</code></div>
+    <div id="appStatus" class="notice"></div>
   </div>
 
-  <section id="guests" class="panel active">
-    <div class="small" style="margin:0 0 14px">Template tamu aktif: <strong id="activeTemplateGuest">Memuat…</strong></div>
-    <div class="stat-grid">
-      <div class="stat"><strong id="statTotal">0</strong><span>Total Tamu</span></div>
-      <div class="stat"><strong id="statHadir">0</strong><span>Hadir</span></div>
-      <div class="stat"><strong id="statTidak">0</strong><span>Tidak Hadir</span></div>
-      <div class="stat"><strong id="statBelum">0</strong><span>Belum Konfirmasi</span></div>
-    </div>
+  <section>
+    <div class="small">Template aktif saat link dibuka: <strong id="activeTemplate">Memuat…</strong></div>
+    <div class="stats"><div class="stat"><strong id="total">0</strong><span>Total Tamu</span></div><div class="stat"><strong id="hadir">0</strong><span>Hadir</span></div><div class="stat"><strong id="tidak">0</strong><span>Tidak Hadir</span></div><div class="stat"><strong id="belum">0</strong><span>Belum Konfirmasi</span></div></div>
+
     <div class="card">
       <h2>Tambah Tamu</h2>
-      <label for="guest">Nama tamu</label><input id="guest" placeholder="Contoh: Budi Santoso" autocomplete="off">
-      <div class="toolbar"><button class="primary" id="add">+ Tambah Tamu</button></div>
-      <p class="small">Link dasar: <span id="base"></span></p>
+      <label>Nama tamu</label><input id="guest" placeholder="Contoh: Rozak" autocomplete="off">
+      <div class="toolbar" style="margin-top:16px"><button class="primary" id="add">+ Tambah Tamu</button></div>
+      <p class="small">Link dasar: <span id="base">https://dini-faqih.my.id/</span></p>
     </div>
+
     <div class="card">
-      <div class="toolbar" style="justify-content:space-between;align-items:center">
-        <div><strong>Daftar Tamu</strong><div class="small" id="count">0 tamu</div></div>
-        <div class="toolbar" style="margin-top:0"><input class="search" id="search" placeholder="🔎 Cari nama tamu"><button id="copyAll">Salin Semua Link</button><button id="export">Download CSV</button></div>
-      </div>
+      <div class="top"><div><strong>Daftar Tamu</strong><div class="small" id="count">0 tamu</div></div><div class="toolbar"><input class="search" id="search" placeholder="🔎 Cari nama / slug"><button id="copyAll">Salin Semua Link</button><button id="export">Download CSV</button></div></div>
       <div class="table-wrap"><table><thead><tr><th>Nama</th><th>Link Personal</th><th>Status RSVP</th><th>Aksi</th></tr></thead><tbody id="rows"></tbody></table><div id="empty" class="empty">Belum ada tamu.</div></div>
     </div>
   </section>
-
-  <section id="photos" class="panel">
-    <div class="card">
-      <h2>📸 Kelola Foto</h2>
-      <p class="muted">Upload untuk mengganti foto di undangan. Foto akan disimpan di Supabase Storage.</p>
-      <div id="photoGrid" class="asset-grid"></div>
-    </div>
-  </section>
-
-  <section id="music" class="panel">
-    <div class="card">
-      <h2>🎵 Kelola Musik</h2>
-      <p class="muted">Upload MP3 baru lalu klik <b>Aktifkan</b>. Musik aktif akan dipakai saat tamu membuka undangan.</p>
-      <div id="musicGrid" class="asset-grid"></div>
-    </div>
-  </section>
 </div>
-
 <script>
-const SUPABASE_URL="https://jfvmcerrsxjvbiogfqes.supabase.co";
-const SUPABASE_ANON_KEY="sb_publishable_3IqSDxkpxCGiDpxAEwdsXQ_AsJpsC4W";
-const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
-const base=new URL("./index.html",location.href).href;
-document.getElementById("base").textContent=base;
-
-const PHOTO_ASSETS=[
-  ["couple","Foto Cover / Couple","image/jpeg"],
-  ["groom","Foto Mempelai Pria","image/jpeg"],
-  ["bride","Foto Mempelai Wanita","image/jpeg"],
-  ["gallery-1","Galeri 1","image/jpeg"],
-  ["gallery-2","Galeri 2","image/jpeg"],
-  ["gallery-3","Galeri 3","image/jpeg"],
-  ["gallery-4","Galeri 4","image/jpeg"],
-  ["gallery-5","Galeri 5","image/jpeg"],
-  ["gallery-6","Galeri 6","image/jpeg"]
-];
-let guests=[], assets={}, activeTemplate=null;
-
-function showStatus(text){const el=document.getElementById("appStatus");el.textContent=text;el.style.display="block";clearTimeout(window._statusTimer);window._statusTimer=setTimeout(()=>el.style.display="none",5000)}
-function loginStatus(text){const el=document.getElementById("loginStatus");el.textContent=text;el.style.display="block"}
-async function login(){document.getElementById("loginStatus").style.display="none";const email=document.getElementById("email").value.trim(),password=document.getElementById("password").value;if(!email||!password)return loginStatus("Email dan password wajib diisi.");const {error}=await sb.auth.signInWithPassword({email,password});if(error)loginStatus(error.message)}
-async function logout(){await sb.auth.signOut()}
-function linkFor(name){
-  const u=new URL(base);
-  if(activeTemplate?.id)u.searchParams.set("template",activeTemplate.id);
-  u.searchParams.set("to",name);
-  return u.href;
-}
-async function loadActiveTemplate(){
-  let {data,error}=await sb.from("templates").select("id,name,slug,status,is_active").eq("is_active",true).limit(1).maybeSingle();
-  if(error){activeTemplate=null;showStatus("Gagal membaca template aktif: "+error.message);return null}
-
-  // Jangan pernah memakai ID dummy seperti "template-1": templates.id dan guests.template_id adalah UUID.
-  if(!data){
-    const existing=await sb.from("templates").select("id,name,slug,status,is_active").eq("slug","template-1").limit(1).maybeSingle();
-    if(existing.error){activeTemplate=null;showStatus("Gagal mencari Template 1: "+existing.error.message);return null}
-    if(existing.data){
-      const activated=await sb.from("templates").update({is_active:true,status:"active",updated_at:new Date().toISOString()}).eq("id",existing.data.id).select("id,name,slug,status,is_active").single();
-      if(activated.error){activeTemplate=null;showStatus("Gagal mengaktifkan Template 1: "+activated.error.message);return null}
-      data=activated.data;
-    }else{
-      const inserted=await sb.from("templates").insert({name:"Template 1",slug:"template-1",source_path:"/",status:"active",is_active:true}).select("id,name,slug,status,is_active").single();
-      if(inserted.error){activeTemplate=null;showStatus("Template aktif belum tersedia: "+inserted.error.message);return null}
-      data=inserted.data;
-    }
-  }
-
-  activeTemplate=data;
-  const el=document.getElementById("activeTemplateGuest");if(el)el.textContent=activeTemplate.name+" • "+activeTemplate.id;
-  return activeTemplate;
-}
-
-async function loadGuests(){
-  if(!activeTemplate)await loadActiveTemplate();
-  if(!activeTemplate)return;
-  const {data,error}=await sb.from("guests").select("id,template_id,name,rsvp_status,created_at").eq("template_id",activeTemplate.id).order("created_at",{ascending:true});
-  if(error)return showStatus("Gagal memuat tamu per-template: "+error.message+". Jalankan SUPABASE-GUESTS-PER-TEMPLATE.sql.");
-  guests=data||[];renderGuests();
-}
-function renderGuests(){
-  const q=document.getElementById("search").value.trim().toLowerCase(),filtered=guests.filter(g=>g.name.toLowerCase().includes(q));
-  document.getElementById("count").textContent=guests.length+" tamu";document.getElementById("statTotal").textContent=guests.length;
-  document.getElementById("statHadir").textContent=guests.filter(g=>g.rsvp_status==="hadir").length;
-  document.getElementById("statTidak").textContent=guests.filter(g=>g.rsvp_status==="tidak_hadir").length;
-  document.getElementById("statBelum").textContent=guests.filter(g=>!g.rsvp_status||g.rsvp_status==="belum").length;
-  const tbody=document.getElementById("rows");tbody.innerHTML="";document.getElementById("empty").style.display=filtered.length?"none":"block";
-  filtered.forEach(g=>{
-    const tr=document.createElement("tr"),link=linkFor(g.name),cls=g.rsvp_status==="hadir"?"hadir":g.rsvp_status==="tidak_hadir"?"tidak":"belum",label=g.rsvp_status==="hadir"?"Hadir":g.rsvp_status==="tidak_hadir"?"Tidak hadir":"Belum konfirmasi";
-    tr.innerHTML=`<td><strong></strong></td><td class="link"></td><td><span class="status ${cls}">${label}</span></td><td><div class="action-btns"><button class="primary" data-copy="${g.id}">Copy</button><a target="_blank" rel="noopener" style="text-decoration:none;color:#17351f;padding:11px 15px;border-radius:10px;background:#dcefe1;border:1px solid #b9d8c0;font-weight:700;display:inline-flex;align-items:center;justify-content:center" href="#">WhatsApp</a><select data-status="${g.id}"><option value="belum">Belum konfirmasi</option><option value="hadir">Hadir</option><option value="tidak_hadir">Tidak hadir</option></select><button class="danger" data-delete="${g.id}">Hapus</button></div></td>`;
-    tr.querySelector("strong").textContent=g.name;tr.querySelector(".link").textContent=link;tr.querySelector("select").value=g.rsvp_status||"belum";
-    tr.querySelector("a").href="https://wa.me/?text="+encodeURIComponent("Assalamu'alaikum, berikut link undangan Faqih & Dini untuk "+g.name+": "+link);tbody.appendChild(tr);
-  });
-  tbody.querySelectorAll("[data-copy]").forEach(btn=>btn.onclick=async()=>{const g=guests.find(x=>x.id===btn.dataset.copy);if(!g)return;await navigator.clipboard.writeText(linkFor(g.name));btn.textContent="Copied ✓";setTimeout(()=>btn.textContent="Copy",1200)});
-  tbody.querySelectorAll("[data-delete]").forEach(btn=>btn.onclick=async()=>{const g=guests.find(x=>x.id===btn.dataset.delete);if(!g||!confirm("Hapus tamu "+g.name+"?"))return;const {error}=await sb.from("guests").delete().eq("id",g.id).eq("template_id",activeTemplate.id);if(error)showStatus("Gagal menghapus: "+error.message);else loadGuests()});
-  tbody.querySelectorAll("[data-status]").forEach(sel=>sel.onchange=async()=>{const {error}=await sb.from("guests").update({rsvp_status:sel.value}).eq("id",sel.dataset.status).eq("template_id",activeTemplate.id);if(error)showStatus("Gagal mengubah status: "+error.message);else loadGuests()});
-}
-
-async function loadAssets(){
-  const {data,error}=await sb.from("site_assets").select("asset_key,public_url,updated_at");
-  if(error)return showStatus("Gagal memuat aset. Pastikan SQL dashboard sudah dijalankan: "+error.message);
-  assets={};(data||[]).forEach(a=>assets[a.asset_key]=a);renderAssets();
-}
-function assetUrl(key){return assets[key]?.public_url||""}
-function renderAssets(){
-  document.getElementById("photoGrid").innerHTML=PHOTO_ASSETS.map(([key,title])=>`
-    <div class="asset-card"><div class="preview">${assetUrl(key)?`<img src="${assetUrl(key)}" alt="">`:"<span class='small'>Belum ada foto dari Storage</span>"}</div>
-    <div class="asset-title">${title}</div><div class="asset-key">${key}</div><input type="file" accept="image/*" data-file="${key}"><div class="asset-actions"><button class="primary" data-upload="${key}">Upload / Ganti</button>${assetUrl(key)?`<button data-remove="${key}">Hapus</button>`:""}</div></div>`).join("");
-  document.getElementById("musicGrid").innerHTML=`<div class="asset-card"><div class="preview">${assetUrl("music")?`<audio controls src="${assetUrl("music")}"></audio>`:"<span class='small'>Belum ada musik dari Storage</span>"}</div><div class="asset-title">Musik Background</div><div class="asset-key">music</div><input type="file" accept="audio/mpeg,audio/mp3" data-file="music"><div class="asset-actions"><button class="primary" data-upload="music">Upload / Aktifkan</button>${assetUrl("music")?`<button data-remove="music">Hapus</button>`:""}</div></div>`;
-  document.querySelectorAll("[data-upload]").forEach(b=>b.onclick=()=>uploadAsset(b.dataset.upload));
-  document.querySelectorAll("[data-remove]").forEach(b=>b.onclick=()=>removeAsset(b.dataset.remove));
-}
-function pathFor(key,ext){return key==="music"?`music/background.${ext}`:`photos/${key}.${ext}`}
-async function uploadAsset(key){
-  const input=document.querySelector(`[data-file="${key}"]`);const file=input?.files?.[0];if(!file)return showStatus("Pilih file terlebih dahulu.");
-  if(key==="music"&&!file.type.includes("mpeg")&&!file.name.toLowerCase().endsWith(".mp3"))return showStatus("Musik harus berupa file MP3.");
-  if(key!=="music"&&!file.type.startsWith("image/"))return showStatus("File foto harus berupa gambar.");
-  const ext=(file.name.split(".").pop()||"jpg").toLowerCase().replace(/[^a-z0-9]/g,"")||"jpg";const path=pathFor(key,ext);
-  showStatus("Mengupload "+key+"…");
-  const {error:up}=await sb.storage.from("invitation-assets").upload(path,file,{upsert:true,contentType:file.type});
-  if(up)return showStatus("Upload gagal: "+up.message);
-  const {data}=sb.storage.from("invitation-assets").getPublicUrl(path);
-  const {error:db}=await sb.from("site_assets").upsert({asset_key:key,public_url:data.publicUrl,storage_path:path,updated_at:new Date().toISOString()},{onConflict:"asset_key"});
-  if(db)return showStatus("File terupload tetapi gagal menyimpan pengaturan: "+db.message);
-  input.value="";await loadAssets();showStatus(key==="music"?"Musik berhasil diaktifkan.":"Foto berhasil diperbarui.");
-}
-async function removeAsset(key){
-  if(!confirm("Hapus aset "+key+"?"))return;const old=assets[key];if(old?.storage_path){const {error}=await sb.storage.from("invitation-assets").remove([old.storage_path]);if(error)return showStatus("Gagal menghapus file: "+error.message)}
-  const {error}=await sb.from("site_assets").delete().eq("asset_key",key);if(error)showStatus("Gagal menghapus pengaturan: "+error.message);else{await loadAssets();showStatus("Aset dihapus. Undangan akan memakai file lokal sebagai cadangan.")}}
-
-document.getElementById("loginBtn").onclick=login;document.getElementById("password").addEventListener("keydown",e=>{if(e.key==="Enter")login()});document.getElementById("logout").onclick=logout;document.getElementById("search").oninput=renderGuests;
-document.getElementById("add").onclick=async()=>{const input=document.getElementById("guest"),name=input.value.trim();if(!name)return input.focus();if(guests.some(g=>g.name.toLowerCase()===name.toLowerCase()))return showStatus("Nama tamu sudah ada.");const {error}=await sb.from("guests").insert({template_id:activeTemplate.id,name,rsvp_status:"belum"});if(error)showStatus("Gagal menambah tamu: "+error.message);else{input.value="";await loadGuests();input.focus()}};
-document.getElementById("guest").addEventListener("keydown",e=>{if(e.key==="Enter")document.getElementById("add").click()});
-document.getElementById("copyAll").onclick=async()=>{const text=guests.map(g=>`${g.name}\t${linkFor(g.name)}`).join("\n");if(text){await navigator.clipboard.writeText(text);alert("Semua link sudah disalin.")}};
-document.getElementById("export").onclick=()=>{const rows=[["Nama","Link","Status RSVP"],...guests.map(g=>[g.name,linkFor(g.name),g.rsvp_status])];const csv=rows.map(r=>r.map(v=>`"${String(v).replaceAll('"','""')}"`).join(",")).join("\n");const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`daftar-tamu-${(activeTemplate?.slug||activeTemplate?.id||"template").replace(/[^a-z0-9-]/gi,"-")}.csv`;a.click();URL.revokeObjectURL(a.href)};
-document.querySelectorAll("[data-tab]").forEach(btn=>btn.onclick=()=>{document.querySelectorAll("[data-tab]").forEach(x=>x.classList.remove("active"));document.querySelectorAll(".panel").forEach(x=>x.classList.remove("active"));btn.classList.add("active");document.getElementById(btn.dataset.tab).classList.add("active")});
-
-sb.auth.onAuthStateChange(async(event,session)=>{const loggedIn=!!session;document.getElementById("login").style.display=loggedIn?"none":"block";document.getElementById("app").style.display=loggedIn?"block":"none";if(loggedIn){await loadActiveTemplate();await loadGuests();await loadAssets()}});
+const SB_URL='https://jfvmcerrsxjvbiogfqes.supabase.co';
+const SB_KEY='sb_publishable_3IqSDxkpxCGiDpxAEwdsXQ_AsJpsC4W';
+const ORIGIN='https://dini-faqih.my.id';
+const sb=supabase.createClient(SB_URL,SB_KEY);
+let guests=[];
+const $=id=>document.getElementById(id);
+const linkFor=g=>g?.guest_slug?ORIGIN+'/'+g.guest_slug:'';
+function status(msg,type='info'){const e=$('appStatus');e.textContent=msg;e.className='notice '+(type==='bad'?'bad':type==='good'?'good':'');e.style.display='block';clearTimeout(window.__st);window.__st=setTimeout(()=>e.style.display='none',6000)}
+function loginStatus(msg){const e=$('loginStatus');e.textContent=msg;e.style.display='block'}
+async function login(){const email=$('email').value.trim(),password=$('password').value;if(!email||!password)return loginStatus('Email dan password wajib diisi.');const {error}=await sb.auth.signInWithPassword({email,password});if(error)loginStatus(error.message)}
+async function loadActive(){const {data,error}=await sb.from('templates').select('id,name,slug,is_active').eq('is_active',true).limit(1).maybeSingle();if(error){$('activeTemplate').textContent='Gagal dibaca';return}$('activeTemplate').textContent=data?data.name+' • '+data.slug:'Template 1 local'}
+async function loadGuests(){const {data,error}=await sb.from('guests').select('id,name,guest_slug,rsvp_status,created_at,template_id').order('created_at',{ascending:true});if(error){status('Gagal memuat tamu: '+error.message+' — jalankan SUPABASE-GUESTS-UNIVERSAL-V1.sql pada project DINI & FAQIH.','bad');return}guests=data||[];render()}
+function render(){const q=$('search').value.trim().toLowerCase(),filtered=guests.filter(g=>(g.name||'').toLowerCase().includes(q)||(g.guest_slug||'').toLowerCase().includes(q));$('count').textContent=guests.length+' tamu';$('total').textContent=guests.length;$('hadir').textContent=guests.filter(g=>g.rsvp_status==='hadir').length;$('tidak').textContent=guests.filter(g=>g.rsvp_status==='tidak_hadir').length;$('belum').textContent=guests.filter(g=>!g.rsvp_status||g.rsvp_status==='belum').length;const body=$('rows');body.innerHTML='';$('empty').style.display=filtered.length?'none':'block';for(const g of filtered){const link=linkFor(g),cls=g.rsvp_status==='hadir'?'hadir':g.rsvp_status==='tidak_hadir'?'tidak':'belum',label=g.rsvp_status==='hadir'?'Hadir':g.rsvp_status==='tidak_hadir'?'Tidak hadir':'Belum konfirmasi';const tr=document.createElement('tr');tr.innerHTML=`<td><strong class="name"></strong><div class="slug"></div></td><td class="link"></td><td><span class="status ${cls}">${label}</span></td><td><div class="actions"><button class="primary" data-copy>Copy</button><a class="btn whatsapp" target="_blank" rel="noopener">WhatsApp</a><select data-rsvp><option value="belum">Belum konfirmasi</option><option value="hadir">Hadir</option><option value="tidak_hadir">Tidak hadir</option></select><button class="danger" data-delete>Hapus</button></div></td>`;tr.querySelector('.name').textContent=g.name;tr.querySelector('.slug').textContent=g.guest_slug?'/'+g.guest_slug:'slug belum tersedia';tr.querySelector('.link').textContent=link||'Jalankan migration Universal Guest V1';tr.querySelector('[data-rsvp]').value=g.rsvp_status||'belum';tr.querySelector('a').href='https://wa.me/?text='+encodeURIComponent("Assalamu'alaikum, berikut link undangan Faqih & Dini untuk "+g.name+': '+link);tr.querySelector('[data-copy]').onclick=async()=>{if(!link)return status('guest_slug belum tersedia.','bad');await navigator.clipboard.writeText(link);status('Link '+g.name+' disalin.','good')};tr.querySelector('[data-delete]').onclick=async()=>{if(!confirm('Hapus tamu '+g.name+'?'))return;const {error}=await sb.from('guests').delete().eq('id',g.id);if(error)status('Gagal menghapus: '+error.message,'bad');else loadGuests()};tr.querySelector('[data-rsvp]').onchange=async e=>{const {error}=await sb.from('guests').update({rsvp_status:e.target.value}).eq('id',g.id);if(error)status('Gagal mengubah status: '+error.message,'bad');else loadGuests()};body.appendChild(tr)}}
+async function addGuest(){const input=$('guest'),name=input.value.trim();if(!name)return input.focus();const btn=$('add');btn.disabled=true;try{const {data,error}=await sb.from('guests').insert({name,rsvp_status:'belum'}).select('id,name,guest_slug,rsvp_status,created_at,template_id').single();if(error)throw error;input.value='';await loadGuests();status('Tamu ditambahkan: '+data.name+' → '+linkFor(data),'good');input.focus()}catch(e){status('Gagal menambah tamu: '+e.message+(String(e.message).includes('guest_slug')?' — jalankan SUPABASE-GUESTS-UNIVERSAL-V1.sql.':''),'bad')}finally{btn.disabled=false}}
+$('loginBtn').onclick=login;$('password').addEventListener('keydown',e=>{if(e.key==='Enter')login()});$('logout').onclick=()=>sb.auth.signOut();$('search').oninput=render;$('add').onclick=addGuest;$('guest').addEventListener('keydown',e=>{if(e.key==='Enter')addGuest()});$('copyAll').onclick=async()=>{const text=guests.filter(g=>g.guest_slug).map(g=>g.name+'\t'+linkFor(g)).join('\n');if(text){await navigator.clipboard.writeText(text);status('Semua link disalin.','good')}};$('export').onclick=()=>{const data=[['Nama','Slug','Link','Status RSVP'],...guests.map(g=>[g.name,g.guest_slug||'',linkFor(g),g.rsvp_status||'belum'])],csv=data.map(r=>r.map(v=>'"'+String(v).replaceAll('"','""')+'"').join(',')).join('\n'),blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='daftar-tamu-dini-faqih.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
+sb.auth.onAuthStateChange(async(_event,session)=>{const on=!!session;$('login').classList.toggle('hidden',on);$('app').classList.toggle('hidden',!on);if(on){await loadActive();await loadGuests()}});
 </script>
 </body>
 </html>
