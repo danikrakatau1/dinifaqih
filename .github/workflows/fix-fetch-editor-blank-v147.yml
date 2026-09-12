@@ -1,0 +1,113 @@
+name: Fix Fetch Editor Blank V147
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-fetch-editor-blank-v147.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch Fetch Editor light bridge and blank rescue
+        shell: python
+        run: |
+          from pathlib import Path
+
+          p = Path('dashboard-admin-edit/editor.js')
+          s = p.read_text(encoding='utf-8')
+
+          old = "function installFrameBridge(){const doc=liveDoc();if(!doc)return;\n   const runtimeAdded=ensureRuntimeCssBackgroundFields(doc);if(runtimeAdded){renderNativeEditor();renderInspector()}"
+          new = "function installFrameBridge(light=false){const doc=liveDoc();if(!doc)return;\n   if(!light){\n   const runtimeAdded=ensureRuntimeCssBackgroundFields(doc);if(runtimeAdded){renderNativeEditor();renderInspector()}"
+          if old not in s:
+              raise SystemExit('installFrameBridge start marker not found')
+          s = s.replace(old, new, 1)
+
+          old = "try{mo.observe(doc.documentElement,{subtree:true,attributes:true,attributeFilter:['class','style','data-settings'],childList:true});setTimeout(()=>mo.disconnect(),6000)}catch{}\n   if(!doc.getElementById('dini-anif-editor-hit-css'))"
+          new = "try{mo.observe(doc.documentElement,{subtree:true,attributes:true,attributeFilter:['class','style','data-settings'],childList:true});setTimeout(()=>mo.disconnect(),6000)}catch{}\n   }\n   if(!doc.getElementById('dini-anif-editor-hit-css'))"
+          if old not in s:
+              raise SystemExit('installFrameBridge heavy-block end marker not found')
+          s = s.replace(old, new, 1)
+
+          marker = " function renderFetchSourceInitial(){\n"
+          if marker not in s:
+              raise SystemExit('renderFetchSourceInitial marker not found')
+
+          helper = r''' function fetchFrameStats(){
+   const d=liveDoc();if(!d?.body)return {dom:0,visible:0,editable:0,visibleEditable:0};
+   const all=[...d.body.querySelectorAll('*')],editable=[...d.querySelectorAll('[data-native-edit-id],[data-native-edit-ids],[data-native-node-id],[data-native-media-proxy]')];
+   const visible=el=>{try{const cs=d.defaultView.getComputedStyle(el),r=el.getBoundingClientRect();return cs.display!=='none'&&cs.visibility!=='hidden'&&Number(cs.opacity||1)>.01&&r.width>1&&r.height>1}catch{return false}};
+   return {dom:all.length,visible:all.filter(visible).length,editable:editable.length,visibleEditable:editable.filter(visible).length};
+ }
+ function rescueBlankFetchFrame(){
+   const d=liveDoc();if(!d?.body)return {rescued:false,...fetchFrameStats()};
+   let stat=fetchFrameStats();
+   // Only touch the document when the snapshot has real editable DOM but paints nothing.
+   if(stat.editable<1 || stat.visibleEditable>0)return {rescued:false,...stat};
+   const first=d.querySelector('#cover,[data-native-open]')?.closest?.('.elementor-top-section,section,[data-element_type="section"]') || d.querySelector('#cover,.elementor-top-section,body>section,[data-elementor-type]') || d.body.firstElementChild;
+   if(!first)return {rescued:false,...stat};
+   const forceNode=el=>{
+     if(!el||el===d.head)return;
+     let cs;try{cs=d.defaultView.getComputedStyle(el)}catch{return}
+     el.classList?.remove('elementor-invisible');
+     if(el.hasAttribute?.('data-native-reveal'))el.classList?.add('native-visible');
+     if(cs.visibility==='hidden')el.style.setProperty('visibility','visible','important');
+     if(Number(cs.opacity||1)<=.01)el.style.setProperty('opacity','1','important');
+     if(cs.display==='none'){
+       const tag=String(el.tagName||'').toLowerCase();
+       el.style.setProperty('display',tag==='span'||tag==='a'?'inline-block':'block','important');
+     }
+   };
+   // Restore only the first invitation surface and its ancestry; do not flatten later sections.
+   let a=first;while(a&&a!==d.documentElement){forceNode(a);a=a.parentElement}forceNode(d.documentElement);
+   first.querySelectorAll('[data-native-reveal],.elementor-invisible,[data-native-open],[data-native-edit-id],[data-native-edit-ids]').forEach(forceNode);
+   // Common source preloaders can cover a fully built invitation after source JS is intentionally stripped.
+   d.querySelectorAll('#preloader,.preloader,.page-loader,.loader-wrapper,.loading-overlay,[class*="preloader"]').forEach(el=>{
+     if(first.contains(el))return;
+     try{const r=el.getBoundingClientRect(),cs=d.defaultView.getComputedStyle(el);if(r.width>=d.documentElement.clientWidth*.8&&r.height>=d.documentElement.clientHeight*.8&&(cs.position==='fixed'||cs.position==='absolute'))el.style.setProperty('display','none','important')}catch{}
+   });
+   stat=fetchFrameStats();return {rescued:true,...stat};
+ }
+'''
+          s = s.replace(marker, helper + marker, 1)
+
+          old = "frame.onload=()=>{\n     installFrameBridge();\n     dirty.textContent=`FETCH SOURCE EXACT ✓ · ${native?.schema?.field_count||native?.schema?.fields?.length||0} field · JS frozen ${frozenSourceScripts}`;\n   };"
+          new = "frame.onload=()=>{\n     // Fetch first-render uses LIGHT bridge: keep click-to-edit, but do not run the heavy runtime CSS scanner\n     // that can mutate a source-native frame before its first paint.\n     installFrameBridge(true);\n     const probe=()=>{const st=rescueBlankFetchFrame();dirty.textContent=`FETCH SOURCE EXACT ✓ · ${native?.schema?.field_count||native?.schema?.fields?.length||0} field · JS frozen ${frozenSourceScripts} · VIS ${st.visibleEditable}/${st.editable}${st.rescued?' · RESCUED':''}`};\n     requestAnimationFrame(()=>requestAnimationFrame(probe));setTimeout(probe,350);setTimeout(probe,1100);\n   };"
+          if old not in s:
+              raise SystemExit('Fetch frame onload marker not found')
+          s = s.replace(old, new, 1)
+
+          p.write_text(s, encoding='utf-8')
+
+          ip = Path('dashboard-admin-edit/index.html')
+          h = ip.read_text(encoding='utf-8')
+          h = h.replace('<iframe id="previewFrame" title="Dynamic Native Preview V1.5.9"></iframe>', '<iframe id="previewFrame" title="Dynamic Native Preview V1.4.7" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"></iframe>')
+          h = h.replace('./editor.js?v=source-runtime-146', './editor.js?v=fetch-light-bridge-147')
+          ip.write_text(h, encoding='utf-8')
+
+      - name: Syntax checks
+        run: |
+          node --check dashboard-admin-edit/editor.js
+          grep -q "installFrameBridge(true)" dashboard-admin-edit/editor.js
+          grep -q "VIS \${st.visibleEditable}/\${st.editable}" dashboard-admin-edit/editor.js
+          grep -q "fetch-light-bridge-147" dashboard-admin-edit/index.html
+
+      - name: Commit repair
+        run: |
+          if git diff --quiet -- dashboard-admin-edit/editor.js dashboard-admin-edit/index.html; then
+            echo "No changes required"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add dashboard-admin-edit/editor.js dashboard-admin-edit/index.html
+          git commit -m "fix: isolate Fetch Editor first paint with light bridge v1.4.7"
+          git push
