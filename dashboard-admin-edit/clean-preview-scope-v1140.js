@@ -14,7 +14,7 @@
   const openDB=()=>new Promise((res,rej)=>{const q=indexedDB.open(DB_NAME,DB_VERSION);q.onupgradeneeded=()=>{const db=q.result;if(!db.objectStoreNames.contains('assets'))db.createObjectStore('assets');if(!db.objectStoreNames.contains('snapshots'))db.createObjectStore('snapshots')};q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)});
   const readKey=async key=>{const db=await openDB();return new Promise((res,rej)=>{const tx=db.transaction('snapshots');const q=tx.objectStore('snapshots').get(key);q.onsuccess=()=>res(q.result||null);q.onerror=()=>rej(q.error)})};
   const writeKey=async(key,value)=>{const db=await openDB();return new Promise((res,rej)=>{const tx=db.transaction('snapshots','readwrite');tx.objectStore('snapshots').put(value,key);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error)})};
-  const loadLegacy=()=>new Promise((res,rej)=>{const s=document.createElement('script');s.src='./clean-preview.js?v=1111-legacy-core';s.onload=res;s.onerror=()=>rej(new Error('Core Clean Preview gagal dimuat'));document.body.appendChild(s)});
+  const loadScript=src=>new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>rej(new Error('Gagal memuat '+src));document.body.appendChild(s)});
 
   (async()=>{
     if(scopedKey){
@@ -24,6 +24,10 @@
       await writeKey(GLOBAL_KEY,{...snap,template_id:recordId||snap.template_id||'',record_id:recordId||snap.record_id||'',snapshot_scope:scopeId,snapshot_scope_version:'1.14.0'});
     }
     document.documentElement.dataset.cleanSnapshotScope='v1.14.0';
-    await loadLegacy();
+    await loadScript('./clean-preview.js?v=1111-legacy-core');
+    await loadScript('./clean-preview-guard.js?v=1111');
+    await loadScript('./clean-media-authority-v1101.js?v=1111');
+    await loadScript('./clean-text-authority-v1111.js?v=1111');
+    await loadScript('./export-integrity-v1111.js?v=1111');
   })().catch(err=>{console.error('CLEAN_PREVIEW_SCOPE_V1140',err);if(frame)frame.hidden=true;if(empty){empty.hidden=false;empty.textContent='Clean Preview scoped gagal: '+(err.message||String(err))}});
 })();
