@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Fetch Editor Frame</title>
+</head>
+<body>
+<script>
+(async()=>{
+  'use strict';
+  const KEY='diniAnifRebuildSnapshot:standalone';
+  const params=new URLSearchParams(location.search);
+  let raw='';
+  try{raw=sessionStorage.getItem(KEY)||''}catch{}
+  if(!raw&&params.get('previewId')){
+    try{
+      const r=await fetch('/api/preview-load?id='+encodeURIComponent(params.get('previewId')),{headers:{Accept:'application/json'},cache:'no-store'});
+      const j=await r.json();
+      if(r.ok&&j?.ok)raw=typeof j.snapshot==='string'?j.snapshot:JSON.stringify(j.snapshot);
+    }catch(err){console.warn('FETCH_EDITOR_FRAME_SERVER',err)}
+  }
+  if(!raw){
+    document.body.innerHTML='<div style="font:16px system-ui;padding:24px">Snapshot Fetch Editor tidak ditemukan.</div>';
+    return;
+  }
+  let pack;
+  try{pack=JSON.parse(raw)}catch(err){
+    document.body.innerHTML='<div style="font:16px system-ui;padding:24px">Snapshot Fetch Editor tidak valid.</div>';
+    return;
+  }
+  const html=String(pack?.native?.html||'');
+  if(!html){
+    document.body.innerHTML='<div style="font:16px system-ui;padding:24px">source-native.html tidak tersedia.</div>';
+    return;
+  }
+  // V2.28.6: write the exact Source-Native HTML from the working Fetch Preview.
+  // No field replay, no layout patch, no fallback template.
+  document.open();
+  document.write(html);
+  document.close();
+})().catch(err=>{
+  console.error('FETCH_EDITOR_FRAME_V2286',err);
+  document.body.innerHTML='<div style="font:16px system-ui;padding:24px">Fetch Editor Frame gagal dimuat.</div>';
+});
+</script>
+</body>
+</html>
