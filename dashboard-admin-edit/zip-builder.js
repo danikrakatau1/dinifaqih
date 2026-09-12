@@ -41,14 +41,31 @@
     return te.encode(String(value));
   }
 
-  async function buildZip(entries) {
+  function normalizeEntryName(name) {
+    return String(name || '').replace(/^\/+/, '').replace(/\\/g, '/').replace(/\/+/g, '/');
+  }
+
+  function dedupeEntries(entries) {
+    const map = new Map();
+    const order = [];
+    for (const entry of entries || []) {
+      if (!entry || !entry.name) continue;
+      const name = normalizeEntryName(entry.name);
+      if (!map.has(name)) order.push(name);
+      map.set(name, { ...entry, name }); // last writer wins, path appears once in ZIP
+    }
+    return order.map(name => map.get(name));
+  }
+
+  async function buildZip(inputEntries) {
+    const entries = dedupeEntries(inputEntries);
     const localParts = [];
     const centralParts = [];
     let offset = 0;
     const stamp = dosDateTime();
 
     for (const entry of entries) {
-      const name = te.encode(entry.name.replace(/^\/+/, '').replace(/\\/g, '/'));
+      const name = te.encode(entry.name);
       const data = await toBytes(entry.data);
       const crc = crc32(data);
       const flags = 0x0800; // UTF-8 names
@@ -83,7 +100,7 @@
     return new Uint8Array(await res.arrayBuffer());
   }
 
-  window.UNDANGAN_ZIP = { buildZip, fetchProjectFile };
+  window.UNDANGAN_ZIP = { buildZip, fetchProjectFile, dedupeEntries };
 })();
 
 /* Rebuild Studio V1: STORE-ZIP reader for packages created by this engine. */
