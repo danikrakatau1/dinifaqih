@@ -2,9 +2,10 @@ name: Fix Fetch Editor Blank V147
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
     paths:
-      - '.github/workflows/fix-fetch-editor-blank-v147.yml'
+      - .github/workflows/fix-fetch-editor-blank-v147.yml
 
 permissions:
   contents: write
@@ -18,8 +19,8 @@ jobs:
           fetch-depth: 0
 
       - name: Patch Fetch Editor light bridge and blank rescue
-        shell: python
         run: |
+          python - <<'PY'
           from pathlib import Path
 
           p = Path('dashboard-admin-edit/editor.js')
@@ -50,7 +51,6 @@ jobs:
  function rescueBlankFetchFrame(){
    const d=liveDoc();if(!d?.body)return {rescued:false,...fetchFrameStats()};
    let stat=fetchFrameStats();
-   // Only touch the document when the snapshot has real editable DOM but paints nothing.
    if(stat.editable<1 || stat.visibleEditable>0)return {rescued:false,...stat};
    const first=d.querySelector('#cover,[data-native-open]')?.closest?.('.elementor-top-section,section,[data-element_type="section"]') || d.querySelector('#cover,.elementor-top-section,body>section,[data-elementor-type]') || d.body.firstElementChild;
    if(!first)return {rescued:false,...stat};
@@ -66,10 +66,8 @@ jobs:
        el.style.setProperty('display',tag==='span'||tag==='a'?'inline-block':'block','important');
      }
    };
-   // Restore only the first invitation surface and its ancestry; do not flatten later sections.
    let a=first;while(a&&a!==d.documentElement){forceNode(a);a=a.parentElement}forceNode(d.documentElement);
    first.querySelectorAll('[data-native-reveal],.elementor-invisible,[data-native-open],[data-native-edit-id],[data-native-edit-ids]').forEach(forceNode);
-   // Common source preloaders can cover a fully built invitation after source JS is intentionally stripped.
    d.querySelectorAll('#preloader,.preloader,.page-loader,.loader-wrapper,.loading-overlay,[class*="preloader"]').forEach(el=>{
      if(first.contains(el))return;
      try{const r=el.getBoundingClientRect(),cs=d.defaultView.getComputedStyle(el);if(r.width>=d.documentElement.clientWidth*.8&&r.height>=d.documentElement.clientHeight*.8&&(cs.position==='fixed'||cs.position==='absolute'))el.style.setProperty('display','none','important')}catch{}
@@ -80,7 +78,7 @@ jobs:
           s = s.replace(marker, helper + marker, 1)
 
           old = "frame.onload=()=>{\n     installFrameBridge();\n     dirty.textContent=`FETCH SOURCE EXACT ✓ · ${native?.schema?.field_count||native?.schema?.fields?.length||0} field · JS frozen ${frozenSourceScripts}`;\n   };"
-          new = "frame.onload=()=>{\n     // Fetch first-render uses LIGHT bridge: keep click-to-edit, but do not run the heavy runtime CSS scanner\n     // that can mutate a source-native frame before its first paint.\n     installFrameBridge(true);\n     const probe=()=>{const st=rescueBlankFetchFrame();dirty.textContent=`FETCH SOURCE EXACT ✓ · ${native?.schema?.field_count||native?.schema?.fields?.length||0} field · JS frozen ${frozenSourceScripts} · VIS ${st.visibleEditable}/${st.editable}${st.rescued?' · RESCUED':''}`};\n     requestAnimationFrame(()=>requestAnimationFrame(probe));setTimeout(probe,350);setTimeout(probe,1100);\n   };"
+          new = "frame.onload=()=>{\n     installFrameBridge(true);\n     const probe=()=>{const st=rescueBlankFetchFrame();dirty.textContent=`FETCH SOURCE EXACT ✓ · ${native?.schema?.field_count||native?.schema?.fields?.length||0} field · JS frozen ${frozenSourceScripts} · VIS ${st.visibleEditable}/${st.editable}${st.rescued?' · RESCUED':''}`};\n     requestAnimationFrame(()=>requestAnimationFrame(probe));setTimeout(probe,350);setTimeout(probe,1100);\n   };"
           if old not in s:
               raise SystemExit('Fetch frame onload marker not found')
           s = s.replace(old, new, 1)
@@ -92,13 +90,13 @@ jobs:
           h = h.replace('<iframe id="previewFrame" title="Dynamic Native Preview V1.5.9"></iframe>', '<iframe id="previewFrame" title="Dynamic Native Preview V1.4.7" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"></iframe>')
           h = h.replace('./editor.js?v=source-runtime-146', './editor.js?v=fetch-light-bridge-147')
           ip.write_text(h, encoding='utf-8')
+          PY
 
       - name: Syntax checks
         run: |
           node --check dashboard-admin-edit/editor.js
-          grep -q "installFrameBridge(true)" dashboard-admin-edit/editor.js
-          grep -q "VIS \${st.visibleEditable}/\${st.editable}" dashboard-admin-edit/editor.js
-          grep -q "fetch-light-bridge-147" dashboard-admin-edit/index.html
+          grep -q 'installFrameBridge(true)' dashboard-admin-edit/editor.js
+          grep -q 'fetch-light-bridge-147' dashboard-admin-edit/index.html
 
       - name: Commit repair
         run: |
