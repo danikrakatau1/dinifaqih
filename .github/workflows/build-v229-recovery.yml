@@ -1,0 +1,65 @@
+name: Build V2.29 Recovery
+
+on:
+  push:
+    paths:
+      - '.github/workflows/build-v229-recovery.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build-v229:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build V2.29 side-by-side editor
+        run: python3 scripts/build-v229-recovery.py
+
+      - name: Syntax checks
+        run: |
+          node --check dashboard-admin-edit-v229/editor.js
+          node --check dashboard-admin-edit-v229/clean-preview.js
+          node --check dashboard-admin-edit-v229/defaults.js
+          node --check dashboard-admin-edit-v229/package-manifest.js
+          node --check dashboard-admin-edit-v229/zip-builder.js
+          node --check dashboard-admin-fetch/studio.js
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          s=Path('dashboard-admin-template/index.html').read_text()
+          blocks=re.findall(r'<script(?:\s[^>]*)?>([\s\S]*?)</script>',s,re.I)
+          Path('/tmp/template-library-inline.js').write_text(blocks[-1] if blocks else '')
+          PY
+          node --check /tmp/template-library-inline.js
+
+      - name: V2.29 architecture invariants
+        run: |
+          grep -q 'V2.29 HANDOFF LOCKED' dashboard-admin-edit-v229/editor.js
+          grep -q 'setCurrentRecordContextStrict' dashboard-admin-edit-v229/editor.js
+          grep -q 'native-applied:v229:' dashboard-admin-edit-v229/editor.js
+          grep -q 'data-edit-v229' dashboard-admin-template/index.html
+          grep -q "editorTarget==='v229'" dashboard-admin-fetch/studio.js
+          grep -q "const html=rebuildHtml()" dashboard-admin-edit-v229/editor.js
+          grep -q "html=rebuildHtml({forExport:true})" dashboard-admin-edit-v229/editor.js
+          ! grep -q 'exact-source-preview' dashboard-admin-edit-v229/index.html
+          ! grep -q 'force-visible-v2274.js' dashboard-admin-edit-v229/index.html
+          ! grep -q 'preview-rescue.js' dashboard-admin-edit-v229/index.html
+          ! grep -q 'fetch-handoff-frame' dashboard-admin-edit-v229/index.html
+          test "$(grep -c 'src="./editor.js' dashboard-admin-edit-v229/index.html)" = '1'
+
+      - name: Commit recovery route
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add dashboard-admin-edit-v229 dashboard-admin-template/index.html dashboard-admin-fetch/studio.js
+          if git diff --cached --quiet; then
+            echo 'No changes to commit'
+            exit 0
+          fi
+          git commit -m 'feat: add V2.29 golden editor recovery side-by-side'
+          git push origin HEAD:main
