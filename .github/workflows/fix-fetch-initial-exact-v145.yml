@@ -1,0 +1,34 @@
+name: Fix Fetch Initial Exact V145
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/scripts/fix-fetch-initial-exact-v145.py'
+      - '.github/workflows/fix-fetch-initial-exact-v145.yml'
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply exact first-render fix
+        run: python .github/scripts/fix-fetch-initial-exact-v145.py
+      - name: Syntax checks
+        run: |
+          node --check dashboard-admin-edit/editor.js
+      - name: Safety invariants
+        run: |
+          grep -q 'FETCH SOURCE EXACT' dashboard-admin-edit/editor.js
+          grep -q "diniAnifRebuildSnapshot:'+token" dashboard-admin-edit/editor.js
+          grep -q 'Upload / Ganti' dashboard-admin-edit/editor.js
+          grep -q 'function ensureRuntimeCssBackgroundFields' dashboard-admin-edit/editor.js
+          grep -q 'editor.js?v=fetch-initial-145' dashboard-admin-edit/index.html
+      - name: Commit fix
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add dashboard-admin-edit/editor.js dashboard-admin-edit/index.html
+          git rm --ignore-unmatch .github/scripts/fix-fetch-initial-exact-v145.py .github/workflows/fix-fetch-initial-exact-v145.yml
+          git commit -m 'fix: render exact Source-Native HTML first in Fetch Editor v1.4.5'
+          git push
