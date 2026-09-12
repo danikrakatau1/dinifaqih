@@ -1,0 +1,31 @@
+name: v2283 final parity lock
+on:
+  push:
+    branches:
+      - main
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply V2.28.3
+        run: python3 .github/scripts/v2283.py
+      - name: Validate V2.28.3
+        run: |
+          node --check dashboard-admin-edit/editor.js
+          git diff --check
+          grep -F "Never call applyField/applyTransform during APPLY" dashboard-admin-edit/editor.js
+          grep -F "no second ZIP renderer" dashboard-admin-edit/editor.js
+          grep -F "editor.js?v=2283" dashboard-admin-edit/index.html
+      - name: Commit V2.28.3
+        run: |
+          git config user.name "danikrakatau1"
+          git config user.email "danikrakatau1@gmail.com"
+          git rm -f .github/workflows/v2283-direct.yml .github/scripts/v2283.py
+          git add dashboard-admin-edit/editor.js dashboard-admin-edit/index.html
+          git commit -m "fix: final literal DOM and Clean Preview ZIP parity v2.28.3"
+          git push origin main
