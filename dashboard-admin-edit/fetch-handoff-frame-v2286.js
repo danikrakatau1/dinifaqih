@@ -15,6 +15,8 @@
     const previewId=params.get('previewId');
     if(previewId)q.set('previewId',previewId);
     frame.dataset.fetchHandoffFrame='v2286';
+    const dirty=document.getElementById('dirtyState');
+    if(dirty)dirty.textContent='FETCH SOURCE FRAME V2.28.6';
     frame.removeAttribute('srcdoc');
     frame.src='/dashboard-admin-fetch/editor-frame.html?'+q.toString();
     console.info('FETCH_HANDOFF_FRAME_V2286',{previewId:previewId||'storage'});
