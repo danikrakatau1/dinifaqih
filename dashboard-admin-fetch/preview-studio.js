@@ -65,7 +65,7 @@
         if(!currentEditorRaw){showEmpty('Snapshot Preview belum siap untuk Editor.');return}
         const saved=persistEditorHandoff(currentEditorRaw);
         if(!saved){alert('Snapshot terlalu besar untuk handoff browser. Kembali ke Fetch lalu buka Preview ulang.');return}
-        const q=new URLSearchParams({mode:'fetch'});
+        const q=new URLSearchParams({mode:'fetch',handoff:'1'});
         if(handoff.id)q.set('previewId',handoff.id);
         location.href='/dashboard-admin-edit/?'+q.toString();
       };
