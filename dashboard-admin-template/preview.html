@@ -7,40 +7,48 @@
 <style>html,body{margin:0;min-height:100%;background:#0b0c0f;color:#eee;font:14px system-ui}.state{min-height:100vh;display:grid;place-items:center;padding:28px;box-sizing:border-box;text-align:center}.state b{display:block;font-size:18px;margin-bottom:8px}.state small{opacity:.7}</style>
 </head>
 <body>
-<div class="state" id="state"><div><b>Memuat Preview…</b><small>Snapshot Draft Dini Anif</small></div></div>
+<div class="state" id="state"><div><b>Memuat Preview…</b><small>Scoped Cloud Snapshot Dini Anif · V1.14.0</small></div></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 (async()=>{
   const SUPABASE_URL='https://jfvmcerrsxjvbiogfqes.supabase.co';
-  const SUPABASE_ANON_KEY='sb_publishable_3IqSDxkpxCGiDpxAEwdsXQ_AsJpsC4W';
+  const SUPABASE_ANON_KEY='sb_publishable_3IqSDxkpxCGiDpxXQ_AsJpsC4W';
   const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
   const q=new URLSearchParams(location.search).get('template')||'';
   const fail=(msg)=>{document.getElementById('state').innerHTML='<div><b>Preview gagal</b><small>'+String(msg).replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]))+'</small></div>'};
+  const dirname=raw=>{try{const u=new URL(raw,location.href);if(/\.[a-z0-9]{1,8}$/i.test(u.pathname.split('/').pop()||''))u.pathname=u.pathname.replace(/[^/]*$/,'');if(!u.pathname.endsWith('/'))u.pathname+='/';u.search='';u.hash='';return u.href}catch{return ''}};
+  const embeddedBase=(html,manifest={},fallback='')=>{
+    try{const doc=new DOMParser().parseFromString(String(html||''),'text/html');const raw=String(doc.querySelector('base')?.getAttribute('href')||'').trim();if(raw){const d=dirname(new URL(raw,manifest.source_url||fallback||location.href).href);if(d)return d}}catch{}
+    const source=String(manifest.source_url||'').trim();if(source){const d=dirname(source);if(d)return d}
+    const current=String(manifest.asset_base||'').trim();if(current){const d=dirname(current);if(d)return d}
+    const fb=dirname(fallback);return fb||location.origin+'/';
+  };
   try{
     if(!q)throw new Error('Template tidak ditentukan.');
     const isUuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(q);
-    let res=isUuid
+    const res=isUuid
       ? await sb.from('templates').select('id,name,slug,source_path,updated_at,manifest_json').eq('id',q).limit(1).maybeSingle()
       : await sb.from('templates').select('id,name,slug,source_path,updated_at,manifest_json').eq('slug',q).limit(1).maybeSingle();
     if(res.error)throw res.error;
     const row=res.data;if(!row)throw new Error('Template tidak ditemukan.');
     const source=String(row.source_path||'').trim();if(!source||source==='/')throw new Error('Template ini memakai halaman utama bawaan.');
-    const u=new URL(source,location.href);
-    const r=await fetch(u.href+(u.search?'&':'?')+'_preview='+encodeURIComponent(row.updated_at||Date.now()),{cache:'no-store'});
-    if(!r.ok)throw new Error('Snapshot HTTP '+r.status);
-    let html=await r.text();
-    const manifest=row.manifest_json||{};
-    let assetBase=String(manifest.asset_base||'').trim();
-    if(!assetBase){
-      assetBase=row.slug==='template-1'?location.origin+'/':new URL('./',u.href).href;
+
+    let html='',manifest={...(row.manifest_json||{})};
+    const snapUrl=String(manifest.editor_snapshot_url||'').trim();
+    if(snapUrl){
+      const su=new URL(snapUrl,location.href);su.searchParams.set('_preview',String(row.updated_at||Date.now()));
+      const sr=await fetch(su.href,{cache:'no-store'});if(!sr.ok)throw new Error('Editor Snapshot HTTP '+sr.status);
+      const snap=await sr.json();
+      if(snap?.template_id&&String(snap.template_id)!==String(row.id))throw new Error('Snapshot template mismatch.');
+      html=String(snap?.html||snap?.baseHtml||'');if(!html)throw new Error('Editor Snapshot tidak memiliki HTML.');
+      manifest={...manifest,...(snap.manifest||{})};
     }else{
-      try{
-        const au=new URL(assetBase,location.href);
-        assetBase=/\.[a-z0-9]{1,8}(?:$|[?#])/i.test(au.pathname)?new URL('./',au.href).href:(au.href.endsWith('/')?au.href:au.href+'/');
-      }catch{assetBase=location.origin+'/'}
+      const u=new URL(source,location.href);u.searchParams.set('_preview',String(row.updated_at||Date.now()));
+      const r=await fetch(u.href,{cache:'no-store'});if(!r.ok)throw new Error('Snapshot HTML '+r.status);html=await r.text();
     }
-    html=html.replace(/<base\b[^>]*data-dini-template-base[^>]*>/ig,'');
-    html=html.replace(/<base\b[^>]*>/ig,'');
+
+    const assetBase=embeddedBase(html,manifest,source);
+    html=html.replace(/<base\b[^>]*data-dini-template-base[^>]*>/ig,'').replace(/<base\b[^>]*>/ig,'');
     const safeBase=assetBase.replace(/"/g,'&quot;');
     html=html.replace(/<head(\s[^>]*)?>/i,m=>m+'<base data-dini-template-base="1" href="'+safeBase+'">');
     document.open();document.write(html);document.close();
