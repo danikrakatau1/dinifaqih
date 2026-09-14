@@ -31,87 +31,19 @@ html,body{margin:0;min-height:100%;background:#0b0c0f;color:#f5f2ea;font:14px sy
   const querySlug=(new URLSearchParams(location.search).get('guest_slug')||'').trim().toLowerCase();
   const slug=(querySlug||pathSlug).replace(/[^a-z0-9-]/g,'');
   if(!slug||reserved.has(slug)){fail('Link tamu tidak valid','Gunakan link personal dari Daftar Tamu.',400);return}
-
   const dirname=raw=>{try{const u=new URL(raw,location.href);if(/\.[a-z0-9]{1,8}$/i.test(u.pathname.split('/').pop()||''))u.pathname=u.pathname.replace(/[^/]*$/,'');if(!u.pathname.endsWith('/'))u.pathname+='/';u.search='';u.hash='';return u.href}catch{return ''}};
-  const embeddedBase=(html,manifest={},fallback='')=>{
-    try{const doc=new DOMParser().parseFromString(String(html||''),'text/html');const raw=String(doc.querySelector('base')?.getAttribute('href')||'').trim();if(raw){const d=dirname(new URL(raw,manifest.asset_base||manifest.source_url||fallback||location.href).href);if(d)return d}}catch{}
-    const asset=String(manifest.asset_base||'').trim();if(asset){const d=dirname(asset);if(d)return d}
-    const source=String(manifest.source_url||'').trim();if(source){const d=dirname(source);if(d)return d}
-    return dirname(fallback)||location.origin+'/';
-  };
-  const inject=(html,authority,guest)=>{
-    const blocks=[];
-    if(authority){
-      const a=JSON.stringify(authority).replace(/</g,'\\u003c').replace(/-->/g,'--\\>');
-      blocks.push('<script type="application/json" id="diniSnapshotAuthorityData">'+a+'<\/script>');
-      blocks.push('<script src="/dashboard-admin-edit/template-canonical-v1160.js?v=1160"><\/script>');
-      blocks.push('<script src="/dashboard-admin-template/snapshot-authority-v1162.js?v=1162"><\/script>');
-    }
-    const g=JSON.stringify(guest).replace(/</g,'\\u003c').replace(/-->/g,'--\\>');
-    blocks.push('<script type="application/json" id="diniGuestRuntimeData">'+g+'<\/script>');
-    blocks.push('<script src="/assets/js/guest-runtime-v1.js?v=1"><\/script>');
-    const block=blocks.join('');
-    return /<\/body>/i.test(html)?html.replace(/<\/body>/i,block+'</body>'):html+block;
-  };
-
+  const embeddedBase=(html,manifest={},fallback='')=>{try{const doc=new DOMParser().parseFromString(String(html||''),'text/html');const raw=String(doc.querySelector('base')?.getAttribute('href')||'').trim();if(raw){const d=dirname(new URL(raw,manifest.asset_base||manifest.source_url||fallback||location.href).href);if(d)return d}}catch{}const asset=String(manifest.asset_base||'').trim();if(asset){const d=dirname(asset);if(d)return d}const source=String(manifest.source_url||'').trim();if(source){const d=dirname(source);if(d)return d}return dirname(fallback)||location.origin+'/';};
+  const inject=(html,authority,guest)=>{const blocks=[];if(authority){const a=JSON.stringify(authority).replace(/</g,'\\u003c').replace(/-->/g,'--\\>');blocks.push('<script type="application/json" id="diniSnapshotAuthorityData">'+a+'<\/script>');blocks.push('<script src="/dashboard-admin-edit/template-canonical-v1160.js?v=1160"><\/script>');blocks.push('<script src="/dashboard-admin-template/snapshot-authority-v1162.js?v=1162"><\/script>')}const g=JSON.stringify(guest).replace(/</g,'\\u003c').replace(/-->/g,'--\\>');blocks.push('<script type="application/json" id="diniGuestRuntimeData">'+g+'<\/script>');blocks.push('<script src="/assets/js/guest-runtime-v1.js?v=13"><\/script>');const block=blocks.join('');return /<\/body>/i.test(html)?html.replace(/<\/body>/i,block+'</body>'):html+block;};
   try{
-    const gr=await fetch(SB+'/rest/v1/rpc/resolve_guest_slug',{method:'POST',headers:H,body:JSON.stringify({p_slug:slug}),cache:'no-store'});
-    if(!gr.ok){
-      if(gr.status===404||gr.status===400)throw new Error('Guest RPC belum tersedia. Jalankan migration Universal Guest V1.');
-      throw new Error('Guest resolver HTTP '+gr.status);
-    }
-    const gj=await gr.json(),guest=Array.isArray(gj)?gj[0]:gj;
-    if(!guest?.name){fail('Tamu tidak ditemukan','Periksa kembali link personal yang dikirim.',404);return}
-
-    const tr=await fetch(SB+'/rest/v1/templates?select=id,name,slug,source_path,updated_at,manifest_json&is_active=eq.true&limit=1',{headers:{apikey:KEY,Authorization:'Bearer '+KEY},cache:'no-store'});
-    if(!tr.ok)throw new Error('Template aktif HTTP '+tr.status);
-    let row=(await tr.json())?.[0];
-    if(!row)row={id:'template-1-local',name:'Template 1',slug:'template-1',source_path:'/',updated_at:Date.now(),manifest_json:{template_original:true,asset_base:location.origin+'/'}};
-
-    let manifest={...(row.manifest_json||{})},html='',authority=null,snap=null;
-    const snapUrl=String(manifest.editor_snapshot_url||'').trim();
-    if(snapUrl){
-      try{
-        const u=new URL(snapUrl,location.href);u.searchParams.set('_guest',String(row.updated_at||Date.now()));
-        const r=await fetch(u.href,{cache:'no-store'});if(!r.ok)throw new Error('Editor Snapshot HTTP '+r.status);
-        snap=await r.json();
-      }catch(err){
-        if(String(row.slug).toLowerCase()!=='template-1')throw err;
-        console.warn('Guest Template 1 cloud snapshot fallback:',err);
-      }
-    }
-    if(!snap&&String(row.slug).toLowerCase()==='template-1'){
-      const r=await fetch('/template-1-original/editor-snapshot.json?_guest='+encodeURIComponent(row.updated_at||Date.now()),{cache:'no-store'});
-      if(!r.ok)throw new Error('Template 1 local snapshot HTTP '+r.status);snap=await r.json();
-    }
-
-    if(snap){
-      if(window.DINI_TEMPLATE_CANONICAL_V1160?.resolveSnapshot)snap=window.DINI_TEMPLATE_CANONICAL_V1160.resolveSnapshot(snap);
-      html=String(snap.html||snap.baseHtml||'');if(!html)throw new Error('Snapshot HTML kosong.');
-      manifest={...manifest,...(snap.manifest||{})};
-      authority={schema:snap.schema||{},values:snap.values||{},transforms:snap.transforms||{},persistent:true,template_id:row.id,revision:snap.revision||manifest.revision||''};
-    }else{
-      const source=String(row.source_path||'').trim();
-      if(!source||source==='/')throw new Error('Template aktif belum memiliki source snapshot.');
-      const u=new URL(source,location.href);u.searchParams.set('_guest',String(row.updated_at||Date.now()));
-      const r=await fetch(u.href,{cache:'no-store'});if(!r.ok)throw new Error('Template HTML HTTP '+r.status);html=await r.text();
-    }
-
-    const isT1=String(row.slug||'').toLowerCase()==='template-1';
-    const assetBase=isT1?location.origin+'/':embeddedBase(html,manifest,row.source_path||'');
-    html=html.replace(/<base\b[^>]*data-dini-template-base[^>]*>/ig,'').replace(/<base\b[^>]*>/ig,'');
-    html=html.replace(/<head(\s[^>]*)?>/i,m=>m+'<base data-dini-template-base="1" href="'+assetBase.replace(/"/g,'&quot;')+'">');
-    if(isT1){
-      const rev=encodeURIComponent(row.updated_at||Date.now());
-      html=html.replace(/((?:src|href)=["'])(?:https?:\/\/[^/"']+)?(\/assets\/(?:js|css)\/[^"'?#]+)(?:\?[^"']*)?(["'])/gi,(_,a,path,q)=>a+path+'?_guesttpl='+rev+q);
-    }
-    html=inject(html,authority,{name:String(guest.name),slug:String(guest.guest_slug||slug)});
-    document.title='Untuk '+guest.name+' — Faqih & Dini';
-    document.open();document.write(html);document.close();
-  }catch(err){
-    console.error('GUEST_ENTRY_V1',err);
-    fail('Undangan belum dapat dimuat',err.message||String(err),500);
-  }
+    const gr=await fetch(SB+'/rest/v1/rpc/resolve_guest_slug',{method:'POST',headers:H,body:JSON.stringify({p_slug:slug}),cache:'no-store'});if(!gr.ok){if(gr.status===404||gr.status===400)throw new Error('Guest RPC belum tersedia. Jalankan migration Universal Guest V2.');throw new Error('Guest resolver HTTP '+gr.status)}
+    const gj=await gr.json(),guest=Array.isArray(gj)?gj[0]:gj;if(!guest?.name){fail('Tamu tidak ditemukan','Periksa kembali link personal yang dikirim.',404);return}
+    const tr=await fetch(SB+'/rest/v1/templates?select=id,name,slug,source_path,updated_at,manifest_json&is_active=eq.true&limit=1',{headers:{apikey:KEY,Authorization:'Bearer '+KEY},cache:'no-store'});if(!tr.ok)throw new Error('Template aktif HTTP '+tr.status);let row=(await tr.json())?.[0];if(!row)row={id:'template-1-local',name:'Template 1',slug:'template-1',source_path:'/',updated_at:Date.now(),manifest_json:{template_original:true,asset_base:location.origin+'/'}};
+    let manifest={...(row.manifest_json||{})},html='',authority=null,snap=null;const snapUrl=String(manifest.editor_snapshot_url||'').trim();if(snapUrl){try{const u=new URL(snapUrl,location.href);u.searchParams.set('_guest',String(row.updated_at||Date.now()));const r=await fetch(u.href,{cache:'no-store'});if(!r.ok)throw new Error('Editor Snapshot HTTP '+r.status);snap=await r.json()}catch(err){if(String(row.slug).toLowerCase()!=='template-1')throw err;console.warn('Guest Template 1 cloud snapshot fallback:',err)}}
+    if(!snap&&String(row.slug).toLowerCase()==='template-1'){const r=await fetch('/template-1-original/editor-snapshot.json?_guest='+encodeURIComponent(row.updated_at||Date.now()),{cache:'no-store'});if(!r.ok)throw new Error('Template 1 local snapshot HTTP '+r.status);snap=await r.json()}
+    if(snap){if(window.DINI_TEMPLATE_CANONICAL_V1160?.resolveSnapshot)snap=window.DINI_TEMPLATE_CANONICAL_V1160.resolveSnapshot(snap);html=String(snap.html||snap.baseHtml||'');if(!html)throw new Error('Snapshot HTML kosong.');manifest={...manifest,...(snap.manifest||{})};authority={schema:snap.schema||{},values:snap.values||{},transforms:snap.transforms||{},persistent:true,template_id:row.id,revision:snap.revision||manifest.revision||''}}else{const source=String(row.source_path||'').trim();if(!source||source==='/')throw new Error('Template aktif belum memiliki source snapshot.');const u=new URL(source,location.href);u.searchParams.set('_guest',String(row.updated_at||Date.now()));const r=await fetch(u.href,{cache:'no-store'});if(!r.ok)throw new Error('Template HTML HTTP '+r.status);html=await r.text()}
+    const isT1=String(row.slug||'').toLowerCase()==='template-1';const assetBase=isT1?location.origin+'/':embeddedBase(html,manifest,row.source_path||'');html=html.replace(/<base\b[^>]*data-dini-template-base[^>]*>/ig,'').replace(/<base\b[^>]*>/ig,'');html=html.replace(/<head(\s[^>]*)?>/i,m=>m+'<base data-dini-template-base="1" href="'+assetBase.replace(/"/g,'&quot;')+'">');if(isT1){const rev=encodeURIComponent(row.updated_at||Date.now());html=html.replace(/((?:src|href)=["'])(?:https?:\/\/[^/"']+)?(\/assets\/(?:js|css)\/[^"'?#]+)(?:\?[^"']*)?(["'])/gi,(_,a,path,q)=>a+path+'?_guesttpl='+rev+q)}
+    html=inject(html,authority,{name:String(guest.name),slug:String(guest.guest_slug||slug)});document.title='Untuk '+guest.name+' — Faqih & Dini';document.open();document.write(html);document.close();
+  }catch(err){console.error('GUEST_ENTRY_V1',err);fail('Undangan belum dapat dimuat',err.message||String(err),500)}
 })();
 </script>
 </body>
