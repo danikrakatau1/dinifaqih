@@ -8,6 +8,7 @@
   const H={apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'};
   const state=document.getElementById('diniPublicState');
   const GUEST_SENTINEL='__DINI_GUEST_PROBE__';
+  const KNOWN_ART_JAWA_COKLAT_3='https://web.galeriundanganofficial.com/art-jawa-coklat-3/';
 
   const esc=s=>String(s||'').replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
   const fail=(title,msg,code=500)=>{
@@ -29,7 +30,7 @@
       const doc=new DOMParser().parseFromString(String(html||''),'text/html');
       const raw=String(doc.querySelector('base')?.getAttribute('href')||'').trim();
       if(raw){
-        const d=dirname(new URL(raw,manifest.asset_base||manifest.source_url||fallback||location.href).href);
+        const d=dirname(new URL(raw,manifest.asset_base||manifest.origin_source_url||manifest.source_url||fallback||location.href).href);
         if(d)return d;
       }
     }catch{}
@@ -124,6 +125,23 @@
     try{return doc.querySelector(`[data-id="${CSS.escape(key)}"]`)}catch{return null}
   };
   const hasGuestSlot=doc=>!!doc.querySelector('[data-native-guest-name],[data-guest-name],[data-dini-guest-name],#guestName,.guest-name,.guest_name,.nama-tamu,.nama_tamu');
+  const hasKnownArtJawaAnchors=doc=>!!(findWidget(doc,'fd2b4a3')&&findWidget(doc,'5361f63'));
+  const isCloudRevisionUrl=raw=>{try{const u=new URL(String(raw||''),location.href);return /supabase\.co$/i.test(u.hostname)&&/\/storage\/v1\/object\/public\/template-packages\//i.test(u.pathname)}catch{return false}};
+  const isOriginCandidate=raw=>{try{const u=new URL(String(raw||''),location.href);if(!/^https?:$/.test(u.protocol)||isCloudRevisionUrl(u.href))return false;if(u.origin===location.origin)return false;if(/\/wp-content\//i.test(u.pathname))return false;const last=u.pathname.split('/').filter(Boolean).pop()||'';if(/\.[a-z0-9]{2,8}$/i.test(last))return false;return true}catch{return false}};
+
+  function originSourceForProbe(baseHtml,manifest,row){
+    const explicit=[manifest?.origin_source_url,manifest?.original_source_url,manifest?.fetch_source_url,manifest?.upstream_source_url,manifest?.source_page_url];
+    for(const raw of explicit)if(isOriginCandidate(raw))return new URL(raw).href;
+    try{
+      const d=new DOMParser().parseFromString(String(baseHtml||''),'text/html');
+      const b=String(d.querySelector('base')?.getAttribute('href')||'').trim();
+      if(b){const absolute=new URL(b,manifest?.source_url||row?.source_path||location.href).href;if(isOriginCandidate(absolute))return absolute}
+      if(hasKnownArtJawaAnchors(d))return KNOWN_ART_JAWA_COKLAT_3;
+    }catch{}
+    for(const raw of [manifest?.source_url,manifest?.asset_base,row?.source_path])if(isOriginCandidate(raw))return new URL(raw).href;
+    return '';
+  }
+
   const setGuestLeaf=(root,value)=>{
     const all=[root,...(root.querySelectorAll?.('h1,h2,h3,h4,h5,h6,p,span,label,div')||[])];
     const leaf=all.find(n=>String(n.textContent||'').includes(GUEST_SENTINEL)&&![...(n.children||[])].some(c=>String(c.textContent||'').includes(GUEST_SENTINEL)));
@@ -136,6 +154,7 @@
     root.setAttribute('data-dini-guest-source-probe-widget','1');
     return leaf;
   };
+
   function transplantProbeWidget(baseHtml,probeHtml,guestName){
     const baseDoc=new DOMParser().parseFromString(String(baseHtml||''),'text/html');
     if(hasGuestSlot(baseDoc))return {html:baseHtml,restored:false,mode:'existing-slot'};
@@ -153,29 +172,33 @@
     else return {html:baseHtml,restored:false,mode:'probe-anchor-missing'};
     return {html:'<!doctype html>\n'+baseDoc.documentElement.outerHTML,restored:true,mode:'source-probe',widget_id:key||'',prev_id:prevKey||'',next_id:nextKey||''};
   }
+
   function legacyTemplate2Restore(baseHtml,guestName,row,manifest){
-    const source=String(manifest?.source_url||'').toLowerCase();
-    const isKnown=/^template-2(?:-|$)/i.test(String(row?.slug||''))||source.includes('/art-jawa-coklat-3/');
-    if(!isKnown)return {html:baseHtml,restored:false,mode:'not-known-source'};
     const doc=new DOMParser().parseFromString(String(baseHtml||''),'text/html');
     if(hasGuestSlot(doc))return {html:baseHtml,restored:false,mode:'existing-slot'};
+    const source=String(manifest?.origin_source_url||manifest?.original_source_url||manifest?.source_url||'').toLowerCase();
+    const isKnown=/^template-2(?:-|$)/i.test(String(row?.slug||''))||source.includes('/art-jawa-coklat-3/')||hasKnownArtJawaAnchors(doc);
+    if(!isKnown)return {html:baseHtml,restored:false,mode:'not-known-source'};
     const sal=findWidget(doc,'fd2b4a3'),place=findWidget(doc,'5361f63');
     if(!sal?.parentElement||!place?.parentElement||sal.parentElement!==place.parentElement)return {html:baseHtml,restored:false,mode:'legacy-anchor-missing'};
     const w=doc.createElement('div');
     w.className='elementor-element elementor-element-b3551e3 elementor-widget elementor-widget-heading';
-    w.setAttribute('data-id','b3551e3');w.setAttribute('data-element_type','widget');w.setAttribute('data-widget_type','heading.default');w.setAttribute('data-dini-guest-source-probe-widget','legacy-template-2');
+    w.setAttribute('data-id','b3551e3');w.setAttribute('data-element_type','widget');w.setAttribute('data-widget_type','heading.default');w.setAttribute('data-dini-guest-source-probe-widget','source-native-fallback');
     const c=doc.createElement('div');c.className='elementor-widget-container';
     const h=doc.createElement('h2');h.className='elementor-heading-title elementor-size-default';h.textContent=guestName;
     h.setAttribute('data-native-guest-name','1');h.setAttribute('data-dini-guest-name','1');h.setAttribute('data-dini-guest-injected','1');h.setAttribute('data-dini-guest-slot-mode','source-restore');
     c.appendChild(h);w.appendChild(c);place.parentElement.insertBefore(w,place);
-    return {html:'<!doctype html>\n'+doc.documentElement.outerHTML,restored:true,mode:'legacy-template-2',widget_id:'b3551e3'};
+    return {html:'<!doctype html>\n'+doc.documentElement.outerHTML,restored:true,mode:'source-native-fallback',widget_id:'b3551e3'};
   }
+
   async function restoreGuestSlotBeforeRender(baseHtml,manifest,row,guestName){
     if(MODE!=='guest'||!guestName)return {html:baseHtml,restored:false,mode:'not-guest'};
     const doc=new DOMParser().parseFromString(String(baseHtml||''),'text/html');
     if(hasGuestSlot(doc))return {html:baseHtml,restored:false,mode:'existing-slot'};
-    const rawSource=String(manifest?.source_url||'').trim();
-    if(/^https?:/i.test(rawSource)){
+    const rawSource=originSourceForProbe(baseHtml,manifest,row);
+    if(rawSource){
+      manifest.origin_source_url=rawSource;
+      document.documentElement.dataset.guestOriginSource=rawSource;
       try{
         const u=new URL(rawSource);u.searchParams.set('to',GUEST_SENTINEL);
         const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),6500);
@@ -183,10 +206,11 @@
         try{r=await fetch('/api/fetch-source?url='+encodeURIComponent(u.href),{headers:{Accept:'application/json'},cache:'no-store',signal:controller.signal})}
         finally{clearTimeout(timer)}
         const j=await r.json().catch(()=>({ok:false}));
-        if(r.ok&&j.ok){const out=transplantProbeWidget(baseHtml,j.html||'',guestName);if(out.restored)return out}
+        if(r.ok&&j.ok){const out=transplantProbeWidget(baseHtml,j.html||'',guestName);if(out.restored)return {...out,origin_source_url:rawSource}}
       }catch(err){console.warn('GUEST_SOURCE_PROBE_RUNTIME',err)}
     }
-    return legacyTemplate2Restore(baseHtml,guestName,row,manifest);
+    const fallback=legacyTemplate2Restore(baseHtml,guestName,row,manifest);
+    return rawSource&&fallback.restored?{...fallback,origin_source_url:rawSource}:fallback;
   }
 
   function injectAuthorityAndGuest(html,authority,guest){
@@ -197,10 +221,11 @@
       blocks.push('<script src="/dashboard-admin-edit/template-canonical-v1160.js?v=1160"></script>');
       blocks.push('<script src="/dashboard-admin-template/snapshot-authority-v1162.js?v=1162"></script>');
     }
+    blocks.push('<script src="/assets/js/public-visibility-chain-v1241.js?v=1241"></script>');
     if(guest){
       const g=JSON.stringify(guest).replace(/</g,'\\u003c').replace(/-->/g,'--\\>');
       blocks.push('<script type="application/json" id="diniGuestRuntimeData">'+g+'</script>');
-      blocks.push('<script src="/assets/js/guest-runtime-v1.js?v=16"></script>');
+      blocks.push('<script src="/assets/js/guest-runtime-v1.js?v=17-20260914c"></script>');
     }
     const block=blocks.join('');
     return /<\/body>/i.test(html)?html.replace(/<\/body>/i,block+'</body>'):html+block;
@@ -333,7 +358,7 @@
       document.documentElement.dataset.guestSourceRestore=guestRestore.mode||'none';
       renderFrame(html,guest?'Untuk '+guest.name:'Undangan Faqih & Dini');
     }catch(err){
-      console.error('PUBLIC_CANONICAL_RENDERER_V18',err);
+      console.error('PUBLIC_CANONICAL_RENDERER_V181',err);
       fail(MODE==='guest'?'Undangan belum dapat dimuat':'Template belum dapat dimuat',err.message||String(err),500);
     }
   })();
