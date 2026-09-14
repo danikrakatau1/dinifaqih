@@ -7,7 +7,26 @@
   <link rel="stylesheet" href="./styles.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
-    (()=>{const q=new URLSearchParams(location.search);if(q.get('mode')==='fetch'){location.replace('/dashboard-admin-fetch-editor/'+location.search+location.hash)}})();
+    (()=>{
+      const q=new URLSearchParams(location.search);
+      if(q.get('mode')==='fetch'){
+        location.replace('/dashboard-admin-fetch-editor/'+location.search+location.hash);
+        return;
+      }
+      const templateId=String(q.get('template')||'').trim();
+      const recordId=String(q.get('record')||'').trim();
+      const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      const valid=uuid.test(templateId)&&uuid.test(recordId)&&templateId.toLowerCase()===recordId.toLowerCase();
+      if(!valid){
+        // Template Editor tidak punya mode global/fallback lagi. Semua akses wajib
+        // berasal dari Template Library dengan UUID template+record yang sama.
+        location.replace('/dashboard-admin-template/?reason=template-scope-required');
+        return;
+      }
+      window.__DINI_TEMPLATE_EDITOR_SCOPE__=Object.freeze({template_id:templateId,record_id:recordId,version:q.get('v')||''});
+      document.documentElement.dataset.templateEditorScoped='1';
+      document.documentElement.dataset.templateEditorId=templateId;
+    })();
   </script>
   <script src="/admin-auth-guard.js"></script>
 </head>
