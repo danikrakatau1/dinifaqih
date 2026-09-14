@@ -50,6 +50,10 @@
       else if(n.textContent!==name)n.textContent=name;
       n.setAttribute('data-dini-guest-name','1');
       n.setAttribute('data-dini-guest-injected','1');
+      // Public guest data is runtime authority. Detach the guest slot from Template Editor
+      // identity so persistent canonical snapshot hydration cannot restore its placeholder text.
+      // Classes/styles stay intact, therefore source-native typography/layout is preserved.
+      cleanNode(n);
       count++;
     }
     return count;
@@ -88,7 +92,7 @@
         return (p1&Node.DOCUMENT_POSITION_FOLLOWING)&&(p2&Node.DOCUMENT_POSITION_FOLLOWING);
       });
       const existing=between.find(x=>x.matches?.('[data-guest-name],[data-dini-guest-name]'));
-      if(existing){existing.textContent=name;existing.setAttribute('data-dini-guest-three-line','1');return true}
+      if(existing){existing.textContent=name;existing.setAttribute('data-dini-guest-three-line','1');cleanNode(existing);return true}
 
       const slot=place.cloneNode(true);
       cleanNode(slot);
