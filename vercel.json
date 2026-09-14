@@ -2,7 +2,6 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "rewrites": [
-    { "source": "/", "destination": "/public-entry-v18.html" },
     { "source": "/dashboard-admin", "destination": "/dashboard-admin/index.html" },
     { "source": "/dashboard-admin-template", "destination": "/dashboard-admin-template/index.html" },
     { "source": "/dashboard-admin-fetch", "destination": "/dashboard-admin-fetch/index.html" },
@@ -19,7 +18,7 @@
       ]
     },
     {
-      "source": "/public-entry-v18.html",
+      "source": "/index.html",
       "headers": [
         { "key": "Cache-Control", "value": "no-store" }
       ]
