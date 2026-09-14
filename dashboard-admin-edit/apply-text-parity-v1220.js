@@ -1,9 +1,10 @@
 (()=>{
   'use strict';
-  if(window.__DINI_APPLY_TEXT_PARITY_1230__)return;
-  window.__DINI_APPLY_TEXT_PARITY_1230__=true;
+  if(window.__DINI_APPLY_TEXT_PARITY_1240__)return;
+  window.__DINI_APPLY_TEXT_PARITY_1240__=true;
 
-  const VERSION='1.23.0';
+  const VERSION='1.24.0';
+  const KNOWN_ART_JAWA_COKLAT_3='https://web.galeriundanganofficial.com/art-jawa-coklat-3/';
   const DB_NAME='dini-anif-editor-v150',DB_VERSION=2,GLOBAL_KEY='native-applied';
   const q=new URLSearchParams(location.search),recordId=q.get('record')||q.get('template')||'',scopedKey=recordId?`${GLOBAL_KEY}:${recordId}`:'';
   const norm=v=>String(v??'').replace(/\s+/g,' ').trim();
@@ -41,7 +42,6 @@
     if(outLeaf.matches?.('input,textarea,select')){
       const v=textOf(liveLeaf);outLeaf.value=v;outLeaf.setAttribute('value',v);
     }else{
-      // Preserve source-native inline markup / <br> while freezing CURRENT editor text.
       outLeaf.innerHTML=liveLeaf.innerHTML;
     }
   }
@@ -81,6 +81,53 @@
   }
   function safeTextWidget(host){return !!host&&!host.querySelector('img,picture,video,audio,canvas,iframe,object,embed')}
 
+  function mobileAnimationNone(host){
+    if(!host)return false;
+    if(String(host.getAttribute('data-native-animation-mobile')||'').toLowerCase()==='none')return true;
+    try{return String(JSON.parse(host.getAttribute('data-settings')||'{}')?._animation_mobile||'').toLowerCase()==='none'}catch{return false}
+  }
+  function applyVisibilityParity(doc){
+    let fixed=0;
+    const leaves=[...doc.querySelectorAll('[data-native-edit-id],[data-native-edit-ids]')];
+    const seen=new Set();
+    for(const leaf of leaves){
+      const host=leaf.closest?.('.elementor-invisible,[data-native-animation-mobile],[data-settings]');
+      if(!host||seen.has(host)||!host.classList?.contains('elementor-invisible')||!mobileAnimationNone(host))continue;
+      seen.add(host);
+      host.classList.remove('elementor-invisible');
+      if(host.style?.getPropertyValue('visibility')==='hidden')host.style.removeProperty('visibility');
+      if(host.style?.getPropertyValue('opacity')==='0')host.style.removeProperty('opacity');
+      host.setAttribute('data-dini-visibility-parity',VERSION);
+      fixed++;
+    }
+    return fixed;
+  }
+
+  function isCloudRevisionUrl(raw){
+    try{const u=new URL(String(raw||''),location.href);return /supabase\.co$/i.test(u.hostname)&&/\/storage\/v1\/object\/public\/template-packages\//i.test(u.pathname)}catch{return false}
+  }
+  function normalizeOrigin(raw){
+    try{
+      const u=new URL(String(raw||''),location.href);
+      if(!/^https?:$/.test(u.protocol)||isCloudRevisionUrl(u.href)||u.origin===location.origin||/\/wp-content\//i.test(u.pathname))return '';
+      const last=u.pathname.split('/').filter(Boolean).pop()||'';
+      if(/\.[a-z0-9]{2,8}$/i.test(last))return '';
+      u.search='';u.hash='';if(!u.pathname.endsWith('/'))u.pathname+='/';return u.href;
+    }catch{return ''}
+  }
+  function originSourceForSnapshot(snap,doc){
+    const m=snap?.manifest||{};
+    for(const raw of [m.origin_source_url,m.original_source_url,m.fetch_source_url,m.upstream_source_url,m.source_page_url,m.source_url]){
+      const u=normalizeOrigin(raw);if(u)return u;
+    }
+    try{
+      const b=String(doc.querySelector('base[href]')?.getAttribute('href')||'').trim();
+      const u=normalizeOrigin(b);if(u)return u;
+    }catch{}
+    if(doc.querySelector('[data-id="fd2b4a3"]')&&doc.querySelector('[data-id="5361f63"]'))return KNOWN_ART_JAWA_COKLAT_3;
+    return '';
+  }
+
   function reconcile(live,snap){
     const out=new DOMParser().parseFromString(String(snap.html||snap.baseHtml||''),'text/html');
     snap.values=snap.values&&typeof snap.values==='object'?snap.values:{};
@@ -99,7 +146,6 @@
       let outHost=hostId?out.querySelector(`[data-id="${esc(hostId)}"]`):sourceHost(out,f);
       let outLeaf=preferredLeaf(outHost,f,expected);
 
-      // If the exact source widget exists, never guess globally: bind CURRENT text to that native widget.
       if(outHost&&liveHost&&safeTextWidget(outHost)&&safeTextWidget(liveHost)){
         const livePreferred=preferredLeaf(liveHost,f,actual)||liveLeaf;
         outLeaf=preferredLeaf(outHost,f,expected)||preferredLeaf(outHost,f,f?.value||'');
@@ -119,21 +165,28 @@
       f.node_id='';
       f.text_leaf_locked=VERSION;
       snap.values[f.id]=actual;
-      // Final write after ID cleanup guarantees the baked HTML contains CURRENT text.
       writeFromLive(outLeaf,liveLeaf);
       captured++;leafPatched++;
       details.push({id:f.id,source_element_id:hostId||'',value:actual.slice(0,120)});
     }
 
+    const visibilityFixed=applyVisibilityParity(out);
+    const originSource=originSourceForSnapshot(snap,out);
+    if(originSource){
+      snap.manifest={...(snap.manifest||{}),origin_source_url:originSource,origin_source_locked_at:new Date().toISOString(),origin_source_lock_version:VERSION};
+      out.documentElement.setAttribute('data-origin-source-lock',VERSION);
+    }
+    out.documentElement.setAttribute('data-visibility-parity',VERSION);
+
     snap.html='<!doctype html>\n'+out.documentElement.outerHTML;
     snap.baseHtml=snap.html;
     snap.text_parity={version:VERSION,captured_fields:captured,source_anchor_hits:anchored,leaf_patches:leafPatched,missed_fields:missed,captured_at:new Date().toISOString(),source:'editor-current-to-source-native-anchor',details:details.slice(0,120)};
-    return {captured,anchored,leafPatched,missed};
+    snap.visibility_parity={version:VERSION,revealed_mobile_none_text_widgets:visibilityFixed,applied_at:new Date().toISOString()};
+    snap.origin_source_persistence={version:VERSION,origin_source_url:originSource||'',persisted:!!originSource,applied_at:new Date().toISOString()};
+    return {captured,anchored,leafPatched,missed,visibilityFixed,originSource};
   }
 
   async function reconcileApplied(){
-    // Critical: original APPLY + Fresh Overlay writes the newest state to GLOBAL_KEY first.
-    // Reading scoped first re-opened the old cloud snapshot and caused CURRENT text to disappear.
     const globalSnap=await read(GLOBAL_KEY);
     const scopedSnap=scopedKey?await read(scopedKey):null;
     const snap=globalSnap?.html?globalSnap:scopedSnap;
@@ -145,15 +198,17 @@
     await write(GLOBAL_KEY,snap);
     if(scopedKey)await write(scopedKey,snap);
     document.documentElement.dataset.textParity=VERSION;
+    document.documentElement.dataset.visibilityParity=VERSION;
+    if(r.originSource)document.documentElement.dataset.originSourceLock=VERSION;
     return r;
   }
 
   function install(){
     const btn=document.getElementById('applyBtn');
     if(!btn||typeof btn.onclick!=='function'||btn.dataset.freshOverlay198!=='1')return false;
-    if(btn.dataset.textParity1230==='1')return true;
+    if(btn.dataset.textParity1240==='1')return true;
     const original=btn.onclick;
-    btn.dataset.textParity1230='1';
+    btn.dataset.textParity1240='1';
     btn.onclick=async function(e){
       await original.call(this,e);
       try{
@@ -162,12 +217,12 @@
           const d=document.getElementById('dirtyState');
           if(d){
             const base=String(d.textContent||'APPLIED ✓').replace(/\s*· TEXT PARITY.*$/,'').trim();
-            d.textContent=`${base} · TEXT PARITY V1.23 ✓ · ANCHOR ${r.anchored} · ${r.leafPatched}/${r.missed}`;
+            d.textContent=`${base} · TEXT PARITY V1.24 ✓ · ANCHOR ${r.anchored} · VIS ${r.visibilityFixed} · ORIGIN ${r.originSource?'✓':'—'} · ${r.leafPatched}/${r.missed}`;
           }
         }
       }catch(err){
-        console.error('APPLY_TEXT_PARITY_V1230',err);
-        window.editorToast?.(err.message||String(err),'error','Text Parity V1.23 gagal');
+        console.error('APPLY_TEXT_PARITY_V1240',err);
+        window.editorToast?.(err.message||String(err),'error','Text/Visibility Parity V1.24 gagal');
       }
     };
     document.documentElement.dataset.textParityGuard=VERSION;
