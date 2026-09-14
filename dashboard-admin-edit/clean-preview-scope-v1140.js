@@ -28,6 +28,8 @@
     await loadScript('./clean-preview-guard.js?v=1111');
     await loadScript('./clean-media-authority-v1101.js?v=1111');
     await loadScript('./clean-text-authority-v1111.js?v=1111');
+    await loadScript('./clean-visibility-parity-v1240.js?v=1240');
     await loadScript('./export-integrity-v1111.js?v=1111');
+    document.documentElement.dataset.cleanParityBundle='text-1111+visibility-1240';
   })().catch(err=>{console.error('CLEAN_PREVIEW_SCOPE_V1140',err);if(frame)frame.hidden=true;if(empty){empty.hidden=false;empty.textContent='Clean Preview scoped gagal: '+(err.message||String(err))}});
 })();
