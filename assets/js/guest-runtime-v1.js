@@ -10,7 +10,7 @@
   const slug=String(cfg.slug||'').trim();
   if(!name)return;
 
-  document.documentElement.dataset.guestRuntime='v1';
+  document.documentElement.dataset.guestRuntime='v1.1';
   if(slug)document.documentElement.dataset.guestSlug=slug;
 
   const norm=s=>String(s||'').replace(/\s+/g,' ').trim().toLowerCase();
@@ -21,6 +21,17 @@
       ['id','data-native-node-id','data-native-edit-id','data-native-edit-ids','data-id'].forEach(a=>x.removeAttribute(a));
     });
   };
+
+  function markGuestSlot(n,mode='explicit'){
+    if(!n)return null;
+    cleanNode(n);
+    n.textContent=name;
+    n.setAttribute('data-guest-name','1');
+    n.setAttribute('data-dini-guest-name','1');
+    n.setAttribute('data-dini-guest-injected','1');
+    n.setAttribute('data-dini-guest-slot-mode',mode);
+    return n;
+  }
 
   function explicitSlots(){
     const selectors=[
@@ -42,73 +53,84 @@
     let count=0;
     for(const n of explicitSlots()){
       const current=norm(n.matches?.('input,textarea')?n.value:n.textContent);
-      // A few source templates reuse "guest-name" class on the static salutation/place line.
-      // Never destroy those labels; the three-line resolver will insert the dynamic name between them.
+      // A few source templates reuse guest-name-like classes for salutation/place lines.
+      // Preserve those labels and let the semantic resolver create a runtime name slot nearby.
       if(/^kepada\b/.test(current)||/^di\s+tempat[.!]?$/.test(current))continue;
-      if(n.dataset?.diniGuestInjected==='1'&&n.textContent===name){count++;continue}
-      if(n.matches?.('input,textarea')){if(n.value!==name)n.value=name}
-      else if(n.textContent!==name)n.textContent=name;
-      n.setAttribute('data-dini-guest-name','1');
-      n.setAttribute('data-dini-guest-injected','1');
-      // Public guest data is runtime authority. Detach the guest slot from Template Editor
-      // identity so persistent canonical snapshot hydration cannot restore its placeholder text.
-      // Classes/styles stay intact, therefore source-native typography/layout is preserved.
-      cleanNode(n);
+      if(n.dataset?.diniGuestInjected==='1'&&norm(n.textContent)===norm(name)){count++;continue}
+      if(n.matches?.('input,textarea')){
+        if(n.value!==name)n.value=name;
+        n.setAttribute('data-dini-guest-name','1');
+        n.setAttribute('data-dini-guest-injected','1');
+        cleanNode(n);
+      }else markGuestSlot(n,'explicit');
       count++;
     }
     return count;
   }
 
-  function textCandidates(){
-    return [...document.querySelectorAll('p,span,div,h1,h2,h3,h4,h5,h6,strong,small')].filter(n=>{
-      if(n.children.length>4)return false;
+  const isLabelText=t=>/^kepada\b/.test(t)&&(/bapak|ibu|saudara/.test(t)||/yth\.?/.test(t));
+  const isPlaceText=t=>/^di\s+tempat[.!]?$/.test(t);
+
+  // Scan semantic text regardless of the template's wrapper/tag structure. This is intentionally
+  // source-native: it finds the smallest matching HTML element and clones nearby source typography.
+  function semanticCandidates(test){
+    const root=document.body;
+    if(!root)return [];
+    const nodes=[...root.querySelectorAll('*')],out=[];
+    for(const n of nodes){
+      if(n.namespaceURI&&n.namespaceURI!=='http://www.w3.org/1999/xhtml')continue;
+      if(n.matches?.('script,style,noscript,template,iframe,object'))continue;
       const t=norm(n.textContent);
-      return t&&t.length<=100;
-    });
+      if(!t||t.length>160||!test(t))continue;
+      let childOwns=false;
+      for(const c of n.children||[]){
+        const ct=norm(c.textContent);
+        if(ct&&ct.length<=160&&test(ct)){childOwns=true;break}
+      }
+      if(!childOwns)out.push(n);
+    }
+    return out;
   }
 
-  function ensureThreeLineSlot(){
-    if(document.querySelector('[data-dini-guest-three-line="1"]'))return true;
-    const all=textCandidates();
-    const places=all.filter(n=>/^di\s+tempat[.!]?$/i.test(norm(n.textContent)));
-    const labels=all.filter(n=>{
-      const t=norm(n.textContent);
-      return /^kepada\b/.test(t)&&(/bapak|ibu|saudara/.test(t)||/yth/.test(t));
-    });
-    if(!places.length||!labels.length)return false;
+  function decorateInsertedSlot(slot){
+    if(!slot)return slot;
+    slot.setAttribute('data-dini-guest-three-line','1');
+    if(slot.style){
+      slot.style.setProperty('margin-top',slot.style.marginTop||'.32em');
+      slot.style.setProperty('margin-bottom',slot.style.marginBottom||'.32em');
+    }
+    return slot;
+  }
 
-    for(const place of places){
-      let label=null;
-      for(const cand of labels){
-        const pos=cand.compareDocumentPosition(place);
-        if(pos&Node.DOCUMENT_POSITION_FOLLOWING)label=cand;
+  function ensureSemanticSlot(){
+    const existing=document.querySelector('[data-dini-guest-three-line="1"]');
+    if(existing){
+      if(norm(existing.textContent)!==norm(name))existing.textContent=name;
+      return true;
+    }
+
+    const labels=semanticCandidates(isLabelText);
+    if(!labels.length)return false;
+    const places=semanticCandidates(isPlaceText);
+
+    // Prefer a source-native three-line composition:
+    // "Kepada ..." -> runtime guest name -> "Di Tempat".
+    for(const label of labels){
+      const following=places.filter(place=>Boolean(label.compareDocumentPosition(place)&Node.DOCUMENT_POSITION_FOLLOWING));
+      const place=following[0]||null;
+      if(place?.parentNode){
+        const slot=decorateInsertedSlot(markGuestSlot(place.cloneNode(true),'semantic-before-place'));
+        place.parentNode.insertBefore(slot,place);
+        return true;
       }
-      if(!label)continue;
+    }
 
-      const parent=place.parentNode;
-      if(!parent)continue;
-      const between=[...parent.children].filter(x=>{
-        const p1=label.compareDocumentPosition(x),p2=x.compareDocumentPosition(place);
-        return (p1&Node.DOCUMENT_POSITION_FOLLOWING)&&(p2&Node.DOCUMENT_POSITION_FOLLOWING);
-      });
-      const existing=between.find(x=>x.matches?.('[data-guest-name],[data-dini-guest-name]'));
-      if(existing){existing.textContent=name;existing.setAttribute('data-dini-guest-three-line','1');cleanNode(existing);return true}
-
-      const slot=place.cloneNode(true);
-      cleanNode(slot);
-      slot.textContent=name;
-      slot.setAttribute('data-guest-name','1');
-      slot.setAttribute('data-dini-guest-name','1');
-      slot.setAttribute('data-dini-guest-injected','1');
-      slot.setAttribute('data-dini-guest-three-line','1');
-
-      // Preserve the template's typography/cascade by cloning "Di Tempat".
-      // Only give the dynamic name a modest breathing room; do not impose a new design system.
-      if(slot.style){
-        slot.style.setProperty('margin-top',slot.style.marginTop||'.32em');
-        slot.style.setProperty('margin-bottom',slot.style.marginBottom||'.32em');
-      }
-      parent.insertBefore(slot,place);
+    // Some templates only contain a salutation line. Insert directly after the smallest semantic
+    // salutation element, preserving its own typography instead of imposing global CSS.
+    const label=labels[0];
+    if(label?.parentNode){
+      const slot=decorateInsertedSlot(markGuestSlot(label.cloneNode(true),'semantic-after-label'));
+      label.parentNode.insertBefore(slot,label.nextSibling);
       return true;
     }
     return false;
@@ -129,7 +151,7 @@
 
   function apply(){
     setExplicit();
-    ensureThreeLineSlot();
+    ensureSemanticSlot();
     prefillForms();
   }
 
