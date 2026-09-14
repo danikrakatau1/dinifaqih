@@ -10,7 +10,7 @@
   const slug=String(cfg.slug||'').trim();
   if(!name)return;
 
-  document.documentElement.dataset.guestRuntime='v1.1';
+  document.documentElement.dataset.guestRuntime='v1.2';
   if(slug)document.documentElement.dataset.guestSlug=slug;
 
   const norm=s=>String(s||'').replace(/\s+/g,' ').trim().toLowerCase();
@@ -53,7 +53,7 @@
     let count=0;
     for(const n of explicitSlots()){
       const current=norm(n.matches?.('input,textarea')?n.value:n.textContent);
-      // A few source templates reuse guest-name-like classes for salutation/place lines.
+      // Some source templates reuse guest-name-like classes on the static salutation/place line.
       // Preserve those labels and let the semantic resolver create a runtime name slot nearby.
       if(/^kepada\b/.test(current)||/^di\s+tempat[.!]?$/.test(current))continue;
       if(n.dataset?.diniGuestInjected==='1'&&norm(n.textContent)===norm(name)){count++;continue}
@@ -70,9 +70,20 @@
 
   const isLabelText=t=>/^kepada\b/.test(t)&&(/bapak|ibu|saudara/.test(t)||/yth\.?/.test(t));
   const isPlaceText=t=>/^di\s+tempat[.!]?$/.test(t);
+  const semanticSlotByLabel=new WeakMap();
 
-  // Scan semantic text regardless of the template's wrapper/tag structure. This is intentionally
-  // source-native: it finds the smallest matching HTML element and clones nearby source typography.
+  function isVisible(n){
+    if(!n?.isConnected)return false;
+    try{
+      const cs=getComputedStyle(n);
+      if(cs.display==='none'||cs.visibility==='hidden'||cs.visibility==='collapse'||Number(cs.opacity||1)<=.01)return false;
+      return n.getClientRects().length>0;
+    }catch{return false}
+  }
+
+  // Find the smallest element that owns the semantic text. Hidden responsive clones are retained
+  // because they may become the active cover at another breakpoint; visible candidates are simply
+  // prioritized when choosing a nearby "Di Tempat" anchor.
   function semanticCandidates(test){
     const root=document.body;
     if(!root)return [];
@@ -89,7 +100,11 @@
       }
       if(!childOwns)out.push(n);
     }
-    return out;
+    return out.sort((a,b)=>Number(isVisible(b))-Number(isVisible(a)));
+  }
+
+  function semanticHost(n){
+    return n?.closest?.('#opening,#cover,.opening,.cover,[data-cover],[data-opening],section,article,main,[data-elementor-id]')||n?.parentElement||document.body;
   }
 
   function decorateInsertedSlot(slot){
@@ -102,38 +117,69 @@
     return slot;
   }
 
-  function ensureSemanticSlot(){
-    const existing=document.querySelector('[data-dini-guest-three-line="1"]');
-    if(existing){
-      if(norm(existing.textContent)!==norm(name))existing.textContent=name;
-      return true;
-    }
+  function pickPlace(label,places){
+    const following=places.filter(place=>Boolean(label.compareDocumentPosition(place)&Node.DOCUMENT_POSITION_FOLLOWING));
+    if(!following.length)return null;
+    const host=semanticHost(label),labelVisible=isVisible(label);
+    following.sort((a,b)=>{
+      const ah=semanticHost(a)===host?1:0,bh=semanticHost(b)===host?1:0;
+      if(ah!==bh)return bh-ah;
+      const av=isVisible(a)===labelVisible?1:0,bv=isVisible(b)===labelVisible?1:0;
+      if(av!==bv)return bv-av;
+      return 0;
+    });
+    return following[0];
+  }
 
+  function ensureSemanticSlots(){
     const labels=semanticCandidates(isLabelText);
-    if(!labels.length)return false;
+    if(!labels.length)return 0;
     const places=semanticCandidates(isPlaceText);
+    let count=0;
 
-    // Prefer a source-native three-line composition:
-    // "Kepada ..." -> runtime guest name -> "Di Tempat".
     for(const label of labels){
-      const following=places.filter(place=>Boolean(label.compareDocumentPosition(place)&Node.DOCUMENT_POSITION_FOLLOWING));
-      const place=following[0]||null;
+      let existing=semanticSlotByLabel.get(label);
+      if(existing?.isConnected){
+        if(norm(existing.textContent)!==norm(name))existing.textContent=name;
+        count++;
+        continue;
+      }
+
+      const place=pickPlace(label,places);
       if(place?.parentNode){
+        // Reuse a previously injected slot immediately before this place when a source script
+        // recreated the label but kept the runtime slot alive.
+        const prev=place.previousElementSibling;
+        if(prev?.matches?.('[data-dini-guest-three-line="1"]')){
+          if(norm(prev.textContent)!==norm(name))prev.textContent=name;
+          semanticSlotByLabel.set(label,prev);
+          count++;
+          continue;
+        }
         const slot=decorateInsertedSlot(markGuestSlot(place.cloneNode(true),'semantic-before-place'));
         place.parentNode.insertBefore(slot,place);
-        return true;
+        semanticSlotByLabel.set(label,slot);
+        count++;
+        continue;
+      }
+
+      if(label?.parentNode){
+        const next=label.nextElementSibling;
+        if(next?.matches?.('[data-dini-guest-three-line="1"]')){
+          if(norm(next.textContent)!==norm(name))next.textContent=name;
+          semanticSlotByLabel.set(label,next);
+          count++;
+          continue;
+        }
+        const slot=decorateInsertedSlot(markGuestSlot(label.cloneNode(true),'semantic-after-label'));
+        label.parentNode.insertBefore(slot,label.nextSibling);
+        semanticSlotByLabel.set(label,slot);
+        count++;
       }
     }
 
-    // Some templates only contain a salutation line. Insert directly after the smallest semantic
-    // salutation element, preserving its own typography instead of imposing global CSS.
-    const label=labels[0];
-    if(label?.parentNode){
-      const slot=decorateInsertedSlot(markGuestSlot(label.cloneNode(true),'semantic-after-label'));
-      label.parentNode.insertBefore(slot,label.nextSibling);
-      return true;
-    }
-    return false;
+    document.documentElement.dataset.guestSemanticMatches=String(count);
+    return count;
   }
 
   function prefillForms(){
@@ -150,8 +196,8 @@
   }
 
   function apply(){
-    setExplicit();
-    ensureSemanticSlot();
+    const explicitCount=setExplicit();
+    if(!explicitCount)ensureSemanticSlots();
     prefillForms();
   }
 
