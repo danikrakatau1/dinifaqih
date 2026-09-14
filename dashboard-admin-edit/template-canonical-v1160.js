@@ -1,15 +1,18 @@
 (()=>{
   'use strict';
   if(window.DINI_TEMPLATE_CANONICAL_V1160)return;
-  const VERSION='1.16.0';
+  const VERSION='1.16.6';
   const deep=v=>JSON.parse(JSON.stringify(v??null));
   const esc=v=>(window.CSS?.escape?CSS.escape(String(v||'')):String(v||'').replace(/["\\]/g,'\\$&'));
   const str=v=>String(v??'').trim();
+  const norm=v=>String(v??'').replace(/\s+/g,' ').trim();
   const current=(values,f)=>str(values?.[f.id] ?? f.value ?? '');
   const original=f=>str(f?.value ?? f?.source_url ?? '');
   const changed=(values,f)=>{const v=current(values,f),o=original(f);return !!v && !!o && v!==o};
   const mediaKinds=new Set(['image','background','video','audio']);
   const localish=v=>/^(?:assets\/|blob:|data:)/i.test(str(v))||/\/revisions\//i.test(str(v));
+  const TEXT_SEL='h1,h2,h3,h4,h5,h6,p,span,a,label,button,strong,em,small,li,td,th,input,textarea,select';
+
   const score=(values,f)=>{
     const v=current(values,f);let s=0;
     if(changed(values,f))s+=1000;
@@ -32,8 +35,6 @@
     const values={...deep(inputValues||{})};
     const diagnostics={version:VERSION,node_alias_groups:0,slideshow_alias_groups:0,propagated_fields:0};
 
-    // Pass 1: exact visual-owner aliases. This fixes source field vs runtime/computed alias
-    // collisions such as portrait css-overlay fields sharing the same data-native-node-id.
     const nodeGroups=new Map();
     for(const f of fields){
       if(!mediaKinds.has(f.kind)||!f.node_id)continue;
@@ -49,9 +50,6 @@
       for(const f of group){if(current(values,f)!==winner){values[f.id]=winner;diagnostics.propagated_fields++}}
     }
 
-    // Pass 2: Elementor slideshow authority. Runtime-discovered cssbg fields and the authored
-    // slideshow field are separate schema entries but represent one visual layer. Match by
-    // section + authored/original URL so different sections using the same stock image remain isolated.
     const slideCandidates=fields.filter(f=>f.kind==='background'&&(f.media_role==='slideshow'||/^css-background-cssbg-/i.test(f.id||'')));
     const slideGroups=new Map();
     for(const f of slideCandidates){
@@ -92,6 +90,58 @@
     return out.filter(Boolean);
   }
 
+  function textOf(n){return n?.matches?.('input,textarea,select')?String(n.value??''):String(n?.textContent??'')}
+  function markedLeaf(root,id){
+    if(!root||!id)return null;
+    try{
+      if(root.matches?.(`[data-native-edit-id="${esc(id)}"]`))return root;
+      const exact=root.querySelector?.(`[data-native-edit-id="${esc(id)}"]`);if(exact)return exact;
+      return [...(root.querySelectorAll?.('[data-native-edit-ids]')||[])].find(n=>(n.getAttribute('data-native-edit-ids')||'').split(/[\s,]+/).filter(Boolean).includes(id))||null;
+    }catch{return null}
+  }
+  function textLeaves(root){
+    if(!root)return[];
+    const all=[...root.querySelectorAll?.(TEXT_SEL)||[]];
+    const leaves=all.filter(n=>![...n.children||[]].some(c=>c.matches?.(TEXT_SEL)&&norm(textOf(c))));
+    return leaves.length?leaves:all;
+  }
+  function chooseTextLeaf(root,f,value){
+    if(!root)return null;
+    const marked=markedLeaf(root,f.id);if(marked)return marked;
+    if(root.matches?.('input,textarea,select'))return root;
+    const heading=[...root.querySelectorAll?.('.elementor-heading-title')||[]];if(heading.length===1)return heading[0];
+    const form=root.querySelector?.('input,textarea,select');if(form)return form;
+    const list=textLeaves(root),want=norm(value),old=norm(f?.source_text??f?.value??'');
+    let hit=list.find(n=>want&&norm(textOf(n))===want);if(hit)return hit;
+    hit=list.find(n=>old&&norm(textOf(n))===old);if(hit)return hit;
+    return list.length===1?list[0]:(root.matches?.(TEXT_SEL)?root:null);
+  }
+  function mobileNone(host){
+    if(!host)return false;
+    if(String(host.getAttribute('data-native-animation-mobile')||'').toLowerCase()==='none')return true;
+    try{return String(JSON.parse(host.getAttribute('data-settings')||'{}')?._animation_mobile||'').toLowerCase()==='none'}catch{return false}
+  }
+  function revealTextChain(doc,leaf,f){
+    let host=f.source_element_id?doc.querySelector(`[data-id="${esc(f.source_element_id)}"]`):null;
+    host=host||leaf?.closest?.('[data-id]')||leaf;
+    if(!host)return;
+    const locked=String(f.text_leaf_locked||'');
+    const exact=String(f.source_element_id||'')==='43f80b1b';
+    const should=exact||locked.startsWith('1.23')||locked.startsWith('1.24')||host.hasAttribute?.('data-dini-visibility-parity')||host.hasAttribute?.('data-clean-visibility-chain')||mobileNone(host);
+    if(!should)return;
+    let p=host,depth=0;
+    while(p&&p.nodeType===1&&depth++<32){
+      p.classList?.remove('elementor-invisible');
+      p.hidden=false;p.removeAttribute?.('hidden');p.removeAttribute?.('aria-hidden');
+      if(String(p.style?.getPropertyValue('display')||'').toLowerCase()==='none')p.style.removeProperty('display');
+      p.style?.setProperty('visibility','visible','important');
+      p.style?.setProperty('opacity','1','important');
+      p.setAttribute?.('data-canonical-text-visible',VERSION);
+      if(p.tagName==='BODY'||p.tagName==='HTML')break;
+      p=p.parentElement;
+    }
+  }
+
   function setBackground(node,value){
     if(!node)return;const want=value?`url("${String(value).replaceAll('"','%22')}")`:'none';
     node.style.setProperty('background-image',want,'important');
@@ -113,7 +163,12 @@
     for(const f of fields){
       const value=current(values,f),old=original(f),nodes=nodesFor(doc,f);
       if(f.kind==='text'){
-        for(const n of nodes){if(n.matches?.('input,textarea,select')){n.value=value;n.setAttribute('value',value)}else n.textContent=value}
+        for(const n of nodes){
+          const leaf=chooseTextLeaf(n,f,value)||n;
+          if(leaf.matches?.('input,textarea,select')){leaf.value=value;leaf.setAttribute('value',value)}else leaf.textContent=value;
+          leaf.setAttribute('data-template-canonical-text',VERSION);
+          revealTextChain(doc,leaf,f);
+        }
       }else if(f.kind==='url'){
         for(const n of nodes)if(n.matches?.('a,[href]'))n.setAttribute('href',value);
       }else if(f.kind==='image'){
@@ -125,8 +180,6 @@
       }
     }
 
-    // Persist slideshow CURRENT value into all three authorities that Elementor/source runtime can rebuild from:
-    // data-settings, data-native-slideshow-urls, and the visible slide inline background.
     const sections=Array.isArray(schema.sections)?schema.sections:[];
     for(let si=0;si<sections.length;si++){
       const related=fields.filter(f=>Number(f.section_index)===si&&f.kind==='background'&&(f.media_role==='slideshow'||/^css-background-cssbg-/i.test(f.id||'')));
@@ -152,12 +205,26 @@
     return '<!doctype html>\n'+doc.documentElement.outerHTML;
   }
 
+  function recoverExactTextParity(snapshot,values){
+    const fields=Array.isArray(snapshot?.schema?.fields)?snapshot.schema.fields:[];
+    const details=Array.isArray(snapshot?.text_parity?.details)?snapshot.text_parity.details:[];
+    if(!details.length)return values;
+    const out={...values};
+    for(const f of fields){
+      if(f?.kind!=='text'||String(f.source_element_id||'')!=='43f80b1b')continue;
+      const d=details.find(x=>x?.id===f.id);
+      if(d&&typeof d.value==='string'&&d.value.trim())out[f.id]=d.value;
+    }
+    return out;
+  }
+
   function resolveSnapshot(snapshot){
     const snap=deep(snapshot||{});if(!snap?.schema||!Array.isArray(snap.schema.fields))return snap;
-    const r=resolveValues(snap.schema,snap.values||{});snap.values=r.values;
+    const input=recoverExactTextParity(snap,snap.values||{});
+    const r=resolveValues(snap.schema,input);snap.values=r.values;
     snap.html=applyHtml(snap.html||snap.baseHtml||'',snap.schema,snap.values);
     snap.baseHtml=snap.html;
-    snap.canonicalization={...(snap.canonicalization||{}),...r.diagnostics,version:VERSION,canonicalized_at:new Date().toISOString()};
+    snap.canonicalization={...(snap.canonicalization||{}),...r.diagnostics,version:VERSION,canonicalized_at:new Date().toISOString(),text_visibility_materialized:true};
     return snap;
   }
 
