@@ -27,18 +27,65 @@ html,body{margin:0;min-height:100%;background:#0b0c0f;color:#f5f2ea;font:14px sy
   const querySlug=(new URLSearchParams(location.search).get('guest_slug')||'').trim().toLowerCase();
   const slug=(querySlug||pathSlug).replace(/[^a-z0-9-]/g,'');
   if(!slug||reserved.has(slug)){fail('Link tamu tidak valid','Gunakan link personal dari Daftar Tamu.',400);return}
+
   const dirname=raw=>{try{const u=new URL(raw,location.href);if(/\.[a-z0-9]{1,8}$/i.test(u.pathname.split('/').pop()||''))u.pathname=u.pathname.replace(/[^/]*$/,'');if(!u.pathname.endsWith('/'))u.pathname+='/';u.search='';u.hash='';return u.href}catch{return ''}};
   const embeddedBase=(html,manifest={},fallback='')=>{try{const doc=new DOMParser().parseFromString(String(html||''),'text/html');const raw=String(doc.querySelector('base')?.getAttribute('href')||'').trim();if(raw){const d=dirname(new URL(raw,manifest.asset_base||manifest.source_url||fallback||location.href).href);if(d)return d}}catch{}const asset=String(manifest.asset_base||'').trim();if(asset){const d=dirname(asset);if(d)return d}const source=String(manifest.source_url||'').trim();if(source){const d=dirname(source);if(d)return d}return dirname(fallback)||location.origin+'/';};
-  const inject=(html,authority,guest)=>{const blocks=[];if(authority){const a=JSON.stringify(authority).replace(/</g,'\\u003c').replace(/-->/g,'--\\>');blocks.push('<script type="application/json" id="diniSnapshotAuthorityData">'+a+'<\/script>');blocks.push('<script src="/dashboard-admin-edit/template-canonical-v1160.js?v=1160"><\/script>');blocks.push('<script src="/dashboard-admin-template/snapshot-authority-v1162.js?v=1162"><\/script>')}const g=JSON.stringify(guest).replace(/</g,'\\u003c').replace(/-->/g,'--\\>');blocks.push('<script type="application/json" id="diniGuestRuntimeData">'+g+'<\/script>');blocks.push('<script src="/assets/js/guest-runtime-v1.js?v=16"><\/script>');const block=blocks.join('');return /<\/body>/i.test(html)?html.replace(/<\/body>/i,block+'</body>'):html+block;};
+
+  const inject=(html,authority,guest)=>{
+    const blocks=[];
+    if(authority){
+      const a=JSON.stringify(authority).replace(/</g,'\\u003c').replace(/-->/g,'--\\>');
+      blocks.push('<script type="application/json" id="diniSnapshotAuthorityData">'+a+'<\/script>');
+      blocks.push('<script src="/dashboard-admin-edit/template-canonical-v1160.js?v=1160"><\/script>');
+      blocks.push('<script src="/dashboard-admin-template/snapshot-authority-v1162.js?v=1162"><\/script>');
+    }
+    const g=JSON.stringify(guest).replace(/</g,'\\u003c').replace(/-->/g,'--\\>');
+    blocks.push('<script type="application/json" id="diniGuestRuntimeData">'+g+'<\/script>');
+    blocks.push('<script src="/assets/js/guest-runtime-v1.js?v=17-20260914b"><\/script>');
+    const block=blocks.join('');
+    return /<\/body>/i.test(html)?html.replace(/<\/body>/i,block+'</body>'):html+block;
+  };
 
   const GUEST_SENTINEL='__DINI_GUEST_PROBE__';
+  const KNOWN_ART_JAWA_COKLAT_3='https://web.galeriundanganofficial.com/art-jawa-coklat-3/';
   const norm=s=>String(s||'').replace(/\s+/g,' ').trim();
   const deepestWith=(doc,text)=>{const all=[...doc.querySelectorAll('h1,h2,h3,h4,h5,h6,p,span,label,div')].filter(n=>String(n.textContent||'').includes(text));return all.find(n=>![...n.children].some(c=>String(c.textContent||'').includes(text)))||all[0]||null};
   const widgetOf=n=>n?.closest?.('.elementor-widget')||n?.parentElement||null;
   const widgetKey=n=>String(n?.getAttribute?.('data-id')||'').trim();
   const findWidget=(doc,key)=>{if(!key)return null;try{return doc.querySelector(`[data-id="${CSS.escape(key)}"]`)}catch{return null}};
   const hasGuestSlot=doc=>!!doc.querySelector('[data-native-guest-name],[data-guest-name],[data-dini-guest-name],#guestName,.guest-name,.guest_name,.nama-tamu,.nama_tamu');
-  const setGuestLeaf=(root,value)=>{const all=[root,...root.querySelectorAll?.('h1,h2,h3,h4,h5,h6,p,span,label,div')||[]];let leaf=all.find(n=>String(n.textContent||'').includes(GUEST_SENTINEL)&&![...n.children||[]].some(c=>String(c.textContent||'').includes(GUEST_SENTINEL)));if(!leaf)return null;leaf.textContent=value;leaf.setAttribute('data-native-guest-name','1');leaf.setAttribute('data-dini-guest-name','1');leaf.setAttribute('data-dini-guest-injected','1');leaf.setAttribute('data-dini-guest-slot-mode','source-probe');root.setAttribute('data-dini-guest-source-probe-widget','1');return leaf};
+  const hasKnownArtJawaAnchors=doc=>!!(findWidget(doc,'fd2b4a3')&&findWidget(doc,'5361f63'));
+  const isCloudRevisionUrl=raw=>{try{const u=new URL(String(raw||''),location.href);return /supabase\.co$/i.test(u.hostname)&&/\/storage\/v1\/object\/public\/template-packages\//i.test(u.pathname)}catch{return false}};
+  const isOriginCandidate=raw=>{try{const u=new URL(String(raw||''),location.href);if(!/^https?:$/.test(u.protocol)||isCloudRevisionUrl(u.href))return false;if(u.origin===location.origin)return false;if(/\/wp-content\//i.test(u.pathname))return false;const last=u.pathname.split('/').filter(Boolean).pop()||'';if(/\.[a-z0-9]{2,8}$/i.test(last))return false;return true}catch{return false}};
+
+  function originSourceForProbe(baseHtml,manifest,row){
+    const explicit=[manifest?.origin_source_url,manifest?.original_source_url,manifest?.fetch_source_url,manifest?.upstream_source_url,manifest?.source_page_url];
+    for(const raw of explicit)if(isOriginCandidate(raw))return new URL(raw).href;
+
+    try{
+      const d=new DOMParser().parseFromString(String(baseHtml||''),'text/html');
+      const b=String(d.querySelector('base')?.getAttribute('href')||'').trim();
+      if(b){const absolute=new URL(b,manifest?.source_url||row?.source_path||location.href).href;if(isOriginCandidate(absolute))return absolute}
+      if(hasKnownArtJawaAnchors(d))return KNOWN_ART_JAWA_COKLAT_3;
+    }catch{}
+
+    for(const raw of [manifest?.source_url,manifest?.asset_base,row?.source_path])if(isOriginCandidate(raw))return new URL(raw).href;
+    return '';
+  }
+
+  const setGuestLeaf=(root,value)=>{
+    const all=[root,...root.querySelectorAll?.('h1,h2,h3,h4,h5,h6,p,span,label,div')||[]];
+    let leaf=all.find(n=>String(n.textContent||'').includes(GUEST_SENTINEL)&&![...n.children||[]].some(c=>String(c.textContent||'').includes(GUEST_SENTINEL)));
+    if(!leaf)return null;
+    leaf.textContent=value;
+    leaf.setAttribute('data-native-guest-name','1');
+    leaf.setAttribute('data-dini-guest-name','1');
+    leaf.setAttribute('data-dini-guest-injected','1');
+    leaf.setAttribute('data-dini-guest-slot-mode','source-probe');
+    root.setAttribute('data-dini-guest-source-probe-widget','1');
+    return leaf;
+  };
+
   function transplantProbeWidget(baseHtml,probeHtml,guestName){
     const baseDoc=new DOMParser().parseFromString(String(baseHtml||''),'text/html');
     if(hasGuestSlot(baseDoc))return {html:baseHtml,restored:false,mode:'existing-slot'};
@@ -47,47 +94,106 @@ html,body{margin:0;min-height:100%;background:#0b0c0f;color:#f5f2ea;font:14px sy
     if(!leaf||!probeWidget)return {html:baseHtml,restored:false,mode:'probe-sentinel-missing'};
     const key=widgetKey(probeWidget),existing=findWidget(baseDoc,key);
     if(existing){if(setGuestLeaf(existing,guestName))return {html:'<!doctype html>\n'+baseDoc.documentElement.outerHTML,restored:true,mode:'probe-existing',widget_id:key};}
-    const clone=probeWidget.cloneNode(true);if(!setGuestLeaf(clone,guestName))return {html:baseHtml,restored:false,mode:'probe-clone-failed'};
+    const clone=probeWidget.cloneNode(true);
+    if(!setGuestLeaf(clone,guestName))return {html:baseHtml,restored:false,mode:'probe-clone-failed'};
     const prevKey=widgetKey(probeWidget.previousElementSibling),nextKey=widgetKey(probeWidget.nextElementSibling);
     const next=findWidget(baseDoc,nextKey),prev=findWidget(baseDoc,prevKey);
-    if(next?.parentElement)next.parentElement.insertBefore(clone,next);else if(prev?.parentElement)prev.parentElement.insertBefore(clone,prev.nextSibling);else return {html:baseHtml,restored:false,mode:'probe-anchor-missing'};
+    if(next?.parentElement)next.parentElement.insertBefore(clone,next);
+    else if(prev?.parentElement)prev.parentElement.insertBefore(clone,prev.nextSibling);
+    else return {html:baseHtml,restored:false,mode:'probe-anchor-missing'};
     return {html:'<!doctype html>\n'+baseDoc.documentElement.outerHTML,restored:true,mode:'source-probe',widget_id:key||'',prev_id:prevKey||'',next_id:nextKey||''};
   }
+
   function legacyTemplate2Restore(baseHtml,guestName,row,manifest){
-    const source=String(manifest?.source_url||'').toLowerCase();
-    const isKnown=/^template-2(?:-|$)/i.test(String(row?.slug||''))||source.includes('/art-jawa-coklat-3/');
+    const doc=new DOMParser().parseFromString(String(baseHtml||''),'text/html');
+    if(hasGuestSlot(doc))return {html:baseHtml,restored:false,mode:'existing-slot'};
+    const source=String(manifest?.origin_source_url||manifest?.original_source_url||manifest?.source_url||'').toLowerCase();
+    const isKnown=/^template-2(?:-|$)/i.test(String(row?.slug||''))||source.includes('/art-jawa-coklat-3/')||hasKnownArtJawaAnchors(doc);
     if(!isKnown)return {html:baseHtml,restored:false,mode:'not-known-source'};
-    const doc=new DOMParser().parseFromString(String(baseHtml||''),'text/html');if(hasGuestSlot(doc))return {html:baseHtml,restored:false,mode:'existing-slot'};
-    const sal=findWidget(doc,'fd2b4a3'),place=findWidget(doc,'5361f63');if(!sal?.parentElement||!place?.parentElement||sal.parentElement!==place.parentElement)return {html:baseHtml,restored:false,mode:'legacy-anchor-missing'};
-    const w=doc.createElement('div');w.className='elementor-element elementor-element-b3551e3 elementor-widget elementor-widget-heading';w.setAttribute('data-id','b3551e3');w.setAttribute('data-element_type','widget');w.setAttribute('data-widget_type','heading.default');w.setAttribute('data-dini-guest-source-probe-widget','legacy-template-2');
-    const c=doc.createElement('div');c.className='elementor-widget-container';const h=doc.createElement('h2');h.className='elementor-heading-title elementor-size-default';h.textContent=guestName;h.setAttribute('data-native-guest-name','1');h.setAttribute('data-dini-guest-name','1');h.setAttribute('data-dini-guest-injected','1');h.setAttribute('data-dini-guest-slot-mode','source-restore');c.appendChild(h);w.appendChild(c);place.parentElement.insertBefore(w,place);
-    return {html:'<!doctype html>\n'+doc.documentElement.outerHTML,restored:true,mode:'legacy-template-2',widget_id:'b3551e3'};
+    const sal=findWidget(doc,'fd2b4a3'),place=findWidget(doc,'5361f63');
+    if(!sal?.parentElement||!place?.parentElement||sal.parentElement!==place.parentElement)return {html:baseHtml,restored:false,mode:'legacy-anchor-missing'};
+    const w=doc.createElement('div');
+    w.className='elementor-element elementor-element-b3551e3 elementor-widget elementor-widget-heading';
+    w.setAttribute('data-id','b3551e3');w.setAttribute('data-element_type','widget');w.setAttribute('data-widget_type','heading.default');w.setAttribute('data-dini-guest-source-probe-widget','source-native-fallback');
+    const c=doc.createElement('div');c.className='elementor-widget-container';
+    const h=doc.createElement('h2');h.className='elementor-heading-title elementor-size-default';h.textContent=guestName;
+    h.setAttribute('data-native-guest-name','1');h.setAttribute('data-dini-guest-name','1');h.setAttribute('data-dini-guest-injected','1');h.setAttribute('data-dini-guest-slot-mode','source-restore');
+    c.appendChild(h);w.appendChild(c);place.parentElement.insertBefore(w,place);
+    return {html:'<!doctype html>\n'+doc.documentElement.outerHTML,restored:true,mode:'source-native-fallback',widget_id:'b3551e3'};
   }
+
   async function restoreGuestSlotBeforeRender(baseHtml,manifest,row,guestName){
-    const doc=new DOMParser().parseFromString(String(baseHtml||''),'text/html');if(hasGuestSlot(doc))return {html:baseHtml,restored:false,mode:'existing-slot'};
-    const rawSource=String(manifest?.source_url||'').trim();
-    if(/^https?:/i.test(rawSource)){
+    const doc=new DOMParser().parseFromString(String(baseHtml||''),'text/html');
+    if(hasGuestSlot(doc))return {html:baseHtml,restored:false,mode:'existing-slot'};
+
+    const rawSource=originSourceForProbe(baseHtml,manifest,row);
+    if(rawSource){
+      manifest.origin_source_url=rawSource;
+      document.documentElement.dataset.guestOriginSource=rawSource;
       try{
         const u=new URL(rawSource);u.searchParams.set('to',GUEST_SENTINEL);
         const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),6500);
-        let r;try{r=await fetch('/api/fetch-source?url='+encodeURIComponent(u.href),{headers:{Accept:'application/json'},cache:'no-store',signal:controller.signal})}finally{clearTimeout(timer)}
-        const j=await r.json().catch(()=>({ok:false}));if(r.ok&&j.ok){const out=transplantProbeWidget(baseHtml,j.html||'',guestName);if(out.restored)return out}
+        let r;
+        try{r=await fetch('/api/fetch-source?url='+encodeURIComponent(u.href),{headers:{Accept:'application/json'},cache:'no-store',signal:controller.signal})}finally{clearTimeout(timer)}
+        const j=await r.json().catch(()=>({ok:false}));
+        if(r.ok&&j.ok){const out=transplantProbeWidget(baseHtml,j.html||'',guestName);if(out.restored)return {...out,origin_source_url:rawSource}}
       }catch(err){console.warn('GUEST_SOURCE_PROBE_RUNTIME',err)}
     }
-    return legacyTemplate2Restore(baseHtml,guestName,row,manifest);
+
+    const fallback=legacyTemplate2Restore(baseHtml,guestName,row,manifest);
+    if(fallback.restored&&rawSource)return {...fallback,origin_source_url:rawSource};
+    return fallback;
   }
 
   try{
-    const gr=await fetch(SB+'/rest/v1/rpc/resolve_guest_slug',{method:'POST',headers:H,body:JSON.stringify({p_slug:slug}),cache:'no-store'});if(!gr.ok){if(gr.status===404||gr.status===400)throw new Error('Guest RPC belum tersedia. Jalankan migration Universal Guest V2.');throw new Error('Guest resolver HTTP '+gr.status)}
-    const gj=await gr.json(),guest=Array.isArray(gj)?gj[0]:gj;if(!guest?.name){fail('Tamu tidak ditemukan','Periksa kembali link personal yang dikirim.',404);return}
+    const gr=await fetch(SB+'/rest/v1/rpc/resolve_guest_slug',{method:'POST',headers:H,body:JSON.stringify({p_slug:slug}),cache:'no-store'});
+    if(!gr.ok){if(gr.status===404||gr.status===400)throw new Error('Guest RPC belum tersedia. Jalankan migration Universal Guest V2.');throw new Error('Guest resolver HTTP '+gr.status)}
+    const gj=await gr.json(),guest=Array.isArray(gj)?gj[0]:gj;
+    if(!guest?.name){fail('Tamu tidak ditemukan','Periksa kembali link personal yang dikirim.',404);return}
     const guestName=String(guest.name);
-    const tr=await fetch(SB+'/rest/v1/templates?select=id,name,slug,source_path,updated_at,manifest_json&is_active=eq.true&limit=1',{headers:{apikey:KEY,Authorization:'Bearer '+KEY},cache:'no-store'});if(!tr.ok)throw new Error('Template aktif HTTP '+tr.status);let row=(await tr.json())?.[0];if(!row)row={id:'template-1-local',name:'Template 1',slug:'template-1',source_path:'/',updated_at:Date.now(),manifest_json:{template_original:true,asset_base:location.origin+'/'}};
-    let manifest={...(row.manifest_json||{})},html='',authority=null,snap=null;const snapUrl=String(manifest.editor_snapshot_url||'').trim();if(snapUrl){try{const u=new URL(snapUrl,location.href);u.searchParams.set('_guest',String(row.updated_at||Date.now()));const r=await fetch(u.href,{cache:'no-store'});if(!r.ok)throw new Error('Editor Snapshot HTTP '+r.status);snap=await r.json()}catch(err){if(String(row.slug).toLowerCase()!=='template-1')throw err;console.warn('Guest Template 1 cloud snapshot fallback:',err)}}
-    if(!snap&&String(row.slug).toLowerCase()==='template-1'){const r=await fetch('/template-1-original/editor-snapshot.json?_guest='+encodeURIComponent(row.updated_at||Date.now()),{cache:'no-store'});if(!r.ok)throw new Error('Template 1 local snapshot HTTP '+r.status);snap=await r.json()}
-    if(snap){if(window.DINI_TEMPLATE_CANONICAL_V1160?.resolveSnapshot)snap=window.DINI_TEMPLATE_CANONICAL_V1160.resolveSnapshot(snap);html=String(snap.html||snap.baseHtml||'');if(!html)throw new Error('Snapshot HTML kosong.');manifest={...manifest,...(snap.manifest||{})};authority={schema:snap.schema||{},values:snap.values||{},transforms:snap.transforms||{},persistent:true,template_id:row.id,revision:snap.revision||manifest.revision||''}}else{const source=String(row.source_path||'').trim();if(!source||source==='/')throw new Error('Template aktif belum memiliki source snapshot.');const u=new URL(source,location.href);u.searchParams.set('_guest',String(row.updated_at||Date.now()));const r=await fetch(u.href,{cache:'no-store'});if(!r.ok)throw new Error('Template HTML HTTP '+r.status);html=await r.text()}
-    const guestRestore=await restoreGuestSlotBeforeRender(html,manifest,row,guestName);html=guestRestore.html;document.documentElement.dataset.guestSourceRestore=guestRestore.mode||'none';
-    const isT1=String(row.slug||'').toLowerCase()==='template-1';const assetBase=isT1?location.origin+'/':embeddedBase(html,manifest,row.source_path||'');html=html.replace(/<base\b[^>]*data-dini-template-base[^>]*>/ig,'').replace(/<base\b[^>]*>/ig,'');html=html.replace(/<head(\s[^>]*)?>/i,m=>m+'<base data-dini-template-base="1" href="'+assetBase.replace(/"/g,'&quot;')+'">');if(isT1){const rev=encodeURIComponent(row.updated_at||Date.now());html=html.replace(/((?:src|href)=["'])(?:https?:\/\/[^/"']+)?(\/assets\/(?:js|css)\/[^"'?#]+)(?:\?[^"']*)?(["'])/gi,(_,a,path,q)=>a+path+'?_guesttpl='+rev+q)}
-    html=inject(html,authority,{name:guestName,slug:String(guest.guest_slug||slug)});document.title='Untuk '+guestName+' — Faqih & Dini';try{history.replaceState(history.state,'',location.pathname)}catch{}document.open();document.write(html);document.close();
+
+    const tr=await fetch(SB+'/rest/v1/templates?select=id,name,slug,source_path,updated_at,manifest_json&is_active=eq.true&limit=1',{headers:{apikey:KEY,Authorization:'Bearer '+KEY},cache:'no-store'});
+    if(!tr.ok)throw new Error('Template aktif HTTP '+tr.status);
+    let row=(await tr.json())?.[0];
+    if(!row)row={id:'template-1-local',name:'Template 1',slug:'template-1',source_path:'/',updated_at:Date.now(),manifest_json:{template_original:true,asset_base:location.origin+'/'}};
+
+    let manifest={...(row.manifest_json||{})},html='',authority=null,snap=null;
+    const snapUrl=String(manifest.editor_snapshot_url||'').trim();
+    if(snapUrl){
+      try{
+        const u=new URL(snapUrl,location.href);u.searchParams.set('_guest',String(row.updated_at||Date.now()));
+        const r=await fetch(u.href,{cache:'no-store'});if(!r.ok)throw new Error('Editor Snapshot HTTP '+r.status);snap=await r.json();
+      }catch(err){if(String(row.slug).toLowerCase()!=='template-1')throw err;console.warn('Guest Template 1 cloud snapshot fallback:',err)}
+    }
+    if(!snap&&String(row.slug).toLowerCase()==='template-1'){
+      const r=await fetch('/template-1-original/editor-snapshot.json?_guest='+encodeURIComponent(row.updated_at||Date.now()),{cache:'no-store'});
+      if(!r.ok)throw new Error('Template 1 local snapshot HTTP '+r.status);snap=await r.json();
+    }
+    if(snap){
+      if(window.DINI_TEMPLATE_CANONICAL_V1160?.resolveSnapshot)snap=window.DINI_TEMPLATE_CANONICAL_V1160.resolveSnapshot(snap);
+      html=String(snap.html||snap.baseHtml||'');if(!html)throw new Error('Snapshot HTML kosong.');
+      manifest={...manifest,...(snap.manifest||{})};
+      authority={schema:snap.schema||{},values:snap.values||{},transforms:snap.transforms||{},persistent:true,template_id:row.id,revision:snap.revision||manifest.revision||''};
+    }else{
+      const source=String(row.source_path||'').trim();if(!source||source==='/')throw new Error('Template aktif belum memiliki source snapshot.');
+      const u=new URL(source,location.href);u.searchParams.set('_guest',String(row.updated_at||Date.now()));
+      const r=await fetch(u.href,{cache:'no-store'});if(!r.ok)throw new Error('Template HTML HTTP '+r.status);html=await r.text();
+    }
+
+    const guestRestore=await restoreGuestSlotBeforeRender(html,manifest,row,guestName);
+    html=guestRestore.html;
+    document.documentElement.dataset.guestSourceRestore=guestRestore.mode||'none';
+
+    const isT1=String(row.slug||'').toLowerCase()==='template-1';
+    const assetBase=isT1?location.origin+'/':embeddedBase(html,manifest,row.source_path||'');
+    html=html.replace(/<base\b[^>]*data-dini-template-base[^>]*>/ig,'').replace(/<base\b[^>]*>/ig,'');
+    html=html.replace(/<head(\s[^>]*)?>/i,m=>m+'<base data-dini-template-base="1" href="'+assetBase.replace(/"/g,'&quot;')+'">');
+    if(isT1){const rev=encodeURIComponent(row.updated_at||Date.now());html=html.replace(/((?:src|href)=["'])(?:https?:\/\/[^/"']+)?(\/assets\/(?:js|css)\/[^"'?#]+)(?:\?[^"']*)?(["'])/gi,(_,a,path,q)=>a+path+'?_guesttpl='+rev+q)}
+
+    html=inject(html,authority,{name:guestName,slug:String(guest.guest_slug||slug)});
+    document.title='Untuk '+guestName+' — Faqih & Dini';
+    try{history.replaceState(history.state,'',location.pathname)}catch{}
+    document.open();document.write(html);document.close();
   }catch(err){console.error('GUEST_ENTRY_V1',err);fail('Undangan belum dapat dimuat',err.message||String(err),500)}
 })();
 </script>
