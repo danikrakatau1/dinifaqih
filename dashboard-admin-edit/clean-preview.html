@@ -4,6 +4,33 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Clean Preview — DINI ANIF</title>
+  <script>
+    (()=>{
+      const q=new URLSearchParams(location.search);
+      const templateId=String(q.get('template')||'').trim();
+      const recordId=String(q.get('record')||'').trim();
+      const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      const valid=uuid.test(templateId)&&uuid.test(recordId)&&templateId.toLowerCase()===recordId.toLowerCase();
+      if(!valid){
+        location.replace('/dashboard-admin-template/?reason=clean-preview-scope-required');
+        return;
+      }
+      let version=String(q.get('v')||'').trim();
+      if(!version){
+        try{
+          const ref=new URL(document.referrer||'',location.href);
+          if(ref.origin===location.origin&&ref.pathname.startsWith('/dashboard-admin-edit/'))version=String(ref.searchParams.get('v')||'').trim();
+        }catch{}
+      }
+      const back=new URL('/dashboard-admin-edit/',location.origin);
+      back.searchParams.set('template',templateId);
+      back.searchParams.set('record',recordId);
+      if(version)back.searchParams.set('v',version);
+      window.__DINI_CLEAN_PREVIEW_SCOPE__=Object.freeze({template_id:templateId,record_id:recordId,version,editor_url:back.href});
+      document.documentElement.dataset.cleanPreviewScoped='1';
+      document.documentElement.dataset.cleanPreviewTemplateId=templateId;
+    })();
+  </script>
   <style>
     *{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#080a0f;color:#fff;font-family:Inter,system-ui,sans-serif}
     .bar{position:fixed;z-index:99;left:50%;top:12px;transform:translateX(-50%);display:flex;gap:8px;align-items:center;padding:8px 10px;background:rgba(10,12,18,.88);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.12);border-radius:14px;box-shadow:0 10px 35px rgba(0,0,0,.25)}
@@ -16,9 +43,22 @@
   <script src="/admin-auth-guard.js"></script>
 </head>
 <body>
-  <div class="bar"><strong>Clean Preview · Template Scope V1.14.0 + Text Authority V1.11.1 + Visibility Chain Lock V1.24.1</strong><a href="./">← Editor</a><button id="downloadCleanZip">Download ZIP</button><a id="saveCleanZip" href="#" download="dini-anif-native-production-v1111-integrity.zip" hidden>Simpan ZIP</a><span id="sweepStatus" style="font-size:11px;color:#c9ccd6;white-space:nowrap"></span></div>
+  <div class="bar"><strong>Clean Preview · Template Scope V1.14.0 + Text Authority V1.11.1 + Visibility Chain Lock V1.24.1</strong><a id="backEditorBtn" href="#">← Editor</a><button id="downloadCleanZip">Download ZIP</button><a id="saveCleanZip" href="#" download="dini-anif-native-production-v1111-integrity.zip" hidden>Simpan ZIP</a><span id="sweepStatus" style="font-size:11px;color:#c9ccd6;white-space:nowrap"></span></div>
   <div id="empty" class="empty" hidden>Belum ada snapshot APPLY. Kembali ke Editor lalu klik APPLY.</div>
   <div class="preview-shell"><iframe id="cleanFrame" title="Clean Preview"></iframe></div>
+  <script>
+    (()=>{
+      const a=document.getElementById('backEditorBtn');
+      const scoped=window.__DINI_CLEAN_PREVIEW_SCOPE__;
+      if(a&&scoped?.editor_url){
+        a.href=scoped.editor_url;
+        a.addEventListener('click',e=>{
+          e.preventDefault();
+          location.href=scoped.editor_url;
+        });
+      }
+    })();
+  </script>
   <script src="./zip-builder.js"></script>
   <script src="./clean-preview-preflight.js?v=1111"></script>
   <script src="./clean-preview-scope-v1140.js?v=1241"></script>
