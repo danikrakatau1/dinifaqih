@@ -15,7 +15,7 @@
   <aside class="editor-panel">
     <div class="editor-head">
       <h1>DINI ANIF — FETCH EDITOR</h1>
-      <p>Tool Fetch mandiri. State dan snapshot tidak pernah dibagi dengan Editor Template.</p>
+      <p>Fetch Source-Native V1.17. State dan snapshot tetap terpisah 100% dari Editor Template.</p>
       <div class="editor-actions">
         <button type="button" onclick="location.href='/dashboard-admin'">Dashboard</button>
         <button type="button" onclick="location.href='/dashboard-admin-fetch'">Fetch</button>
@@ -24,7 +24,7 @@
         <input id="importZipInput" type="file" accept=".zip,application/zip" hidden>
         <button id="resetBtn">Reset Fetch Editor</button>
         <button id="applyBtn" class="primary">APPLY</button>
-        <a id="cleanPreviewBtn" href="/dashboard-admin-fetch-editor/clean-preview.html" target="_blank">Preview Bersih</a>
+        <a id="cleanPreviewBtn" href="/dashboard-admin-fetch-editor/clean-preview.html?mode=fetch" target="_blank">Preview Bersih</a>
         <button id="downloadZipBtn">Download ZIP</button>
         <button id="saveDraftBtn" class="primary" disabled>💾 Simpan sebagai Template Baru</button>
         <button id="b2UploadBtn" class="b2-action">☁ Upload Fetch Editor Current ke Backblaze B2</button>
@@ -35,8 +35,8 @@
     <div id="editorSections"></div>
   </aside>
   <main class="preview-pane">
-    <div class="preview-toolbar">Fetch Live Preview <span id="dirtyState" class="dirty">Loading Fetch Editor V1.16.1…</span></div>
-    <div class="preview-frame-wrap"><iframe id="previewFrame" title="Fetch Dynamic Native Preview V1.16.1" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"></iframe></div>
+    <div class="preview-toolbar">Fetch Live Preview <span id="dirtyState" class="dirty">Loading Fetch Editor V1.17.0…</span></div>
+    <div class="preview-frame-wrap"><iframe id="previewFrame" title="Fetch Dynamic Native Preview V1.17.0" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"></iframe></div>
   </main>
   <aside class="inspector-panel" id="inspectorPanel">
     <div class="inspector-head"><strong>Fetch Visual Inspector</strong><span id="selectionBadge">Belum ada elemen</span></div>
@@ -49,8 +49,9 @@
 <script src="./zip-builder.js"></script>
 <script src="./editor-runtime-loader-v1110.js?v=1110-recovery"></script>
 <script src="./apply-fresh-edit-overlay-v198.js?v=198"></script>
-<script src="/dashboard-admin-fetch-editor/fetch-parity-v1160.js?v=1160"></script>
-<script src="/dashboard-admin-fetch-editor/fetch-editor-actions-v1150.js?v=1150"></script>
+<script src="/dashboard-admin-fetch-editor/fetch-media-owner-v1170.js?v=1170"></script>
+<script src="/dashboard-admin-fetch-editor/fetch-parity-v1170.js?v=1170"></script>
+<script src="/dashboard-admin-fetch-editor/fetch-editor-actions-v1170.js?v=1170"></script>
 <script src="./template-canonical-v1160.js?v=1166"></script>
 <script src="./template-save-fast-v1160.js?v=1160-fetch"></script>
 </body>
