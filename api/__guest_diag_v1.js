@@ -1,4 +1,4 @@
-export default async function handler(req,res){
+module.exports=async function handler(req,res){
   const SB='https://jfvmcerrsxjvbiogfqes.supabase.co';
   const KEY='sb_publishable_3IqSDxkpxCGiDpxAEwdsXQ_AsJpsC4W';
   const headers={apikey:KEY,Authorization:'Bearer '+KEY};
@@ -23,15 +23,21 @@ export default async function handler(req,res){
     }
     const compact=s=>String(s||'').replace(/\s+/g,' ');
     const excerpts=[];
-    const terms=['Kepada Bapak/Ibu/Saudara/i','Di Tempat','URLSearchParams','searchParams.get','?to=','to='];
+    const terms=['Kepada Bapak/Ibu/Saudara/i','Di Tempat','URLSearchParams','searchParams.get','?to=','to=','Bapak/Ibu/Saudara/i'];
     for(const term of terms){
       let i=0,h=html.toLowerCase(),t=term.toLowerCase(),n=0;
       while((i=h.indexOf(t,i))>=0&&n<8){
-        excerpts.push({term,index:i,html:compact(html.slice(Math.max(0,i-500),Math.min(html.length,i+700)))});
+        excerpts.push({term,index:i,html:compact(html.slice(Math.max(0,i-700),Math.min(html.length,i+1000)))});
         i+=t.length;n++;
       }
     }
     res.setHeader('Cache-Control','no-store');
-    res.status(200).json({ok:true,row:{id:row.id,name:row.name,slug:row.slug,source_path:row.source_path,updated_at:row.updated_at},source,htmlLength:html.length,manifestKeys:Object.keys(manifest),excerpts});
-  }catch(e){res.status(500).json({ok:false,error:String(e?.message||e)})}
-}
+    res.setHeader('Content-Type','application/json; charset=utf-8');
+    res.statusCode=200;
+    res.end(JSON.stringify({ok:true,row:{id:row.id,name:row.name,slug:row.slug,source_path:row.source_path,updated_at:row.updated_at},source,htmlLength:html.length,manifestKeys:Object.keys(manifest),excerpts}));
+  }catch(e){
+    res.setHeader('Content-Type','application/json; charset=utf-8');
+    res.statusCode=500;
+    res.end(JSON.stringify({ok:false,error:String(e?.message||e)}));
+  }
+};
