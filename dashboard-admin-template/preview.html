@@ -3,12 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="dini-template-preview-version" content="1.17.0">
+<meta name="dini-template-preview-version" content="1.17.1">
 <title>Preview Template — Dini Anif</title>
-<style>html,body{margin:0;min-height:100%;background:#0b0c0f;color:#eee;font:14px system-ui}.state{min-height:100vh;display:grid;place-items:center;padding:28px;box-sizing:border-box;text-align:center}.state b{display:block;font-size:18px;margin-bottom:8px}.state small{opacity:.7}</style>
+<style>
+html,body{margin:0;width:100%;height:100%;min-height:100%;overflow:hidden;background:#272b32;color:#eee;font:14px system-ui}
+.state{min-height:100vh;display:grid;place-items:center;padding:28px;box-sizing:border-box;text-align:center}.state b{display:block;font-size:18px;margin-bottom:8px}.state small{opacity:.7}
+#templatePreviewFrame{display:block;width:min(100vw,450px);height:100vh;height:100dvh;margin:0 auto;border:0;background:#fff;box-shadow:0 15px 48px #0008}
+@supports not (height:100dvh){#templatePreviewFrame{height:100vh}}
+</style>
 </head>
 <body>
-<div class="state" id="state"><div><b>Memuat Preview…</b><small>Canonical Saved Snapshot · V1.17.0</small></div></div>
+<div class="state" id="state"><div><b>Memuat Preview…</b><small>Canonical Saved Snapshot · V1.17.1</small></div></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/dashboard-admin-edit/template-canonical-v1160.js?v=1160"></script>
 <script>
@@ -17,7 +22,7 @@
   const SUPABASE_ANON_KEY='sb_publishable_3IqSDxkpxCGiDpxAEwdsXQ_AsJpsC4W';
   const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
   const q=new URLSearchParams(location.search).get('template')||'';
-  const fail=(msg)=>{document.getElementById('state').innerHTML='<div><b>Preview gagal</b><small>'+String(msg).replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]))+'</small></div>'};
+  const fail=(msg)=>{const state=document.getElementById('state');if(state)state.innerHTML='<div><b>Preview gagal</b><small>'+String(msg).replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]))+'</small></div>'};
   const dirname=raw=>{try{const u=new URL(raw,location.href);if(/\.[a-z0-9]{1,8}$/i.test(u.pathname.split('/').pop()||''))u.pathname=u.pathname.replace(/[^/]*$/,'');if(!u.pathname.endsWith('/'))u.pathname+='/';u.search='';u.hash='';return u.href}catch{return ''}};
   const embeddedBase=(html,manifest={},fallback='')=>{
     try{const doc=new DOMParser().parseFromString(String(html||''),'text/html');const raw=String(doc.querySelector('base')?.getAttribute('href')||'').trim();if(raw){const d=dirname(new URL(raw,manifest.source_url||fallback||location.href).href);if(d)return d}}catch{}
@@ -31,6 +36,16 @@
     const json=JSON.stringify(payload).replace(/</g,'\\u003c').replace(/-->/g,'--\\>');
     const block='<script type="application/json" id="diniSnapshotAuthorityData">'+json+'<\/script><script src="/dashboard-admin-edit/template-canonical-v1160.js?v=1160"><\/script><script src="/dashboard-admin-template/snapshot-authority-v1162.js?v=1162"><\/script>';
     return /<\/body>/i.test(html)?html.replace(/<\/body>/i,block+'</body>'):html+block;
+  };
+  const renderInEditorViewport=html=>{
+    const frame=document.createElement('iframe');
+    frame.id='templatePreviewFrame';
+    frame.title='Canonical Template Preview · Editor viewport parity';
+    frame.setAttribute('sandbox','allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads');
+    frame.setAttribute('referrerpolicy','strict-origin-when-cross-origin');
+    frame.srcdoc=String(html||'');
+    document.body.replaceChildren(frame);
+    document.documentElement.dataset.previewViewport='editor-max-450';
   };
   async function localTemplate1Snapshot(stamp){
     const u=new URL('/template-1-original/editor-snapshot.json',location.origin);
@@ -89,7 +104,7 @@
     }
 
     html=injectAuthority(html,authority);
-    document.open();document.write(html);document.close();
+    renderInEditorViewport(html);
   }catch(e){fail(e.message||String(e));}
 })();
 </script>
