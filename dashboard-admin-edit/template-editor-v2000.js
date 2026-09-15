@@ -34,8 +34,9 @@
   const eq=(a,b)=>JSON.stringify(a??null)===JSON.stringify(b??null);
   const now=()=>new Date().toISOString();
 
+  const inheritedToast=typeof window.editorToast==='function'?window.editorToast:null;
   function toast(message,type='info',title=''){
-    if(typeof window.editorToast==='function')return window.editorToast(message,type,title);
+    if(inheritedToast)return inheritedToast(message,type,title);
     let host=document.getElementById('editorToastStack');
     if(!host){host=document.createElement('div');host.id='editorToastStack';host.className='editor-toast-stack';document.body.appendChild(host)}
     const el=document.createElement('div');el.className='editor-toast '+type;
