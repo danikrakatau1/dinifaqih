@@ -3,7 +3,7 @@
   if(window.__DINI_MEDIA_SOURCE_PARITY_V1__)return;
   window.__DINI_MEDIA_SOURCE_PARITY_V1__=true;
 
-  const VERSION='1.0.1';
+  const VERSION='1.0.2';
   const deep=v=>JSON.parse(JSON.stringify(v??null));
   const safe=v=>String(v||'media').toLowerCase().replace(/[^a-z0-9_-]+/g,'-').replace(/^-+|-+$/g,'')||'media';
   const split=v=>String(v||'').split(/[\s,]+/).filter(Boolean);
@@ -30,13 +30,10 @@
     if(!node)return false;
     for(const a of IMAGE_ATTRS)if(refs.some(r=>sameRef(node.getAttribute?.(a)||'',r)))return true;
     for(const a of ['srcset','data-srcset'])if(refs.some(r=>sameRef(node.getAttribute?.(a)||'',r)))return true;
-    const style=String(node.getAttribute?.('style')||'');return !!style&&refs.some(r=>style.includes(String(r))||style.includes(baseName(r)));
+    const style=String(node.getAttribute?.('style')||'');return !!style&&refs.some(r=>{const bn=baseName(r);return style.includes(String(r))||(bn&&style.includes(bn))});
   }
   function isDecorative(node){const sig=[node?.className||'',node?.id||'',node?.getAttribute?.('alt')||'',node?.getAttribute?.('title')||'',node?.getAttribute?.('data-elementor-lightbox-title')||''].join(' ');return DECORATIVE_RX.test(sig)}
-  function oldRefsFor(f,values){
-    const current=String(values?.[f?.id]??'');
-    return uniq([f?.pre_v2_saved_value,f?.source_value,f?.original_value,f?.source_url,f?.source_path,f?.value].map(String).filter(x=>x&&x!=='undefined'&&x!=='null'&&x!==current||x===String(f?.value??'')));
-  }
+  function oldRefsFor(f){return uniq([f?.pre_v2_saved_value,f?.source_value,f?.original_value,f?.source_url,f?.source_path,f?.value].map(v=>String(v??'')).filter(x=>x&&x!=='undefined'&&x!=='null'))}
   function ensureNodeId(node,f,index=0){let id=String(node?.getAttribute?.('data-native-node-id')||'').trim();if(!id){id=`dini-media-${safe(f.id)}-${index+1}`;node?.setAttribute?.('data-native-node-id',id)}return id}
   function ownedByOtherImage(node,f,schemaById){return fieldIds(node).some(id=>id!==f.id&&schemaById.get(id)?.kind==='image')}
   function sourceImages(root){if(!root)return[];if(root.matches?.('img'))return[root];return[...(root.querySelectorAll?.('img')||[])]}
@@ -75,7 +72,7 @@
 
     for(const f of schema.fields){
       if(!f?.id||f.kind!=='image')continue;
-      const current=String(values[f.id]??f.value??''),refs=oldRefsFor(f,values);
+      const current=String(values[f.id]??f.value??''),refs=oldRefsFor(f);
       const marked=[...doc.querySelectorAll('[data-native-edit-id],[data-native-edit-ids],[data-native-media-proxy],[data-native-node-id]')].filter(n=>fieldIds(n).includes(f.id)||String(n.getAttribute('data-native-node-id')||'')===String(f.node_id||''));
       marked.forEach(n=>{decorativeRecovered+=restoreDecorativeIfPossible(n,current)});
       let targets=pickExactTargets(marked,f,refs);
@@ -127,7 +124,7 @@
   }
   function syncFrameAliases(frame){
     if(!frame)return;const esc=v=>window.CSS?.escape?CSS.escape(String(v||'')):String(v||'').replace(/["\\]/g,'\\$&');
-    const install=()=>{let doc;try{doc=frame.contentDocument}catch{return}if(!doc)return;const sync=id=>{if(!id)return;const owner=doc.querySelector(`[data-dini-media-owner="${esc(id)}"]`);if(!owner)return;const value=String(owner.getAttribute('src')||owner.getAttribute('data-src')||'');if(!value)return;for(const n of doc.querySelectorAll(`[data-dini-media-alias-for~="${esc(id)}"]`)){if(n.matches('img'))setImageValue(n,value);else if(n.matches('a[href]'))n.setAttribute('href',value)}};const mo=new MutationObserver(ms=>{for(const m of ms){const t=m.target;if(!(t instanceof Element))continue;const id=t.getAttribute('data-dini-media-owner');if(id)sync(id)}});mo.observe(doc.documentElement,{subtree:true,attributes:true,attributeFilter:['src','data-src']})};
+    const install=()=>{let doc;try{doc=frame.contentDocument}catch{return}if(!doc)return;const sync=id=>{if(!id)return;const owner=doc.querySelector(`[data-dini-media-owner="${esc(id)}"]`);if(!owner)return;const value=String(owner.getAttribute('src')||owner.getAttribute('data-src')||'');if(!value)return;for(const n of doc.querySelectorAll(`[data-dini-media-alias-for~="${esc(id)}"]`)){if(n.matches('img'))setImageValue(n,value);else if(n.matches('a[href]'))n.setAttribute('href',value)}};const mo=new MutationObserver(ms=>{for(const m of ms){const t=m.target;if(t?.nodeType!==1)continue;const id=t.getAttribute('data-dini-media-owner');if(id)sync(id)}});mo.observe(doc.documentElement,{subtree:true,attributes:true,attributeFilter:['src','data-src']})};
     frame.addEventListener('load',install);setTimeout(install,0);
   }
 
