@@ -87,3 +87,69 @@
   frame?.addEventListener('load',()=>{setTimeout(stabilizeFrame,0);setTimeout(stabilizeFrame,350)});
   setTimeout(stabilizeFrame,80);setTimeout(stabilizeFrame,900);
 })();
+
+(()=>{
+  'use strict';
+  if(window.__DINI_FETCH_BG_TRANSFORM_2140__)return;
+  window.__DINI_FETCH_BG_TRANSFORM_2140__=true;
+  const E=window.DINI_FETCH_V2;
+  if(!E||typeof E.applyTransform!=='function'||typeof E.nodesFor!=='function')return;
+  const originalApplyTransform=E.applyTransform.bind(E);
+  const originalBuildApplied=typeof E.buildApplied==='function'?E.buildApplied.bind(E):null;
+
+  function setBackgroundTransform(n,t={}){
+    if(!n?.style)return;
+    const x=Number(t.x??50),y=Number(t.y??50),zoom=Number(t.zoom??1),fit=String(t.fit||'cover');
+    const baseSize=fit==='fill'?'100% 100%':fit;
+    const size=Math.abs(zoom-1)<0.0001?baseSize:`${Math.max(10,zoom*100)}% auto`;
+    n.style.setProperty('background-position',`${x}% ${y}%`,'important');
+    n.style.setProperty('background-size',size,'important');
+  }
+
+  function runtimeBackgroundTargets(doc,f){
+    const out=new Set();
+    const add=n=>{if(n)out.add(n)};
+    for(const host of E.nodesFor(doc,f)||[]){
+      add(host);
+      if(host.matches?.('.swiper-slide-bg,[data-native-slide-bg]'))add(host);
+      host.querySelectorAll?.('.swiper-slide-bg,[data-native-slide-bg]').forEach(add);
+      host.querySelectorAll?.('[style*="background-image"]').forEach(n=>{
+        const s=String(n.getAttribute('style')||'');
+        if(/blob:|assets\/generated\//i.test(s))add(n);
+      });
+      const runtime=host.querySelector?.('[data-native-slideshow-urls]')||host.closest?.('.elementor-top-section')?.querySelector?.('[data-native-slideshow-urls]');
+      if(runtime){
+        const slides=[...runtime.querySelectorAll?.('.swiper-slide-bg,[data-native-slide-bg]')||[]];
+        const idx=Number(f.slide_index);
+        if(Number.isFinite(idx)&&slides[idx])add(slides[idx]);else slides.forEach(add);
+      }
+    }
+    return [...out];
+  }
+
+  function applyRuntimeBackgroundTransform(doc,f,t){
+    if(!doc||!f||f.kind!=='background')return;
+    for(const n of runtimeBackgroundTargets(doc,f))setBackgroundTransform(n,t);
+  }
+
+  E.applyTransform=function(doc,f,t={}){
+    const result=originalApplyTransform(doc,f,t);
+    applyRuntimeBackgroundTransform(doc,f,t);
+    return result;
+  };
+
+  if(originalBuildApplied){
+    E.buildApplied=async function(session){
+      const snap=await originalBuildApplied(session);
+      try{
+        const doc=new DOMParser().parseFromString(String(snap?.html||''),'text/html');
+        const fields=snap?.schema?.fields||session?.baseline?.schema?.fields||[];
+        const transforms=snap?.transforms||session?.delta?.transforms||{};
+        for(const f of fields){const t=transforms?.[f.id];if(f?.kind==='background'&&t)applyRuntimeBackgroundTransform(doc,f,t)}
+        if(doc.documentElement&&snap)snap.html='<!doctype html>\n'+doc.documentElement.outerHTML;
+      }catch(e){console.warn('FETCH_V214_APPLIED_BACKGROUND_TRANSFORM',e)}
+      return snap;
+    };
+  }
+  console.info('[DINI FETCH] Background Transform V2.1.4 aktif');
+})();
