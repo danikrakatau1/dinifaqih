@@ -6,8 +6,13 @@ on:
       - engine/road-to-final-dini-faqih
     paths:
       - 'assets/js/source-runtime-compiler-v1.js'
+      - 'assets/js/source-runtime-authority-v1.js'
       - 'assets/js/source-truth-scanner-v1.js'
       - 'assets/js/visual-resolver.js'
+      - 'assets/js/legacy-parity-gate-v1.js'
+      - 'assets/js/social-link-parity-v1.js'
+      - 'assets/js/media-source-parity-v1.js'
+      - 'assets/js/source-native-background-parity-v1.js'
       - 'dashboard-admin-fetch/visual-resolver.js'
       - 'dashboard-admin-fetch/studio.js'
       - 'dashboard-admin-fetch-editor/**'
@@ -15,6 +20,7 @@ on:
       - 'golden-tests/template-7/**'
       - 'api/golden-template-7.js'
       - '.github/scripts/template7-golden-regression.mjs'
+      - '.github/scripts/legacy-parity-gate-regression.mjs'
       - '.github/workflows/road-to-final-template7-golden.yml'
   pull_request:
     branches:
@@ -22,8 +28,13 @@ on:
       - engine/road-to-final-dini-faqih
     paths:
       - 'assets/js/source-runtime-compiler-v1.js'
+      - 'assets/js/source-runtime-authority-v1.js'
       - 'assets/js/source-truth-scanner-v1.js'
       - 'assets/js/visual-resolver.js'
+      - 'assets/js/legacy-parity-gate-v1.js'
+      - 'assets/js/social-link-parity-v1.js'
+      - 'assets/js/media-source-parity-v1.js'
+      - 'assets/js/source-native-background-parity-v1.js'
       - 'dashboard-admin-fetch/visual-resolver.js'
       - 'dashboard-admin-fetch/studio.js'
       - 'dashboard-admin-fetch-editor/**'
@@ -31,6 +42,7 @@ on:
       - 'golden-tests/template-7/**'
       - 'api/golden-template-7.js'
       - '.github/scripts/template7-golden-regression.mjs'
+      - '.github/scripts/legacy-parity-gate-regression.mjs'
       - '.github/workflows/road-to-final-template7-golden.yml'
   workflow_dispatch:
 
@@ -51,15 +63,17 @@ jobs:
       - name: Checkout exact commit
         uses: actions/checkout@v4
 
-      - name: Setup Node 20
+      - name: Setup Node 24
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
 
       - name: Syntax-check Road-to-Final engine
         run: |
           node --check assets/js/source-runtime-compiler-v1.js
+          node --check assets/js/source-runtime-authority-v1.js
           node --check assets/js/source-truth-scanner-v1.js
+          node --check assets/js/legacy-parity-gate-v1.js
           if [ -f dashboard-admin-fetch/visual-resolver.js ]; then
             node --check dashboard-admin-fetch/visual-resolver.js
           elif [ -f assets/js/visual-resolver.js ]; then
@@ -69,6 +83,10 @@ jobs:
             exit 1
           fi
           node --check .github/scripts/template7-golden-regression.mjs
+          node --check .github/scripts/legacy-parity-gate-regression.mjs
+
+      - name: Verify Source Truth / legacy parity isolation
+        run: node .github/scripts/legacy-parity-gate-regression.mjs
 
       - name: Run repeatable Template 7 golden regression
         env:
@@ -78,15 +96,20 @@ jobs:
       - name: Print regression summary
         if: always()
         run: |
+          if [ -f legacy-parity-gate-regression-report.json ]; then
+            node -e "const r=require('./legacy-parity-gate-regression-report.json'); console.log('LEGACY_PARITY_GATE '+JSON.stringify({ok:r.ok,checks_total:r.checks_total,checks_passed:r.checks_passed,checks_failed:r.checks_failed}))"
+          fi
           if [ -f template7-golden-regression-report.json ]; then
-            node -e "const r=require('./template7-golden-regression-report.json'); console.log(JSON.stringify({ok:r.ok,checks_total:r.checks_total,checks_passed:r.checks_passed,checks_failed:r.checks_failed},null,2))"
+            node -e "const r=require('./template7-golden-regression-report.json'); console.log('TEMPLATE7_GOLDEN '+JSON.stringify({ok:r.ok,checks_total:r.checks_total,checks_passed:r.checks_passed,checks_failed:r.checks_failed}))"
           fi
 
-      - name: Upload golden regression report
+      - name: Upload regression reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: template7-golden-regression-${{ github.sha }}
-          path: template7-golden-regression-report.json
+          path: |
+            template7-golden-regression-report.json
+            legacy-parity-gate-regression-report.json
           if-no-files-found: error
           retention-days: 14
