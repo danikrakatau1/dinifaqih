@@ -1,7 +1,7 @@
 (function(g){
   'use strict';
   if(g.DiniSourceRuntimeCompiler?.version)return;
-  const VERSION='1.1.0';
+  const VERSION='1.2.0';
   const VR=g.DiniVisualResolver;
   if(!VR?.makeSourceGraph||!VR?.sanitizeRuntimeNoise)return;
 
@@ -93,6 +93,37 @@
     return '';
   }
 
+  function localFunctionBodies(code){
+    const out=new Map();let m;
+    const declared=/\bfunction\s+([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/g;
+    while((m=declared.exec(code))){
+      const brace=code.indexOf('{',m.index);
+      const body=extractBraceBlock(code,brace);
+      if(body)out.set(m[1],body);
+    }
+    const assigned=/(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:function\s*\([^)]*\)|\([^)]*\)\s*=>|[A-Za-z_$][\w$]*\s*=>)\s*\{/g;
+    while((m=assigned.exec(code))){
+      const brace=code.indexOf('{',m.index);
+      const body=extractBraceBlock(code,brace);
+      if(body&&!out.has(m[1]))out.set(m[1],body);
+    }
+    return out;
+  }
+
+  function expandLocalCalls(body,vars,fnMap,delay=0,visited=new Set()){
+    const out=[];
+    for(const cmd of parseOps(body,vars,delay))add(out,cmd);
+    const call=/\b([A-Za-z_$][\w$]*)\s*\(/g;let m;
+    while((m=call.exec(String(body||'')))){
+      const name=m[1];
+      if(!fnMap.has(name)||visited.has(name))continue;
+      const next=new Set(visited);next.add(name);
+      const nested=fnMap.get(name);
+      for(const cmd of expandLocalCalls(nested,vars,fnMap,delay,next))add(out,cmd);
+    }
+    return out;
+  }
+
   function eventBodies(code,vars){
     const out=[];let m;
     const direct=/(document\.getElementById\(\s*['"][^'"]+['"]\s*\)|document\.querySelector\(\s*['"][^'"]+['"]\s*\)|[\w$]+)\.on(click|load|ended|pause|play|touchend)\s*=\s*(?:function\s*\([^)]*\)|\([^)]*\)\s*=>|[\w$]+\s*=>)?\s*\{/g;
@@ -112,11 +143,15 @@
     let sourceTimerCount=0;
     for(const code of scripts){
       const vars=resolveVars(code);
+      const fnMap=localFunctionBodies(code);
       if(/\bdisableScroll\s*\(\s*\)\s*;/.test(code))add(initial,{type:'scroll-lock',delay_ms:0});
       const bodies=eventBodies(code,vars);
       for(const h of bodies){
-        const cmds=parseOps(h.body,vars,0);
+        const cmds=expandLocalCalls(h.body,vars,fnMap,0,new Set());
         sourceTimerCount+=(h.body.match(/setTimeout\s*\(/g)||[]).length;
+        for(const [name,fnBody] of fnMap){
+          if(new RegExp('\\b'+name.replace(/[$]/g,'\\$&')+'\\s*\\(').test(h.body))sourceTimerCount+=(fnBody.match(/setTimeout\s*\(/g)||[]).length;
+        }
         handlers.push({event:h.event,selector:h.selector||'',command_count:cmds.length});
         const isOpen=h.event==='click'&&((openSelector&&h.selector===openSelector)||/tombolbuka|openInvitation|buka/i.test(h.selector||''));
         if(isOpen)for(const cmd of cmds)add(onOpen,cmd);
