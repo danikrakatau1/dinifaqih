@@ -1,6 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 
+// Point 31 verification trigger: workflow exists before this commit.
 const fixturePath = 'golden-tests/template-7/fixture.json';
 const fixture = JSON.parse(await readFile(fixturePath, 'utf8'));
 const checks = [];
