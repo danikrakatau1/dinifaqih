@@ -1,0 +1,100 @@
+name: Road To Final — Template 7 Device Matrix
+
+on:
+  push:
+    branches:
+      - engine/road-to-final-dini-faqih
+    paths:
+      - 'assets/js/source-runtime-compiler-v1.js'
+      - 'assets/js/source-truth-scanner-v1.js'
+      - 'assets/js/visual-resolver.js'
+      - 'dashboard-admin-fetch/visual-resolver.js'
+      - 'dashboard-admin-fetch/studio.js'
+      - 'dashboard-admin-fetch-editor/**'
+      - 'dashboard-admin-edit/**'
+      - 'golden-tests/template-7/**'
+      - '.github/scripts/template7-device-matrix.mjs'
+      - '.github/workflows/road-to-final-template7-device-matrix.yml'
+  pull_request:
+    branches:
+      - main
+      - engine/road-to-final-dini-faqih
+    paths:
+      - 'assets/js/source-runtime-compiler-v1.js'
+      - 'assets/js/source-truth-scanner-v1.js'
+      - 'assets/js/visual-resolver.js'
+      - 'dashboard-admin-fetch/visual-resolver.js'
+      - 'dashboard-admin-fetch/studio.js'
+      - 'dashboard-admin-fetch-editor/**'
+      - 'dashboard-admin-edit/**'
+      - 'golden-tests/template-7/**'
+      - '.github/scripts/template7-device-matrix.mjs'
+      - '.github/workflows/road-to-final-template7-device-matrix.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: template7-device-matrix-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  template7-device-matrix:
+    name: Template 7 · ${{ matrix.profile }} · ${{ matrix.browser }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - profile: desktop
+            browser: chromium
+          - profile: android
+            browser: chromium
+          - profile: iphone
+            browser: webkit
+
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v4
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install pinned Playwright runtime
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install --no-audit --no-fund --save-dev playwright@1.55.0
+          npx playwright install --with-deps ${{ matrix.browser }}
+
+      - name: Syntax-check device runner
+        run: node --check .github/scripts/template7-device-matrix.mjs
+
+      - name: Run real-browser device regression
+        env:
+          DEVICE_PROFILE: ${{ matrix.profile }}
+          BROWSER_ENGINE: ${{ matrix.browser }}
+          NODE_NO_WARNINGS: '1'
+        run: node .github/scripts/template7-device-matrix.mjs
+
+      - name: Print device summary
+        if: always()
+        env:
+          DEVICE_PROFILE: ${{ matrix.profile }}
+        run: |
+          REPORT="device-matrix-artifacts/${DEVICE_PROFILE}/report.json"
+          if [ -f "$REPORT" ]; then
+            node -e "const r=require('./' + process.argv[1]); console.log(JSON.stringify({profile:r.profile,browser:r.browser,ok:r.ok,checks_total:r.checks_total,checks_passed:r.checks_passed,checks_failed:r.checks_failed},null,2))" "$REPORT"
+          fi
+
+      - name: Upload device evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: template7-device-${{ matrix.profile }}-${{ matrix.browser }}-${{ github.sha }}
+          path: device-matrix-artifacts/${{ matrix.profile }}/
+          if-no-files-found: error
+          retention-days: 14
