@@ -87,13 +87,69 @@ Kontrak non-destruktif poin 29:
 Status verifikasi saat implementasi:
 
 - JS syntax check lokal untuk Diagnostics V1.1.0: PASS
-- JS syntax check lokal untuk Runtime Control V1.0.2: PASS
-- browser/authenticated functional test tetap harus dibuktikan pada deployment branch sebelum Phase 4 dianggap regression-PASS
+- JS syntax check lokal untuk Runtime Control: PASS
+- full authenticated editor interaction tetap dibuktikan pada fase regression/device test
+
+### 30. ART JAWA HITAM / Template 7 Golden Test — IMPLEMENTED · SERVER GOLDEN PASS
+
+Template 7 dipakai sebagai read-only golden reference. Record/database/storage Template 7 tidak dimodifikasi.
+
+Golden identity:
+
+- Template UUID: `009e1a47-296f-4580-bedb-f0069f409d65`
+- slug: `template-7-164ddf61`
+- source: `https://web.galeriundanganofficial.com/art-jawa-hitam/`
+- baseline hash: `c961e18c`
+- Fetch handoff: `9dbf469c-3b54-42d8-9297-6584cc7103d8`
+
+Implementasi:
+
+- `golden-tests/template-7/fixture.json` — pinned golden identity / artifact / Source Graph contract
+- `api/golden-template-7.js` — live server-side golden probe
+- `golden-tests/template-7/index.html` — browser golden harness
+- `golden-tests/template-7/golden-test.js` — production Fetch proxy + Source Truth + Runtime Compiler browser validation
+
+Golden contract memeriksa antara lain:
+
+- source marker ART JAWA HITAM tetap ada
+- opening video background `36dc2bf` / `jawa-hitam-demo.mp4`
+- open invitation selector `#tombolbuka`
+- carousel `c7a6ff4`
+- timeline `4528199`
+- video widget `b6188c0`
+- 6 source slideshow beserta duration / transition / transition_duration / Ken Burns
+- external Elementor CSS ownership untuk `jawa-cvr-1.jpg`, `X-JAWA-HITAM.jpg`, `back-DEMO.jpg`
+- saved `index.html` dan `source-native.html` identik byte-for-byte
+- pinned Template 7 baseline / handoff / manifest identity
+- runtime contract: source delay authoritative, no synthetic stagger, source transform authoritative, editor pause non-destructive, no arbitrary source JS
+
+Server Golden Probe result pada deployment branch:
+
+- deployment: `dpl_Dju6L6C1bvyDReKJ7yftCPzQUSVi`
+- commit: `d1a69068a23b0aab994fffc1fc643d29efd45848`
+- Vercel state: READY
+- `/api/golden-template-7`: HTTP 200
+- checks: **32 / 32 PASS**
+- failed: **0**
+- Vercel build errors-only: **0 error**
+
+Artifact pin yang telah dibuktikan oleh server probe:
+
+- `index.html`: 342683 bytes · MD5 `087ed77d163ee38cff99025f6a2f88bc`
+- `source-native.html`: 342683 bytes · MD5 `087ed77d163ee38cff99025f6a2f88bc`
+- `manifest.json`: 146705 bytes · MD5 `e39a4d8a3e5eba27664a31bcf6da232d`
+- `index.html === source-native.html`: PASS
+
+Batas verifikasi poin 30:
+
+- Browser engine golden harness sudah dibuat dan ter-deploy pada branch preview.
+- Environment otomasi sesi ini diblokir administrator saat membuka protected Vercel preview, sehingga eksekusi JS harness browser tidak diklaim PASS pada poin 30.
+- Eksekusi browser berulang/otomatis, visual-device comparison, dan lifecycle behavioral regression menjadi gate poin 31–33.
+- Tidak ada patch template-specific baru yang ditambahkan untuk membuat Template 7 lulus.
 
 ## NEXT
 
-30. Rebuild ART JAWA HITAM / Template 7 sebagai golden test.
-31. Jadikan Template 7 regression fixture.
+31. Jadikan Template 7 regression fixture otomatis / repeatable.
 32. Test desktop + Android + iPhone.
 33. Lifecycle regression test, bukan screenshot saja.
 34. Hapus patch lama yang redundant hanya setelah engine baru PASS.
