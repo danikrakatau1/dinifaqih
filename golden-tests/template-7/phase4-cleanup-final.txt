@@ -1,0 +1,42 @@
+ROAD TO FINAL DINI FAQIH — PHASE 4 FINAL CLEANUP SWEEP
+
+Branch: engine/road-to-final-dini-faqih
+Golden: Template 7 / ART JAWA HITAM (read-only)
+
+POINT 33 — LIFECYCLE REGRESSION
+- Road To Final lifecycle V2 passed Chromium 46/46 and WebKit 46/46 before cleanup.
+- Source-authored event -> local helper -> timer call graph is supported without eval/arbitrary source JS.
+- Source delay remains authoritative.
+- Cover dismissal test waits for the authored animation to finish with a hard timeout; it does not inject synthetic timing.
+
+POINT 34 — CLEANUP / HARDENING CONTRACT
+- Source Truth snapshots (source_truth_version >= 1) MUST bypass legacy social/media/background parity reinterpretation.
+- Legacy/v0 templates MUST retain compatibility fallback until they are explicitly migrated.
+- Legacy compatibility scripts are therefore not blindly deleted; they are isolated behind assets/js/legacy-parity-gate-v1.js.
+- Fetch Editor and Template Editor load the gate before legacy parity wrappers and finalize it after those wrappers.
+- Exposed legacy augmentSnapshot methods are guarded from mutating Source Truth snapshots.
+- Obsolete one-shot direct-DOM patch workflow removed.
+- Obsolete direct-DOM patch trigger removed.
+- Superseded lifecycle regression V1 runner removed.
+- Temporary live timer syntax probe removed from lifecycle workflow.
+
+PRE-FINAL CLEANUP EVIDENCE
+- Legacy Parity Gate Regression: 26/26 PASS.
+- Template 7 Golden Regression: 58/58 PASS.
+- Device Matrix cleanup run: Desktop Chromium + Android Chromium + iPhone WebKit jobs SUCCESS.
+- Lifecycle cleanup run: Chromium + WebKit jobs SUCCESS.
+
+FINAL SAME-SHA VERDICT
+This file intentionally lives under golden-tests/template-7/ because all three Road-To-Final workflows watch that path.
+Point 34 is complete only if the commit that creates this marker passes, on this exact same SHA:
+1. Road To Final — Template 7 Golden Regression
+2. Road To Final — Template 7 Device Matrix
+3. Road To Final — Template 7 Lifecycle Regression
+
+Unrelated legacy workflows are not Road-To-Final verdict gates.
+
+NEXT AFTER PASS
+35. Personalization Scanner untuk area nama tamu.
+36. Dynamic Field Binding guest_name ke node asli template.
+37. URL Personalization Runtime (?to=Agus), text-only, preserve style/animation.
+38. Public Template Parity untuk nama tamu.
