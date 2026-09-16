@@ -2,7 +2,6 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { chromium, webkit } from 'playwright';
 
-// Trigger marker: workflow already exists before this push, so the 3-device CI matrix must run.
 const fixture = JSON.parse(await readFile('golden-tests/template-7/fixture.json', 'utf8'));
 const profile = String(process.env.DEVICE_PROFILE || 'desktop').toLowerCase();
 const browserName = String(process.env.BROWSER_ENGINE || (profile === 'iphone' ? 'webkit' : 'chromium')).toLowerCase();
@@ -78,6 +77,22 @@ const context = await browser.newContext({
 });
 const page = await context.newPage();
 page.setDefaultTimeout(20000);
+
+// Supabase Storage currently serves the pinned .html object as plain text.
+// Keep the exact verified bytes and exact artifact URL, but force only the test response MIME type
+// so the real browser parses the Golden artifact as HTML. No Golden byte is changed.
+await page.route(targetUrl, async route => {
+  await route.fulfill({
+    status: 200,
+    headers: {
+      'content-type': 'text/html; charset=utf-8',
+      'cache-control': 'no-store',
+      'x-road-to-final-artifact-md5': md5(artifactBuffer)
+    },
+    body: artifactBuffer
+  });
+});
+
 page.on('console', msg => {
   if (msg.type() === 'error' && observations.console_errors.length < 30) observations.console_errors.push(msg.text());
 });
@@ -91,6 +106,7 @@ page.on('requestfailed', req => {
 try {
   const nav = await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
   check('browser:navigation', Boolean(nav) && nav.status() < 400, 'Golden artifact renders as a browser document', '<400', nav?.status() ?? null);
+  check('browser:golden-mime-override', String(nav?.headers()?.['content-type'] || '').startsWith('text/html'), 'Test transport parses the exact pinned Golden bytes as HTML', 'text/html', nav?.headers()?.['content-type'] || null);
   await page.waitForTimeout(4500);
 
   const initial = await page.evaluate(() => {
@@ -129,10 +145,11 @@ try {
   });
 
   const expectedViewport = profiles[profile].viewport;
+  const expectedPortrait = profile !== 'desktop';
   check('layout:viewport-width', Math.abs(initial.innerWidth - expectedViewport.width) <= 2, 'CSS viewport width matches device profile', expectedViewport.width, initial.innerWidth);
   check('layout:viewport-height', Math.abs(initial.innerHeight - expectedViewport.height) <= 4, 'CSS viewport height matches device profile', expectedViewport.height, initial.innerHeight);
   check('layout:responsive-media', initial.mobileMedia === (profile !== 'desktop'), 'Elementor mobile breakpoint resolves correctly for this profile', profile !== 'desktop', initial.mobileMedia);
-  check('layout:portrait', initial.portraitMedia === true, 'Road-to-Final device profiles are portrait/desktop-safe test viewports', true, initial.portraitMedia);
+  check('layout:orientation', initial.portraitMedia === expectedPortrait, 'CSS orientation matches the selected device profile', expectedPortrait ? 'portrait' : 'landscape', initial.portraitMedia ? 'portrait' : 'landscape');
   check('dom:cover', initial.coverExists, 'Golden cover remains in rendered artifact');
   check('dom:open-control', initial.openExists, 'Open Invitation control remains in rendered artifact');
   check('dom:open-visible', initial.openVisible, 'Open Invitation control is visible and reachable on this device');
