@@ -1,3 +1,21 @@
+export const EDITOR_INNER_SANDBOX=String.raw`(()=>{
+'use strict';
+if(window.__DINI_V3_EDITOR_INNER_SANDBOX__)return;
+window.__DINI_V3_EDITOR_INNER_SANDBOX__=true;
+const RX=/content\s+is\s+protected|content\s+protected|protected\s*!+/i;
+const nativeAlert=typeof window.alert==='function'?window.alert.bind(window):null;
+window.alert=(msg)=>RX.test(String(msg||''))?void 0:nativeAlert?.(msg);
+const blocked=new Set(['contextmenu','selectstart','copy','cut','dragstart']);
+const nativeAdd=EventTarget.prototype.addEventListener;
+EventTarget.prototype.addEventListener=function(type,listener,options){if(blocked.has(String(type||'').toLowerCase()))return;return nativeAdd.call(this,type,listener,options)};
+function cleanAttrs(root){if(!root||root.nodeType!==1)return;const all=[root,...root.querySelectorAll('*')];for(const el of all)for(const a of ['oncontextmenu','onselectstart','oncopy','oncut','ondragstart'])if(el.hasAttribute?.(a))el.removeAttribute(a)}
+function protectionVictim(el,txt){let victim=el,p=el.parentElement;for(let i=0;p&&i<4&&p!==document.body&&p!==document.documentElement;i++,p=p.parentElement){const pt=String(p.textContent||'').replace(/\s+/g,' ').trim();const named=/alert|toast|popup|notify|protect|warning|sweet|swal/i.test(String(p.className||'')+' '+String(p.id||''));if((named||pt===txt)&&pt.length<=360)victim=p;else break}return victim}
+function prune(root){if(!root||root.nodeType!==1)return;cleanAttrs(root);const all=[root,...root.querySelectorAll('div,span,p,strong,small,section,aside')];for(const el of all){if(!el?.isConnected||el===document.body||el===document.documentElement)continue;const txt=String(el.textContent||'').replace(/\s+/g,' ').trim();if(!RX.test(txt)||txt.length>280)continue;try{protectionVictim(el,txt).remove()}catch{}}}
+function arm(){if(document.documentElement)prune(document.documentElement);const root=document.documentElement||document;const mo=new MutationObserver(ms=>{for(const m of ms)for(const n of m.addedNodes)prune(n)});mo.observe(root,{subtree:true,childList:true,attributes:true,attributeFilter:['oncontextmenu','onselectstart','oncopy','oncut','ondragstart']});document.documentElement?.setAttribute('data-dini-v3-editor-sandbox','1')}
+document.addEventListener('keydown',e=>{const k=String(e.key||'').toLowerCase();const blockedKey=e.key==='F12'||(e.ctrlKey&&k==='u')||(e.ctrlKey&&e.shiftKey&&['i','j','c'].includes(k));if(blockedKey)e.stopImmediatePropagation()},true);
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',arm,{once:true});else arm();
+})();`;
+
 export const EDITOR_FIX_CLIENT=String.raw`(()=>{
 'use strict';
 if(window.__DINI_V3_EDITOR_FIX_312__)return;
@@ -8,17 +26,7 @@ function note(title,msg){if(typeof window.editorToast==='function')return window
 function openDb(){return new Promise((res,rej)=>{const r=indexedDB.open(DB,1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains(STORE))r.result.createObjectStore(STORE)};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
 async function readSession(){const id=new URLSearchParams(location.search).get('v3session')||sessionStorage.getItem('dini:v3:active-session')||'';if(!id)return null;const db=await openDb();return new Promise((res,rej)=>{const tx=db.transaction(STORE);const r=tx.objectStore(STORE).get(id);r.onsuccess=()=>res(r.result||null);r.onerror=()=>rej(r.error)})}
 function cssEsc(v){try{return CSS.escape(String(v))}catch{return String(v).replace(/[^a-zA-Z0-9_-]/g,c=>'\\'+c)}}
-const EDITOR_SANDBOX=`<script data-dini-v3-editor-sandbox>(()=>{\n`+
-`if(window.__DINI_V3_EDITOR_SANDBOX__)return;window.__DINI_V3_EDITOR_SANDBOX__=true;\n`+
-`const RX=/content\\s+is\\s+protected|content\\s+protected|protected\\s*!+/i;\n`+
-`const nativeAlert=typeof window.alert==='function'?window.alert.bind(window):null;window.alert=(m)=>RX.test(String(m||''))?void 0:nativeAlert?.(m);\n`+
-`const blocked=new Set(['contextmenu','selectstart','copy','cut','dragstart']);const nativeAdd=EventTarget.prototype.addEventListener;EventTarget.prototype.addEventListener=function(t,l,o){if(blocked.has(String(t||'').toLowerCase()))return;return nativeAdd.call(this,t,l,o)};\n`+
-`function cleanAttrs(root){if(!root||root.nodeType!==1)return;const all=[root,...root.querySelectorAll('*')];for(const el of all)for(const a of ['oncontextmenu','onselectstart','oncopy','oncut','ondragstart'])if(el.hasAttribute?.(a))el.removeAttribute(a)}\n`+
-`function prune(root){if(!root||root.nodeType!==1)return;cleanAttrs(root);const all=[root,...root.querySelectorAll('div,span,p,strong,small,section,aside')];for(const el of all){if(!el?.isConnected||el===document.body||el===document.documentElement)continue;const txt=String(el.textContent||'').replace(/\\s+/g,' ').trim();if(!RX.test(txt)||txt.length>260)continue;let victim=el;let p=el.parentElement;for(let i=0;p&&i<3&&p!==document.body&&p!==document.documentElement;i++,p=p.parentElement){const pt=String(p.textContent||'').replace(/\\s+/g,' ').trim();const named=/alert|toast|popup|notify|protect|warning|sweet/i.test(String(p.className||'')+' '+String(p.id||''));if((named||pt===txt)&&pt.length<=320)victim=p;else break}try{victim.remove()}catch{}}}\n`+
-`function arm(){prune(document.documentElement);const mo=new MutationObserver(ms=>ms.forEach(m=>m.addedNodes.forEach(n=>prune(n))));mo.observe(document.documentElement||document,{subtree:true,childList:true,attributes:true,attributeFilter:['oncontextmenu','onselectstart','oncopy','oncut','ondragstart']});document.documentElement?.setAttribute('data-dini-v3-editor-sandbox','1')}\n`+
-`if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',arm,{once:true});else arm();\n`+
-`})();<\/script>`;
-function injectSandbox(html){const s=String(html||'');if(!s||s.includes('data-dini-v3-editor-sandbox'))return s;if(/<head[^>]*>/i.test(s))return s.replace(/<head([^>]*)>/i,'<head$1>'+EDITOR_SANDBOX);return EDITOR_SANDBOX+s}
+function injectSandbox(html){const s=String(html||'');if(!s||s.includes('data-dini-v3-editor-sandbox'))return s;const tag='<script data-dini-v3-editor-sandbox src="'+location.origin+'/__v3/editor-inner-sandbox.js"><\/script>';if(/<head[^>]*>/i.test(s))return s.replace(/<head([^>]*)>/i,'<head$1>'+tag);return tag+s}
 function interceptSrcdoc(frame){if(!frame||frame.__DINI_V3_SRCDOC_INTERCEPT__)return;frame.__DINI_V3_SRCDOC_INTERCEPT__=true;const proto=Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype,'srcdoc');if(!proto?.set||!proto?.get)return;Object.defineProperty(frame,'srcdoc',{configurable:true,get(){return proto.get.call(this)},set(v){proto.set.call(this,injectSandbox(v))}})}
 function neutralizeProtection(d){const w=d?.defaultView;if(!w)return;const nativeAlert=typeof w.alert==='function'?w.alert.bind(w):null;if(!w.__DINI_V3_EDITOR_PROTECTION_NEUTRALIZED__){w.__DINI_V3_EDITOR_PROTECTION_NEUTRALIZED__=true;w.alert=(msg)=>{/content\s+is\s+protected|content\s+protected|protected\s*!!/i.test(String(msg||''))?console.info('[DINI V3] source protection alert suppressed in editor only'):nativeAlert?.(msg)}}for(const n of [d,d.documentElement,d.body]){if(!n)continue;for(const k of ['oncontextmenu','onselectstart','oncopy','oncut','ondragstart'])try{n[k]=null}catch{}}d.documentElement?.setAttribute('data-dini-v3-editor-protection-neutralized','1')}
 function applyOne(d,op){let nodes=[];try{nodes=d.querySelectorAll(op.selector)}catch{return 0}let n=0;nodes.forEach(el=>{n++;if(op.type==='text'){if(el.textContent!==op.value)el.textContent=op.value}else if(op.type==='attribute'){const cur=el.getAttribute(op.key);if(op.value===''){if(cur!==null)el.removeAttribute(op.key)}else if(cur!==op.value)el.setAttribute(op.key,op.value)}else if(op.type==='style'){if(el.style.getPropertyValue(op.key)!==op.value)el.style.setProperty(op.key,op.value)}});return n}
