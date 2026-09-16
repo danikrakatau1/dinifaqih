@@ -1,0 +1,93 @@
+name: Road To Final — Personalization 35-38
+
+on:
+  push:
+    branches:
+      - engine/road-to-final-dini-faqih
+    paths:
+      - '.github/scripts/personalization-regression-v1.mjs'
+      - '.github/workflows/road-to-final-personalization.yml'
+      - 'assets/js/source-personalization-v1.js'
+      - 'assets/js/guest-runtime-v1.js'
+      - 'assets/js/public-personalization-bridge-v1.js'
+      - 'dashboard-admin-fetch/guest-slot-probe-v1.js'
+      - 'dashboard-admin-fetch/index.html'
+      - 'public-entry-v18.html'
+      - 'assets/js/public-canonical-renderer-v18.js'
+      - 'ROAD-TO-FINAL-DINI-FAQIH.md'
+  pull_request:
+    paths:
+      - '.github/scripts/personalization-regression-v1.mjs'
+      - '.github/workflows/road-to-final-personalization.yml'
+      - 'assets/js/source-personalization-v1.js'
+      - 'assets/js/guest-runtime-v1.js'
+      - 'assets/js/public-personalization-bridge-v1.js'
+      - 'dashboard-admin-fetch/guest-slot-probe-v1.js'
+      - 'dashboard-admin-fetch/index.html'
+      - 'public-entry-v18.html'
+      - 'assets/js/public-canonical-renderer-v18.js'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  personalization:
+    name: Personalization 35-38 · ${{ matrix.browser }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, webkit]
+
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v4
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install pinned Playwright runtime
+        shell: bash
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install --no-audit --no-fund --save-dev playwright@1.55.0
+          npx playwright install --with-deps ${{ matrix.browser }}
+
+      - name: Syntax-check personalization runtime
+        shell: bash
+        run: |
+          node --check assets/js/source-personalization-v1.js
+          node --check assets/js/guest-runtime-v1.js
+          node --check assets/js/public-personalization-bridge-v1.js
+          node --check dashboard-admin-fetch/guest-slot-probe-v1.js
+          node --check .github/scripts/personalization-regression-v1.mjs
+
+      - name: Run personalization parity regression
+        env:
+          BROWSER_ENGINE: ${{ matrix.browser }}
+          NODE_NO_WARNINGS: '1'
+        run: node .github/scripts/personalization-regression-v1.mjs
+
+      - name: Print personalization summary
+        if: always()
+        shell: bash
+        env:
+          BROWSER_ENGINE: ${{ matrix.browser }}
+        run: |
+          REPORT="personalization-artifacts/${BROWSER_ENGINE}/report.json"
+          if [ -f "$REPORT" ]; then
+            node -e "const r=require('./' + process.argv[1]); console.log(JSON.stringify({browser:r.browser,ok:r.ok,checks_total:r.checks_total,checks_passed:r.checks_passed,checks_failed:r.checks_failed},null,2))" "$REPORT"
+          fi
+
+      - name: Upload personalization evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: personalization-35-38-${{ matrix.browser }}-${{ github.sha }}
+          path: personalization-artifacts/${{ matrix.browser }}/
+          if-no-files-found: warn
+          retention-days: 14
