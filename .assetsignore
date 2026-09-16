@@ -1,0 +1,14 @@
+.git/
+.github/
+api/
+scripts/
+*.sql
+*.md
+*.txt
+README*
+vercel.json
+wrangler.jsonc
+cloudflare-preview-worker.js
+.gitignore
+.assetsignore
+__noop__
