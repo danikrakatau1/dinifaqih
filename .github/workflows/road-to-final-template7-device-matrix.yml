@@ -6,8 +6,13 @@ on:
       - engine/road-to-final-dini-faqih
     paths:
       - 'assets/js/source-runtime-compiler-v1.js'
+      - 'assets/js/source-runtime-authority-v1.js'
       - 'assets/js/source-truth-scanner-v1.js'
       - 'assets/js/visual-resolver.js'
+      - 'assets/js/legacy-parity-gate-v1.js'
+      - 'assets/js/social-link-parity-v1.js'
+      - 'assets/js/media-source-parity-v1.js'
+      - 'assets/js/source-native-background-parity-v1.js'
       - 'dashboard-admin-fetch/visual-resolver.js'
       - 'dashboard-admin-fetch/studio.js'
       - 'dashboard-admin-fetch-editor/**'
@@ -21,8 +26,13 @@ on:
       - engine/road-to-final-dini-faqih
     paths:
       - 'assets/js/source-runtime-compiler-v1.js'
+      - 'assets/js/source-runtime-authority-v1.js'
       - 'assets/js/source-truth-scanner-v1.js'
       - 'assets/js/visual-resolver.js'
+      - 'assets/js/legacy-parity-gate-v1.js'
+      - 'assets/js/social-link-parity-v1.js'
+      - 'assets/js/media-source-parity-v1.js'
+      - 'assets/js/source-native-background-parity-v1.js'
       - 'dashboard-admin-fetch/visual-resolver.js'
       - 'dashboard-admin-fetch/studio.js'
       - 'dashboard-admin-fetch-editor/**'
