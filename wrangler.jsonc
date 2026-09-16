@@ -1,0 +1,15 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "dinifaqih",
+  "main": "./cloudflare-preview-worker.js",
+  "compatibility_date": "2026-09-17",
+  "workers_dev": true,
+  "preview_urls": true,
+  "assets": {
+    "directory": "./",
+    "binding": "ASSETS",
+    "run_worker_first": true,
+    "html_handling": "none",
+    "not_found_handling": "none"
+  }
+}
