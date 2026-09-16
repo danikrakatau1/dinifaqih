@@ -192,9 +192,77 @@ GitHub Actions verification:
 
 Catatan: workflow legacy `fix-fetch-editor-blank-v147.yml` adalah gate lama terpisah dan tidak dipakai sebagai verdict poin 31. Poin 31 dinilai dari Golden Regression workflow khusus di atas.
 
+### 32. Desktop + Android + iPhone Device Matrix — IMPLEMENTED · 3/3 PASS
+
+Implementasi:
+
+- `.github/scripts/template7-device-matrix.mjs`
+- `.github/workflows/road-to-final-template7-device-matrix.yml`
+- Playwright dipasang hanya di GitHub Actions runner; tidak menambah dependency production repo
+- target tetap pinned Template 7 Golden artifact; record/database/storage Template 7 tidak dimodifikasi
+- setiap profile menghasilkan `report.json`, `01-cover.png`, `02-opened.png`, dan `03-midpage.png`
+
+Device/browser profiles:
+
+- Desktop: Chromium · viewport 1440×900 · DPR 1
+- Android: Chromium · viewport 412×915 · DPR 2.625 · touch/mobile profile
+- iPhone: WebKit · viewport 393×852 · DPR 3 · touch/mobile profile
+
+Gate per device memeriksa:
+
+- exact artifact bytes + MD5 sebelum render
+- browser benar-benar mem-parsing pinned Golden bytes sebagai HTML
+- CSS viewport width/height
+- responsive/mobile breakpoint
+- orientation profile
+- Golden cover tersedia
+- tombol Buka Undangan tersedia + visible
+- opening motion section tersedia
+- tidak ada user-visible horizontal scroll pada initial/opened state
+- dokumen mempunyai real scrollable content
+- real browser click pada tombol Buka Undangan
+- opening section tetap visible dan muat dalam viewport setelah open
+- real browser scroll ke mid-page
+- timeline `4528199` tetap ada
+- carousel `c7a6ff4` tetap ada
+
+GitHub Actions verification final:
+
+- workflow: `Road To Final — Template 7 Device Matrix`
+- workflow path: `.github/workflows/road-to-final-template7-device-matrix.yml`
+- run ID: `35116277276`
+- commit tested: `74e22ebef23ae405dcf3eab4408a667f57f7ae34`
+- Desktop Chromium job `104862384912`: **22 / 22 PASS · 0 fail**
+- Android Chromium job `104862384724`: **22 / 22 PASS · 0 fail**
+- iPhone WebKit job `104862384852`: **22 / 22 PASS · 0 fail**
+- total matrix result: **3 / 3 device PASS**
+
+Evidence artifacts:
+
+- Desktop artifact ID: `10454663371`
+- Android artifact ID: `10455372657`
+- iPhone artifact ID: `10455807485`
+- seluruh artifact berisi report + cover/opened/mid-page screenshot
+- evidence screenshot ketiga profile telah diperiksa; semuanya benar-benar merender ART JAWA HITAM / Template 7, bukan raw HTML/plain-text response
+
+Transport correction yang dibuktikan selama poin 32:
+
+- direct Supabase Storage object untuk `index.html` disajikan sebagai plain text pada browser matrix pertama
+- runner final tetap mengambil dan memverifikasi byte/MD5 Golden yang asli terlebih dahulu
+- hanya response MIME pada test transport Playwright yang dipaksa menjadi `text/html; charset=utf-8`
+- body yang dirender tetap exact `artifactBuffer` yang sudah lolos Golden MD5; tidak ada byte Template 7 yang diubah
+- perubahan ini hanya pada CI harness, bukan template/database/storage/runtime production
+
+Temuan yang dibawa ke poin 33, bukan disembunyikan:
+
+- Chromium mencatat CORS failure untuk sebagian font eksternal dari source origin
+- Chromium mencatat request MP3/MP4 yang abort; opening video ditemukan tetapi `readyState` terobservasi `0` pada Desktop/Android
+- WebKit merender dengan benar dan opening video terobservasi `readyState` `4`, namun beberapa media request juga tercatat cancelled
+- poin 32 membuktikan device/layout/open/scroll structural render; **belum** menjadi bukti lifecycle media/animation timing penuh
+- poin 33 wajib menguji playback, lifecycle event, timer, animation/reveal/reverse, carousel movement, timeline behavior, dan media state secara behavioral — bukan screenshot saja
+
 ## NEXT
 
-32. Test desktop + Android + iPhone.
 33. Lifecycle regression test, bukan screenshot saja.
 34. Hapus patch lama yang redundant hanya setelah engine baru PASS.
 
