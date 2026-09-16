@@ -43,15 +43,55 @@ Health gate memeriksa:
 6. Source HTML hash tersedia.
 7. Authority contract memakai `consume-do-not-reinterpret`.
 
-Batas scope poin 28:
+### 29. Per-element Source Truth Inspection — IMPLEMENTED
 
-- UI diagnostics hanya membaca dan menampilkan hasil scanner.
-- Click/highlight/hit-test elemen source belum diaktifkan di panel diagnostics.
-- Per-element inspection + jump/highlight adalah POINT 29 agar concern tetap terpisah.
+Implementasi utama tetap berada di:
+
+- `dashboard-admin-fetch-editor/fetch-scanner-diagnostics-v1.js` V1.1.0
+- `dashboard-admin-fetch-editor/fetch-runtime-control-v1.js` loader diagnostics `v=110`
+
+Kemampuan per-elemen:
+
+- tombol `INSPECT ELEMENT` terpisah dari LIVE / PAUSE / EDIT / REPLAY
+- hover outline editor-only pada elemen source
+- selected outline editor-only
+- klik dalam Inspect Mode diblokir dari runtime source agar tombol/link/video/lifecycle tidak terpancing tanpa sengaja
+- identitas elemen: tag, id, Elementor/data-id, selector, class, text preview
+- owner / ancestor chain
+- editable field candidates dari schema Production Editor yang sama
+- visual ownership records
+- media records
+- layer / ownership records
+- animation node termasuk viewport, delay, duration dan source evidence yang tersedia
+- CSS animation / transition rule yang selector-nya cocok
+- lifecycle target correlation
+- lifecycle event / timer / action correlation berdasarkan script index dari target terkait
+- lifecycle media records
+- responsive setting variants
+- personalization field / candidate yang terkait
+- `Jump + Highlight`
+- `Copy Element Report`
+- pindah dari Source Truth Inspector ke field Production Editor yang cocok
+
+Kontrak non-destruktif poin 29:
+
+- tidak membuat editor kedua
+- tidak mengubah source graph
+- tidak mengubah baseline HTML
+- tidak menulis Delta
+- tidak mengubah Applied Snapshot
+- style/attribute highlight hanya hidup pada iframe runtime dan ditandai editor-only
+- Inspect Mode OFF mengembalikan click/runtime source normal
+- elemen yang belum editable tetap boleh diinspeksi; engine tidak memaksa visibility atau membuat field palsu
+
+Status verifikasi saat implementasi:
+
+- JS syntax check lokal untuk Diagnostics V1.1.0: PASS
+- JS syntax check lokal untuk Runtime Control V1.0.2: PASS
+- browser/authenticated functional test tetap harus dibuktikan pada deployment branch sebelum Phase 4 dianggap regression-PASS
 
 ## NEXT
 
-29. Per-element inspection untuk role/layer/source/animation/lifecycle.
 30. Rebuild ART JAWA HITAM / Template 7 sebagai golden test.
 31. Jadikan Template 7 regression fixture.
 32. Test desktop + Android + iPhone.
