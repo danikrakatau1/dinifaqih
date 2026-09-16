@@ -1,0 +1,5 @@
+ROAD TO FINAL — PHASE 4 / POINT 33
+Template 7 lifecycle regression gate.
+Golden Template 7 remains read-only.
+Test layers: compiler plan, real-browser lifecycle, LIVE/PAUSE/EDIT/REPLAY.
+Status: CI verification pending.
