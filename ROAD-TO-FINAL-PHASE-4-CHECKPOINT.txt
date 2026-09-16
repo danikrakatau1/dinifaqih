@@ -1,0 +1,3 @@
+Checkpoint: Phase 4 Scanner Diagnostics UI
+Branch source: engine/road-to-final-dini-faqih
+Status: Point 28 implemented. Point 29 next.
