@@ -1,7 +1,7 @@
 (function(g){
   'use strict';
   if(g.DiniSourceRuntimeCompiler?.version)return;
-  const VERSION='1.2.0';
+  const VERSION='1.2.1';
   const VR=g.DiniVisualResolver;
   if(!VR?.makeSourceGraph||!VR?.sanitizeRuntimeNoise)return;
 
@@ -128,9 +128,9 @@
     const out=[];let m;
     const direct=/(document\.getElementById\(\s*['"][^'"]+['"]\s*\)|document\.querySelector\(\s*['"][^'"]+['"]\s*\)|[\w$]+)\.on(click|load|ended|pause|play|touchend)\s*=\s*(?:function\s*\([^)]*\)|\([^)]*\)\s*=>|[\w$]+\s*=>)?\s*\{/g;
     while((m=direct.exec(code))){const selector=selectorOf(m[1],vars);const brace=code.indexOf('{',m.index);const body=extractBraceBlock(code,brace);if(body)out.push({event:m[2],selector,body,index:m.index})}
-    const add=/(document|window|[\w$]+)\.addEventListener\(\s*['"]([\w:-]+)['"]\s*,\s*(?:function\s*\([^)]*\)|\([^)]*\)\s*=>|[\w$]+\s*=>)?\s*\{/g;
-    while((m=add.exec(code))){const selector=m[1]==='document'?'document':m[1]==='window'?'window':selectorOf(m[1],vars);const brace=code.indexOf('{',m.index);const body=extractBraceBlock(code,brace);if(body)out.push({event:m[2],selector,body,index:m.index})}
-    const jq=/(?:jQuery|\$)\(\s*['"]([^'"]+)['"]\s*\)\.(click|on)\(\s*(?:['"]([\w:-]+)['"]\s*,\s*)?(?:function\s*\([^)]*\)|\([^)]*\)\s*=>)?\s*\{/g;
+    const add=/(document\.getElementById\(\s*['"][^'"]+['"]\s*\)|document\.querySelector(?:All)?\(\s*['"][^'"]+['"]\s*\)|document|window|[\w$]+)\.addEventListener\(\s*['"]([\w:-]+)['"]\s*,\s*(?:function\s*\([^)]*\)|\([^)]*\)\s*=>|[\w$]+\s*=>)?\s*\{/g;
+    while((m=add.exec(code))){const target=m[1];const selector=target==='document'?'document':target==='window'?'window':selectorOf(target,vars);const brace=code.indexOf('{',m.index);const body=extractBraceBlock(code,brace);if(body)out.push({event:m[2],selector,body,index:m.index})}
+    const jq=/(?:jQuery|\$)\(\s*['"]([^'"]+)['"]\s*\)\.(click|on)\(\s*(?:['"]([\w:-]+)['"]\s*,\s*)?(?:function\s*\([^)]*\)|\([^)]*\)\s*=>|[\w$]+\s*=>)?\s*\{/g;
     while((m=jq.exec(code))){const brace=code.indexOf('{',m.index);const body=extractBraceBlock(code,brace);if(body)out.push({event:m[3]||'click',selector:m[1],body,index:m.index})}
     return out;
   }
