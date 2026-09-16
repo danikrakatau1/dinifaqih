@@ -1,7 +1,7 @@
 (function(g){
   'use strict';
   if(g.DiniSourceRuntimeAuthority?.version)return;
-  const VERSION='1.1.0';
+  const VERSION='1.1.1';
   const VR=g.DiniVisualResolver;
   const C=g.DiniSourceRuntimeCompiler;
   if(!VR?.sanitizeRuntimeNoise||!C?.graphByDoc){
@@ -138,11 +138,11 @@
 
   function helperRuntimeText(){return `(()=>{
 'use strict';
-if(window.__DINI_SOURCE_AUTHORITY_RUNTIME_V110__)return;window.__DINI_SOURCE_AUTHORITY_RUNTIME_V110__=true;
-const tpl=document.querySelector('template[data-dini-source-truth]');let G={};try{G=JSON.parse(tpl?.textContent||'{}')}catch{}
+if(window.__DINI_SOURCE_AUTHORITY_RUNTIME_V111__)return;window.__DINI_SOURCE_AUTHORITY_RUNTIME_V111__=true;
+const tpl=document.querySelector('template[data-dini-source-truth]');let G={};try{const raw=tpl?.content?.textContent||tpl?.textContent||'{}';G=JSON.parse(raw)}catch{}
 const cfg=el=>{try{return JSON.parse(String(el?.getAttribute?.('data-settings')||'').replace(/&quot;/g,'"'))}catch{return{}}};
 const num=(v,d)=>{const n=Number(v);return Number.isFinite(n)?n:d};
-const esc=v=>window.CSS?.escape?CSS.escape(String(v||'')):String(v||'').replace(/["\\]/g,'\\$&');
+const esc=v=>window.CSS?.escape?CSS.escape(String(v||'')):String(v||'');
 function ownerFor(item){try{if(item.owner_selector)return document.querySelector(item.owner_selector);if(item.element_id)return document.querySelector('[data-id="'+esc(item.element_id)+'"],.elementor-element-'+esc(item.element_id))}catch{}return null}
 function ensureMedia(){
   const items=G?.media?.items||[];
@@ -187,11 +187,17 @@ ensureMedia();initCarousels();
 document.documentElement.setAttribute('data-dini-source-authority-runtime','${VERSION}');
 })();`}
 
+  function writeTruthTemplate(doc,tpl,graph){
+    const text=doc.createTextNode(JSON.stringify(graph));
+    if(tpl.content?.replaceChildren)tpl.content.replaceChildren(text);
+    else tpl.textContent=JSON.stringify(graph);
+  }
+
   function ensureRuntimeOrder(doc,graph){
     if(!doc?.body||!graph?.source_truth_version)return;
     let tpl=doc.querySelector('template[data-dini-source-truth]');
     if(!tpl){tpl=doc.createElement('template');tpl.setAttribute('data-dini-source-truth','1')}
-    tpl.textContent=JSON.stringify(graph);
+    writeTruthTemplate(doc,tpl,graph);
     doc.body.appendChild(tpl);
 
     for(const old of [...doc.querySelectorAll('script[data-dini-source-native-runtime]')])old.remove();
