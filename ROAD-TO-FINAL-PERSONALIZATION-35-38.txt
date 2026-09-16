@@ -47,7 +47,16 @@ FILES
 - .github/scripts/personalization-regression-v1.mjs
 - .github/workflows/road-to-final-personalization.yml
 
+POINT 34 RECONCILIATION
+- Point 34 cleanup/hardening was completed before the personalization checkpoint.
+- Cleanup marker commit: 39c0ee4f6601cfd7bb5d1ca809ff9aef02bf284a.
+- Legacy Parity Gate: PASS 26/26.
+- Template 7 Golden Regression: PASS 58/58.
+- Device Matrix cleanup run 35128007650: desktop Chromium, Android Chromium and iPhone WebKit all SUCCESS.
+- Lifecycle cleanup run 35128007659: Chromium and WebKit both SUCCESS.
+- Legacy compatibility files remain physically available only for guarded legacy/v0 fallback; Source Truth snapshots bypass legacy reinterpretation.
+
 IMPORTANT
 - Template 7 golden artifact was not rewritten by this implementation.
-- This checkpoint does not claim Point 34 cleanup is complete. Point 34 remains a separate cleanup/hardening task.
-- main is not to be merged/modified as part of this checkpoint unless explicitly requested.
+- Master points 34–38 are complete on engine/road-to-final-dini-faqih.
+- main remains a separate production baseline and must not be merged/modified unless explicitly requested.
