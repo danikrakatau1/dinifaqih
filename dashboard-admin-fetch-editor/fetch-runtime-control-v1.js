@@ -3,7 +3,7 @@
   if(window.__DINI_FETCH_RUNTIME_CONTROL_V1__)return;
   window.__DINI_FETCH_RUNTIME_CONTROL_V1__=true;
 
-  const VERSION='1.0.1';
+  const VERSION='1.0.2';
   const E=window.DINI_FETCH_V2;
   const frame=document.getElementById('previewFrame');
   const toolbar=document.querySelector('.preview-toolbar');
@@ -143,7 +143,7 @@
   function loadDiagnostics(){
     if(window.__DINI_FETCH_SCANNER_DIAGNOSTICS_V1__||document.querySelector('script[data-dini-scanner-diagnostics]'))return;
     const s=document.createElement('script');
-    s.src='/dashboard-admin-fetch-editor/fetch-scanner-diagnostics-v1.js?v=100';
+    s.src='/dashboard-admin-fetch-editor/fetch-scanner-diagnostics-v1.js?v=110';
     s.async=false;
     s.dataset.diniScannerDiagnostics='1';
     s.onerror=()=>console.error('[DINI FETCH] Scanner Diagnostics gagal dimuat.');
