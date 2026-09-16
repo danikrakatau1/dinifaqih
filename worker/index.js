@@ -2,8 +2,9 @@ import {DEFAULT_SOURCE,parseTarget,analyzeHtml,compareReports,fetchRaw,injectBas
 import {createFreezeEnvelope,envelopeSummary} from './v3/freeze.js';
 import {applyEditDelta} from './v3/delta.js';
 import {page} from './v3/ui.js';
+import {augmentInspectorPage} from './v3/inspector.js';
 
-const ENGINE='3.2.2-alpha.1';
+const ENGINE='3.3.0-alpha.1';
 const BASELINE='94c4fddccde5d714f6ca9a247b87a0a9ef833f75';
 const json=(d,s=200,h={})=>new Response(JSON.stringify(d,null,2),{status:s,headers:{'content-type':'application/json; charset=UTF-8','cache-control':'no-store',...h}});
 
@@ -24,13 +25,13 @@ async function screenshot(url,env){const t=parseTarget(url.searchParams.get('url
 async function render(url){const t=parseTarget(url.searchParams.get('url')),raw=await fetchRaw(t);return new Response(injectBase(raw.html,raw.finalUrl),{headers:{'content-type':'text/html; charset=UTF-8','cache-control':'no-store','x-dini-v3-mode':'raw-baseline-render-envelope','x-dini-v3-source':raw.finalUrl}})}
 
 export default{async fetch(request,env){const url=new URL(request.url);try{
-  if(url.pathname==='/health')return json({ok:true,service:'dinifaqih-engine-v3-lab',engine:ENGINE,phase:3,branch:'engine/v3-source-native-fidelity',baseline:BASELINE,browserBinding:Boolean(env.BROWSER),popupSystem:true,runtimeDeltaBridge:true,navigationGuard:true,observerLoopGuard:true});
+  if(url.pathname==='/health')return json({ok:true,service:'dinifaqih-engine-v3-lab',engine:ENGINE,phase:'3.1',branch:'engine/v3-source-native-fidelity',baseline:BASELINE,browserBinding:Boolean(env.BROWSER),popupSystem:true,runtimeDeltaBridge:true,navigationGuard:true,observerLoopGuard:true,selectorInspector:true,clickToEdit:true});
   if(url.pathname==='/api/analyze')return analyze(url);
   if(url.pathname==='/api/capture')return capture(url,env);
   if(url.pathname==='/api/freeze')return freezeRuntime(url,env);
   if(url.pathname==='/api/delta/apply'&&request.method==='POST')return deltaApply(request);
   if(url.pathname==='/api/screenshot')return screenshot(url,env);
   if(url.pathname==='/render')return render(url);
-  if(url.pathname==='/')return new Response(page(request.url,{engine:ENGINE,baseline:BASELINE,defaultSource:DEFAULT_SOURCE}),{headers:{'content-type':'text/html; charset=UTF-8','cache-control':'no-store'}});
+  if(url.pathname==='/')return new Response(augmentInspectorPage(page(request.url,{engine:ENGINE,baseline:BASELINE,defaultSource:DEFAULT_SOURCE})),{headers:{'content-type':'text/html; charset=UTF-8','cache-control':'no-store'}});
   return json({ok:false,error:'Not found'},404)
 }catch(e){return json({ok:false,engine:ENGINE,error:e?.message||String(e)},500)}}};
