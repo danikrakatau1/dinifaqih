@@ -71,8 +71,9 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const path = url.pathname;
+    const routePath = path.length > 1 && path.endsWith('/') ? path.slice(0, -1) : path;
 
-    if (SAFE_API_PROXY.has(path)) {
+    if (SAFE_API_PROXY.has(routePath)) {
       try {
         return await proxySafeApi(request);
       } catch (error) {
@@ -84,7 +85,7 @@ export default {
       }
     }
 
-    if (BLOCKED_PREVIEW_API.has(path) || path.startsWith('/api/')) {
+    if (BLOCKED_PREVIEW_API.has(routePath) || routePath.startsWith('/api/')) {
       return json({
         ok: false,
         preview_only: true,
@@ -92,13 +93,13 @@ export default {
       }, 503, { 'x-dinifaqih-preview-guard': 'write-blocked' });
     }
 
-    const rewritten = STATIC_REWRITES.get(path);
+    const rewritten = STATIC_REWRITES.get(routePath);
     if (rewritten) {
       return env.ASSETS.fetch(assetRequest(request, rewritten));
     }
 
-    if (/^\/[a-z0-9-]+$/.test(path) && path !== '/index') {
-      const slug = path.slice(1);
+    if (/^\/[a-z0-9-]+$/.test(routePath) && routePath !== '/index') {
+      const slug = routePath.slice(1);
       return env.ASSETS.fetch(assetRequest(request, '/guest-entry-v18.html', params => {
         params.set('guest_slug', slug);
       }));
@@ -107,10 +108,10 @@ export default {
     const response = await env.ASSETS.fetch(request);
     const headers = new Headers(response.headers);
     if (
-      path === '/' ||
-      path === '/index.html' ||
-      path === '/guest-entry-v18.html' ||
-      path === '/assets/js/public-canonical-renderer-v18.js'
+      routePath === '/' ||
+      routePath === '/index.html' ||
+      routePath === '/guest-entry-v18.html' ||
+      routePath === '/assets/js/public-canonical-renderer-v18.js'
     ) {
       headers.set('cache-control', 'no-store');
     }
