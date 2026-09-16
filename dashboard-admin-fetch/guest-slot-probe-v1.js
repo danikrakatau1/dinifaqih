@@ -1,5 +1,6 @@
 (()=>{
   'use strict';
+  const VERSION='1.1.0';
   const SENTINEL='__DINI_GUEST_PROBE__';
   const PLACEHOLDER='Nama Tamu';
   const source=document.getElementById('sourceInput');
@@ -27,8 +28,11 @@
     leaf.textContent=value;
     leaf.setAttribute('data-native-guest-name','1');
     leaf.setAttribute('data-dini-guest-name','1');
+    leaf.setAttribute('data-dini-bind','guest_name');
+    leaf.setAttribute('data-dini-personalization-field','guest_name');
     leaf.setAttribute('data-dini-guest-source-probe','1');
     root.setAttribute('data-dini-guest-source-probe-widget','1');
+    root.setAttribute('data-dini-guest-binding-owner','guest_name');
     return leaf;
   };
 
@@ -82,17 +86,17 @@
       if(fetchMeta){fetchMeta.classList.add('ok');fetchMeta.textContent+=' · 🔎 Guest Slot Probe…'}
       const probe=await fetchProbe(canonicalUrl);
       const result=transplantGuestWidget(source.value,probe.html||'');
-      source.dataset.guestProbe=JSON.stringify({version:1,count:result.count,reason:result.reason,widget_id:result.widget_id||'',source_url:canonicalUrl});
+      source.dataset.guestProbe=JSON.stringify({version:VERSION,count:result.count,reason:result.reason,widget_id:result.widget_id||'',source_url:canonicalUrl,binding:'guest_name',mutation:'textContent-only'});
       if(result.count>0){
         source.value=result.html;
-        if(fetchMeta)fetchMeta.textContent=`✅ Source + Guest Slot source-native terdeteksi${result.widget_id?' · '+result.widget_id:''}`;
+        if(fetchMeta)fetchMeta.textContent=`✅ Source + Guest Slot source-native terdeteksi${result.widget_id?' · '+result.widget_id:''} · guest_name bound`;
         if(analyzeBtn&&!analyzeBtn.disabled){analyzeBtn.click()}
         else setTimeout(()=>analyzeBtn?.click(),80);
       }else{
         if(fetchMeta)fetchMeta.textContent+=' · Guest Slot dinamis tidak terdeteksi';
       }
     }catch(err){
-      console.warn('GUEST_SLOT_PROBE_V1',err);
+      console.warn('GUEST_SLOT_PROBE_V11',err);
       if(fetchMeta)fetchMeta.textContent+=' · Guest Probe dilewati ('+String(err.message||err)+')';
     }
   }
@@ -104,5 +108,5 @@
   }
   fetchBtn.addEventListener('click',scheduleProbe,true);
   sourceUrl.addEventListener('keydown',e=>{if(e.key==='Enter')scheduleProbe()},true);
-  window.DINI_GUEST_SLOT_PROBE_V1={transplantGuestWidget,fetchProbe};
+  window.DINI_GUEST_SLOT_PROBE_V1={VERSION,transplantGuestWidget,fetchProbe};
 })();
