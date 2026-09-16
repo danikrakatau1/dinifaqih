@@ -1,5 +1,109 @@
-ROAD TO FINAL — PHASE 4 / POINT 33
-Template 7 lifecycle regression gate.
-Golden Template 7 remains read-only.
-Test layers: compiler plan, real-browser lifecycle, LIVE/PAUSE/EDIT/REPLAY.
-Status: CI verification pending.
+ROAD TO FINAL DINI FAQIH — PHASE 4 POINT 33 LIFECYCLE REGRESSION
+
+STATUS: IMPLEMENTED · PASS · READY TO CHECKPOINT
+WORK BRANCH: engine/road-to-final-dini-faqih
+GOLDEN TEMPLATE: Template 7 / ART JAWA HITAM
+GOLDEN TEMPLATE UUID: 009e1a47-296f-4580-bedb-f0069f409d65
+GOLDEN SOURCE: https://web.galeriundanganofficial.com/art-jawa-hitam/
+
+POINT 33 CONTRACT
+- Behavioral lifecycle regression, not screenshot-only.
+- Template 7 DB/storage artifact remains read-only and is not rewritten.
+- Source timing is authoritative; no synthetic stagger.
+- Arbitrary source JavaScript is not executed.
+- Runtime behavior is compiled to a safe lifecycle plan.
+- Fetch Runtime Control PAUSE / LIVE / EDIT / REPLAY remains non-destructive.
+
+ENGINE FIX LOCK
+Engine commit: ae5ac247063c2a69a6a146befbf1c32afa76910b
+Compiler: assets/js/source-runtime-compiler-v1.js V1.2.1
+
+Generic fixes proven during point 33:
+1. Source Truth template reading/writing compatibility fixed.
+2. Source runtime authority helper no longer crashes from malformed regex/template access.
+3. Safe runtime supports source-authored fade-in/fade-out semantics.
+4. Local source helper functions are statically expanded into safe commands; source JS is never eval/executed.
+5. Direct DOM event targets are detected generically, including document.querySelector(...).addEventListener(...) and document.getElementById(...).addEventListener(...).
+6. Nested source timers preserve authored delay values.
+7. ART JAWA HITAM source evidence includes the authored 100 ms video action and 3000 ms motion-text reveal; these values are discovered from source and are not template hardcodes in the engine.
+8. Audio play, authored background video play, carousel movement, scroll/timeline behavior, and Runtime Control modes are behaviorally tested.
+
+TEST-GATE CORRECTION
+Lifecycle gate commit: 9c0f8e7f353a8700862c1042c00e17938426a849
+Reason:
+- Previous fixed 750 ms cover assertion sampled the authored exit animation mid-flight (observed opacity about 0.5222), creating a false failure.
+- Final gate waits for actual dismissed state (display:none OR opacity < 0.2) with a hard 5-second timeout.
+- If cover never dismisses, assertion still fails. Engine timing is not modified by this test correction.
+
+LIFECYCLE REGRESSION FINAL
+Workflow: Road To Final — Template 7 Lifecycle Regression
+Workflow path: .github/workflows/road-to-final-template7-lifecycle.yml
+Runner: .github/scripts/template7-lifecycle-regression-v2.mjs
+Run ID: 35125335293
+Tested commit: 9c0f8e7f353a8700862c1042c00e17938426a849
+
+Chromium:
+- Job ID: 104892876938
+- PASS: 46 / 46
+- FAIL: 0
+- Artifact ID: 10459057303
+
+WebKit:
+- Job ID: 104892877372
+- PASS: 46 / 46
+- FAIL: 0
+- Artifact ID: 10459227293
+
+Lifecycle assertions cover:
+- pinned Golden artifact identity
+- live source pre-sanitize capture
+- Source Truth authority
+- lifecycle events and timer evidence
+- open selector
+- safe on-open plan
+- delayed source commands
+- source-delay authority
+- no synthetic stagger
+- no arbitrary source JS execution
+- single safe runtime handoff
+- cover initial/opened lifecycle
+- page scroll unlock
+- audio play intent
+- authored jawa-hitam-demo.mp4 background video play intent
+- browser scheduling of authored lifecycle delay
+- carousel existence and real movement
+- timeline existence and real scroll behavior
+- Fetch Runtime Control load
+- PAUSE freezes Web Animations
+- LIVE resumes animation
+- EDIT freezes playback non-destructively
+- REPLAY reloads identical snapshot and restores cover state
+
+CROSS-GATE VERIFICATION ON ENGINE V1.2.1
+Engine commit tested: ae5ac247063c2a69a6a146befbf1c32afa76910b
+
+Golden Regression:
+- Run ID: 35124865590
+- Job ID: 104891300860
+- PASS: 58 / 58
+- FAIL: 0
+- Report artifact ID: 10459036398
+
+Device Matrix:
+- Run ID: 35124865516
+- Desktop Chromium job 104891301197: 22 / 22 PASS · 0 fail · artifact 10458781706
+- Android Chromium job 104891301182: 22 / 22 PASS · 0 fail · artifact 10459086562
+- iPhone WebKit job 104891300714: 22 / 22 PASS · 0 fail · artifact 10458504854
+- Total: 3 / 3 device profiles PASS · 66 / 66 checks
+
+VERDICT
+Point 33 lifecycle implementation is PASS across Chromium and WebKit, while the same engine revision also preserves Golden Regression and all three device profiles.
+
+IMPORTANT LIMITS
+- Existing stored Template 7 manifest is not rewritten/migrated merely by these engine tests.
+- Golden Template 7 storage remains unchanged/read-only.
+- Legacy unrelated GitHub Actions workflows may still be red and are not used as the Road-to-Final point-33 verdict.
+- Temporary diagnostic/patch workflow files created while diagnosing point 33 are intentionally left for Point 34 cleanup; cleanup must be followed by complete Golden + Device + Lifecycle regression gates again.
+
+NEXT
+34. Remove redundant legacy/temporary patches and diagnostics only after the new engine PASS, then rerun all Road-to-Final regression gates before final cleanup lock.
