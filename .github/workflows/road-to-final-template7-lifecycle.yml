@@ -1,0 +1,84 @@
+name: Road To Final — Template 7 Lifecycle Regression
+
+on:
+  push:
+    branches:
+      - engine/road-to-final-dini-faqih
+    paths:
+      - '.github/scripts/template7-lifecycle-regression.mjs'
+      - '.github/workflows/road-to-final-template7-lifecycle.yml'
+      - 'golden-tests/template-7/**'
+      - 'assets/js/visual-resolver.js'
+      - 'assets/js/source-truth-scanner-v1.js'
+      - 'assets/js/source-runtime-compiler-v1.js'
+      - 'dashboard-admin-fetch-editor/fetch-runtime-control-v1.js'
+      - 'ROAD-TO-FINAL-PHASE-4-STATUS.md'
+      - 'ROAD-TO-FINAL-PHASE-4-LIFECYCLE.txt'
+  pull_request:
+    paths:
+      - '.github/scripts/template7-lifecycle-regression.mjs'
+      - '.github/workflows/road-to-final-template7-lifecycle.yml'
+      - 'golden-tests/template-7/**'
+      - 'assets/js/visual-resolver.js'
+      - 'assets/js/source-truth-scanner-v1.js'
+      - 'assets/js/source-runtime-compiler-v1.js'
+      - 'dashboard-admin-fetch-editor/fetch-runtime-control-v1.js'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lifecycle:
+    name: Template 7 · lifecycle · ${{ matrix.browser }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, webkit]
+
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v4
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install pinned Playwright runtime
+        shell: bash
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install --no-audit --no-fund --save-dev playwright@1.55.0
+          npx playwright install --with-deps ${{ matrix.browser }}
+
+      - name: Syntax-check lifecycle runner
+        run: node --check .github/scripts/template7-lifecycle-regression.mjs
+
+      - name: Run behavioral lifecycle regression
+        env:
+          BROWSER_ENGINE: ${{ matrix.browser }}
+          NODE_NO_WARNINGS: '1'
+        run: node .github/scripts/template7-lifecycle-regression.mjs
+
+      - name: Print lifecycle summary
+        if: always()
+        shell: bash
+        env:
+          BROWSER_ENGINE: ${{ matrix.browser }}
+        run: |
+          REPORT="lifecycle-artifacts/${BROWSER_ENGINE}/report.json"
+          if [ -f "$REPORT" ]; then
+            node -e "const r=require('./' + process.argv[1]); console.log(JSON.stringify({browser:r.browser,ok:r.ok,checks_total:r.checks_total,checks_passed:r.checks_passed,checks_failed:r.checks_failed},null,2))" "$REPORT"
+          fi
+
+      - name: Upload lifecycle evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: template7-lifecycle-${{ matrix.browser }}-${{ github.sha }}
+          path: lifecycle-artifacts/${{ matrix.browser }}/
+          if-no-files-found: error
+          retention-days: 14
