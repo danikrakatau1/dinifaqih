@@ -1,0 +1,58 @@
+ROAD TO FINAL DINI FAQIH — MASTER 38 COMPLETE
+
+Branch: engine/road-to-final-dini-faqih
+Production/main baseline at lock: 94c4fddccde5d714f6ca9a247b87a0a9ef833f75
+Status: MASTER ROADMAP 1–38 COMPLETE ON ENGINE BRANCH
+
+PHASE 1 — POINTS 1–15
+Deep Fetch + Source Truth foundation implemented and checkpointed.
+
+PHASE 2 — POINTS 16–21
+Editor preservation + LIVE/PAUSE/EDIT/REPLAY + source package implemented and checkpointed.
+
+PHASE 3 — POINTS 22–27
+Applied Snapshot authority + exact parity/hash downstream implemented and checkpointed.
+
+PHASE 4 — POINTS 28–34
+28 Scanner Diagnostics UI — COMPLETE.
+29 Per-element Source Truth inspection — COMPLETE.
+30 Template 7 / ART JAWA HITAM Golden Test — COMPLETE.
+31 Repeatable Template 7 Golden Regression — PASS 58/58.
+32 Device Matrix — desktop Chromium + Android Chromium + iPhone WebKit PASS.
+33 Lifecycle Regression — Chromium 46/46 + WebKit 46/46 PASS.
+34 Cleanup / hardening — COMPLETE.
+   Cleanup marker: 39c0ee4f6601cfd7bb5d1ca809ff9aef02bf284a
+   Legacy Parity Gate: 26/26 PASS.
+   Golden cleanup run 35128007629: SUCCESS.
+   Device cleanup run 35128007650: 3/3 jobs SUCCESS.
+   Lifecycle cleanup run 35128007659: Chromium + WebKit SUCCESS.
+
+PERSONALIZATION — POINTS 35–38
+35 Personalization Scanner — COMPLETE.
+36 Dynamic Field Binding guest_name — COMPLETE.
+37 URL ?to=Agus text-only + preserve style/animation — COMPLETE.
+38 Public Template Parity — COMPLETE.
+   Tested implementation commit: a9ba47d3757106b2e34e931e5eaf3420df62d9f8
+   Workflow run: 35129756735
+   Chromium: 30/30 PASS, Job 104907534431, Artifact 10459999753.
+   WebKit: 30/30 PASS, Job 104907534082, Artifact 10460579074.
+   Combined personalization: 60/60 PASS, 0 failed.
+
+FINAL PERSONALIZATION CONTRACT
+- guest_name binds to the source-native template node.
+- URL guest input is plain-text sanitized.
+- Runtime mutation is textContent-only.
+- No clone/create guest UI.
+- No force-visible behavior.
+- No class/style/animation/identity mutation.
+- Public renderer preserves the template's own typography, layout and animation.
+
+GOLDEN SAFETY
+- Template 7 golden artifact remains read-only and was not rewritten by points 35–38.
+- Source Truth remains authoritative.
+- Legacy compatibility is guarded for legacy/v0 templates and does not reinterpret Source Truth snapshots.
+
+DEPLOYMENT BOUNDARY
+This marker means implementation + regression gates are complete on engine/road-to-final-dini-faqih.
+It does NOT mean the branch has been merged into main or promoted to production.
+Promotion/merge/deployment requires an explicit next decision.
