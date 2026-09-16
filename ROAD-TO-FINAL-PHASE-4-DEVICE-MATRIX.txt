@@ -1,0 +1,9 @@
+ROAD TO FINAL — PHASE 4 / POINT 32
+Template 7 Device Matrix: PASS
+Run: 35116277276
+Tested commit: 74e22ebef23ae405dcf3eab4408a667f57f7ae34
+Desktop Chromium: 22/22 PASS — job 104862384912 — artifact 10454663371
+Android Chromium: 22/22 PASS — job 104862384724 — artifact 10455372657
+iPhone WebKit: 22/22 PASS — job 104862384852 — artifact 10455807485
+Golden Template 7 untouched.
+Deep lifecycle/media findings intentionally deferred to point 33.
