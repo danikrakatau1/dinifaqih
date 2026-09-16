@@ -1,3 +1,5 @@
+const BUILD_MARKER = 'engine-v3-lab-2026-09-16';
+
 const html = String.raw`<!doctype html>
 <html lang="id">
 <head>
@@ -19,7 +21,7 @@ const html = String.raw`<!doctype html>
       <span class="eyebrow">Kepada Yth.</span>
       <strong id="guest">Tamu Undangan</strong>
     </section>
-    <div class="meta">branch: engine/v3-source-native-fidelity<br>baseline: 94c4fddccde5d714f6ca9a247b87a0a9ef833f75</div>
+    <div class="meta">branch: engine/v3-source-native-fidelity<br>baseline: 94c4fddccde5d714f6ca9a247b87a0a9ef833f75<br>build: ${BUILD_MARKER}</div>
   </main>
   <script>
     const value = new URLSearchParams(location.search).get('to');
@@ -37,7 +39,8 @@ export default {
         ok: true,
         service: 'dinifaqih-engine-v3-lab',
         branch: 'engine/v3-source-native-fidelity',
-        baseline: '94c4fddccde5d714f6ca9a247b87a0a9ef833f75'
+        baseline: '94c4fddccde5d714f6ca9a247b87a0a9ef833f75',
+        build: BUILD_MARKER
       });
     }
 
