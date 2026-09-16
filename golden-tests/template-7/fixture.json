@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "name": "Template 7 — ART JAWA HITAM",
+  "template_id": "009e1a47-296f-4580-bedb-f0069f409d65",
+  "slug": "template-7-164ddf61",
+  "source_url": "https://web.galeriundanganofficial.com/art-jawa-hitam/",
+  "fetch_handoff_id": "9dbf469c-3b54-42d8-9297-6584cc7103d8",
+  "baseline_hash": "c961e18c",
+  "artifact_base": "https://jfvmcerrsxjvbiogfqes.supabase.co/storage/v1/object/public/template-packages/template-7-164ddf61/",
+  "artifacts": {
+    "index.html": {"bytes": 342683, "md5": "087ed77d163ee38cff99025f6a2f88bc"},
+    "source-native.html": {"bytes": 342683, "md5": "087ed77d163ee38cff99025f6a2f88bc"},
+    "editor-snapshot.json": {"bytes": 915278, "md5": "c117683d8399063839cd73e8d817b122"},
+    "manifest.json": {"bytes": 146705, "md5": "e39a4d8a3e5eba27664a31bcf6da232d"},
+    "native-schema.json": {"bytes": 90538, "md5": "75921e71d3088331ccdb638d38346410"},
+    "native-data.json": {"bytes": 15086, "md5": "20fcc273e1ea92668adf8589f32f2188"},
+    "fetch-delta.json": {"bytes": 2041, "md5": "d2dd5851ce99baec775e7f4b8bca8b44"}
+  },
+  "source_markers": [
+    "36dc2bf",
+    "jawa-hitam-demo.mp4",
+    "c7a6ff4",
+    "4528199",
+    "b6188c0",
+    "tombolbuka"
+  ],
+  "source_graph": {
+    "open_selector": "#tombolbuka",
+    "video_background": {
+      "element_id": "36dc2bf",
+      "url_suffix": "/2026/08/jawa-hitam-demo.mp4"
+    },
+    "slideshows": [
+      {"element_id": "82f3bbc", "duration": 5000, "transition": "fade", "transition_duration": 500, "ken_burns": false},
+      {"element_id": "f2c3107", "duration": 5000, "transition": "fade", "transition_duration": 500, "ken_burns": false},
+      {"element_id": "f07f2bc", "duration": 4000, "transition": "fade", "transition_duration": 5500, "ken_burns": false},
+      {"element_id": "ae3de07", "duration": 5000, "transition": "fade", "transition_duration": 500, "ken_burns": false},
+      {"element_id": "487f2260", "duration": 2000, "transition": "slide_left", "transition_duration": 4000, "ken_burns": true, "ken_burns_direction": "in"},
+      {"element_id": "8a40ed7", "duration": 2000, "transition": "slide_left", "transition_duration": 4000, "ken_burns": true, "ken_burns_direction": "in"}
+    ],
+    "critical_css": [
+      {"element_id": "30bdfd55", "url_suffix": "/2026/08/jawa-cvr-1.jpg"},
+      {"element_id": "82a6579", "url_suffix": "/2026/08/X-JAWA-HITAM.jpg"},
+      {"element_id": "36dc2bf", "url_suffix": "/2026/08/back-DEMO.jpg"}
+    ]
+  },
+  "runtime_contract": {
+    "source_delay_authoritative": true,
+    "synthetic_stagger": false,
+    "source_transform_authoritative": true,
+    "editor_pause_non_destructive": true,
+    "execute_arbitrary_source_js": false
+  }
+}
