@@ -17,20 +17,21 @@ export async function runRegressionGate(envelope,input={}){
   const after=await analyzeHtml(applied.html,envelope.source?.url||'', 'regression-output');
   const checks=[];
   const add=(id,label,pass,detail,severity='critical')=>checks.push({id,label,pass:Boolean(pass),detail,severity});
+  const bridgePresent=/data-dini-v3-delta-bridge\b/i.test(applied.html)&&applied.integrity?.runtimeBridge===true;
 
   add('baseline-immutable','Frozen baseline immutable',applied.integrity.baselineStillImmutable,applied.integrity.baselineHash);
   add('selectors-match','Semua Edit Delta menemukan target',applied.matches.every(x=>x.matched>0),applied.matches);
   add('elementor-elements','Elementor element count preserved',eq(before.structure.elementorElements,after.structure.elementorElements),`${before.structure.elementorElements} → ${after.structure.elementorElements}`);
   add('elementor-widgets','Elementor widget count preserved',eq(before.structure.elementorWidgets,after.structure.elementorWidgets),`${before.structure.elementorWidgets} → ${after.structure.elementorWidgets}`);
   add('data-settings','Elementor data-settings preserved',eq(before.structure.dataSettings,after.structure.dataSettings),`${before.structure.dataSettings} → ${after.structure.dataSettings}`);
-  add('scripts','Script tags preserved',eq(before.structure.scripts,after.structure.scripts),`${before.structure.scripts} → ${after.structure.scripts}`);
+  add('scripts','Original script tags preserved',after.structure.scripts>=before.structure.scripts,`${before.structure.scripts} → ${after.structure.scripts}`);
   add('styles','Style tags preserved',eq(before.structure.styles,after.structure.styles),`${before.structure.styles} → ${after.structure.styles}`);
   add('background-video','Source-native background videos preserved',eq(before.sourceNative.backgroundVideos.length,after.sourceNative.backgroundVideos.length),`${before.sourceNative.backgroundVideos.length} → ${after.sourceNative.backgroundVideos.length}`);
   add('slideshow','Source-native slideshows preserved',eq(before.sourceNative.slideshows.length,after.sourceNative.slideshows.length),`${before.sourceNative.slideshows.length} → ${after.sourceNative.slideshows.length}`);
   add('cover-marker','#cover marker preserved',marker(replay,/\bid=["']cover["']/gi)===marker(applied.html,/\bid=["']cover["']/gi),`${marker(replay,/\bid=["']cover["']/gi)} → ${marker(applied.html,/\bid=["']cover["']/gi)}`);
   add('open-button','Open-invitation marker preserved',marker(replay,/\btombolbuka\b/gi)===marker(applied.html,/\btombolbuka\b/gi),`${marker(replay,/\btombolbuka\b/gi)} → ${marker(applied.html,/\btombolbuka\b/gi)}`);
-  add('runtime-bridge','Runtime delta bridge installed',/data-dini-v3-runtime-delta=["']1["']/i.test(applied.html),'runtime mutation guard present');
-  add('navigation-guard','Navigation guard installed',/data-dini-v3-runtime-delta=["']1["']/i.test(applied.html),'same runtime bridge owns anchor guard');
+  add('runtime-bridge','Runtime delta bridge installed',bridgePresent,'data-dini-v3-delta-bridge + integrity.runtimeBridge');
+  add('navigation-guard','Navigation guard installed',bridgePresent&&applied.integrity?.navigationGuard===true,'runtime bridge owns tombolbuka href guard');
   add('output-changed-when-edited','Output changes when delta exists',!input?.operations?.length||applied.integrity.changed,`ops=${input?.operations?.length||0}; changed=${applied.integrity.changed}`,'warning');
 
   const failures=checks.filter(x=>!x.pass&&x.severity==='critical');
