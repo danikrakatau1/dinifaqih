@@ -2,6 +2,7 @@ import {createFreezeEnvelope} from './freeze.js';
 import {fetchRaw,parseTarget} from './analyzer.js';
 import {PRODUCTION_EDITOR_BRIDGE_CLIENT} from './production-editor-bridge.js';
 import {SOURCE_CSS_AUDIT_CLIENT} from './source-css-audit.js';
+import {SOURCE_MOTION_VIDEO_CENTER_CLIENT} from './source-motion-video-center.js';
 
 const PROD='https://www.dini-faqih.my.id';
 const MAX_HTML=6_000_000;
@@ -19,6 +20,7 @@ function isSourceAuditShell(path){
 }
 function injectClients(html,path){
   let out=String(html),tags='';
+  if(isSourceAuditShell(path)&&!out.includes('/__v3/source-motion-video-center.js'))tags+='<script src="/__v3/source-motion-video-center.js"></script>';
   if(isSourceAuditShell(path)&&!out.includes('/__v3/source-css-audit.js'))tags+='<script src="/__v3/source-css-audit.js"></script>';
   if(isBridgeShell(path)&&!out.includes('/__v3/production-editor-bridge.js'))tags+='<script src="/__v3/production-editor-bridge.js"></script>';
   if(!tags)return out;
@@ -29,6 +31,7 @@ function stagingHome(engine){return `<!doctype html><html lang="id"><head><meta 
 
 export function stagingProductionEditorBridge(engine){return new Response(`window.__DINI_V3_STAGING_ENGINE__=${JSON.stringify(engine)};\n`+PRODUCTION_EDITOR_BRIDGE_CLIENT,{headers:{'content-type':'text/javascript; charset=UTF-8','cache-control':'no-store'}})}
 export function stagingSourceCssAudit(){return new Response(SOURCE_CSS_AUDIT_CLIENT,{headers:{'content-type':'text/javascript; charset=UTF-8','cache-control':'no-store'}})}
+export function stagingSourceMotionVideoCenter(){return new Response(SOURCE_MOTION_VIDEO_CENTER_CLIENT,{headers:{'content-type':'text/javascript; charset=UTF-8','cache-control':'no-store'}})}
 export async function stagingFetchSource(url){const target=parseTarget(url.searchParams.get('url')),raw=await fetchRaw(target);return json({ok:true,url:raw.finalUrl,html:raw.html,bytes:new TextEncoder().encode(raw.html).length,contentType:raw.contentType,engine:'v3-fetch-raw'});}
 export async function stagingFreezeHtml(request){let body;try{body=await request.json()}catch{throw new Error('Body freeze-html harus JSON.')};const html=String(body?.html||'');if(!html||html.length>MAX_HTML)throw new Error('Saved HTML kosong atau terlalu besar.');const source=String(body?.source||'https://production-editor-baseline.staging.invalid/');const envelope=await createFreezeEnvelope({source,rawHtml:html,runtimeHtml:html,browserMs:null,transport:{status:200,contentType:'text/html',finalUrl:source,migration:'production-editor-working-baseline'}});return json({ok:true,migration:true,template_id:body?.template_id||null,envelope});}
 
@@ -55,6 +58,7 @@ export async function stagingRoute(request,engine){
   if(url.pathname==='/staging'||url.pathname==='/staging/')return new Response(stagingHome(engine),{headers:{'content-type':'text/html; charset=UTF-8','cache-control':'no-store'}});
   if(url.pathname==='/staging/fetch')return redirect('/dashboard-admin-fetch/?staging_v3=prod-editor');
   if(url.pathname==='/staging/templates')return redirect('/dashboard-admin-template/?staging_v3=prod-editor');
+  if(url.pathname==='/__v3/source-motion-video-center.js')return stagingSourceMotionVideoCenter();
   if(url.pathname==='/__v3/source-css-audit.js')return stagingSourceCssAudit();
   if(url.pathname==='/__v3/production-editor-bridge.js')return stagingProductionEditorBridge(engine);
   return null;
