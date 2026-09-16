@@ -2,6 +2,7 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { chromium, webkit } from 'playwright';
 
+// Trigger marker: workflow already exists before this push, so the 3-device CI matrix must run.
 const fixture = JSON.parse(await readFile('golden-tests/template-7/fixture.json', 'utf8'));
 const profile = String(process.env.DEVICE_PROFILE || 'desktop').toLowerCase();
 const browserName = String(process.env.BROWSER_ENGINE || (profile === 'iphone' ? 'webkit' : 'chromium')).toLowerCase();
