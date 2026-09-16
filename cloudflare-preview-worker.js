@@ -1,6 +1,7 @@
 const VERCEL_ORIGIN = 'https://www.dini-faqih.my.id';
 
 const STATIC_REWRITES = new Map([
+  ['/', '/index.html'],
   ['/dashboard-admin', '/dashboard-admin/index.html'],
   ['/dashboard-admin-template', '/dashboard-admin-template/index.html'],
   ['/dashboard-admin-fetch', '/dashboard-admin-fetch/index.html'],
