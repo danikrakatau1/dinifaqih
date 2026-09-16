@@ -1,7 +1,7 @@
 (function(g){
   'use strict';
   if(g.DiniSourceRuntimeCompiler?.version)return;
-  const VERSION='1.0.0';
+  const VERSION='1.1.0';
   const VR=g.DiniVisualResolver;
   if(!VR?.makeSourceGraph||!VR?.sanitizeRuntimeNoise)return;
 
@@ -60,8 +60,11 @@
 
     const jqAnimate=/(?:jQuery|\$)\(\s*['"]([^'"]+)['"]\s*\)\.animate\(\s*\{([\s\S]*?)\}\s*,\s*(\d+)\s*\)/g;
     while((m=jqAnimate.exec(code)))add(out,{type:'animate-style',selector:m[1],properties:parseCssObject(m[2]),duration_ms:Number(m[3]),delay_ms:delay});
-    const jqVis=/(?:jQuery|\$)\(\s*['"]([^'"]+)['"]\s*\)\.(hide|show)\(\s*(\d*)\s*\)/g;
-    while((m=jqVis.exec(code)))add(out,{type:m[2],selector:m[1],duration_ms:Number(m[3]||0),delay_ms:delay});
+    const jqVis=/(?:jQuery|\$)\(\s*['"]([^'"]+)['"]\s*\)\.(hide|show|fadeIn|fadeOut)\(\s*(\d*)\s*\)/g;
+    while((m=jqVis.exec(code))){
+      const kind=m[2]==='fadeIn'?'fade-in':m[2]==='fadeOut'?'fade-out':m[2];
+      add(out,{type:kind,selector:m[1],duration_ms:Number(m[3]||0),delay_ms:delay});
+    }
 
     const cls=/([\w$]+)\.classList\.(add|remove)\(\s*['"]([^'"]+)['"]\s*\)/g;
     while((m=cls.exec(code))){const selector=selectorOf(m[1],vars);if(selector)add(out,{type:'class-'+m[2],selector,class_name:m[3],delay_ms:delay})}
@@ -140,7 +143,7 @@
 
   function runtimeText(){return `(()=>{
 'use strict';
-const tpl=document.querySelector('template[data-dini-source-truth]');let G={};try{G=JSON.parse(tpl?.textContent||'{}')}catch(e){console.warn('SOURCE_TRUTH_JSON',e)}
+const tpl=document.querySelector('template[data-dini-source-truth]');let G={};try{const raw=tpl?.content?.textContent||tpl?.textContent||'{}';G=JSON.parse(raw)}catch(e){console.warn('SOURCE_TRUTH_JSON',e)}
 const plan=G?.lifecycle?.safe_plan||{};const animations=G?.animations?.nodes||[];const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const q=s=>{try{return s==='document'?document:s==='window'?window:document.querySelector(s)}catch{return null}};
 const qa=s=>{try{return s==='document'?[document]:s==='window'?[window]:[...document.querySelectorAll(s)]}catch{return[]}};
@@ -148,13 +151,13 @@ const unlock=()=>{document.body.classList.remove('stop-scrolling','locked-sectio
 const lock=()=>{document.body.style.setProperty('overflow','hidden','important')};
 const revealSections=()=>{for(const s of document.querySelectorAll('.elementor-top-section,body>section')){if(s.id==='cover')continue;s.hidden=false;s.removeAttribute('aria-hidden')}};
 const reveal=el=>{if(!el)return;const mobile=matchMedia('(max-width:767px)').matches;let name=(mobile?el.getAttribute('data-native-animation-mobile'):el.getAttribute('data-native-animation'))||el.getAttribute('data-native-reveal')||'';if(name==='none')name='';el.classList.remove('elementor-invisible');el.classList.add('native-visible');if(name&&!reduce){el.classList.add('animated',name);const d=Number(el.getAttribute('data-native-animation-delay')||0);if(d>0)el.style.animationDelay=d+'ms'}};
-const run=cmd=>{const delay=Math.max(0,Number(cmd?.delay_ms)||0);setTimeout(()=>{try{if(cmd.type==='scroll-unlock')return unlock();if(cmd.type==='scroll-lock')return lock();if(cmd.type==='reveal-sections')return revealSections();if(cmd.type==='play-audio-all'){document.querySelectorAll('audio').forEach(a=>a.play?.().catch(()=>{}));return}const els=cmd.selector?qa(cmd.selector):[];if(cmd.type==='play'){els.forEach(x=>x.play?.().catch(()=>{}));return}if(cmd.type==='pause'){els.forEach(x=>x.pause?.());return}if(cmd.type==='style'){els.forEach(x=>x?.style?.setProperty(cmd.property,String(cmd.value)));return}if(cmd.type==='class-add'){els.forEach(x=>x.classList?.add(cmd.class_name));return}if(cmd.type==='class-remove'){els.forEach(x=>x.classList?.remove(cmd.class_name));return}if(cmd.type==='show'){els.forEach(x=>{x.hidden=false;x.style.removeProperty('display')});return}if(cmd.type==='hide'){setTimeout(()=>els.forEach(x=>x.style.setProperty('display','none','important')),Math.max(0,Number(cmd.duration_ms)||0));return}if(cmd.type==='animate-style'){els.forEach(x=>{const end={};for(const [k,v] of Object.entries(cmd.properties||{}))end[k]=v;const cs=getComputedStyle(x),start={};for(const k of Object.keys(end))start[k]=cs[k]||cs.getPropertyValue(k);try{x.animate([start,end],{duration:Math.max(0,Number(cmd.duration_ms)||0),fill:'forwards',easing:'linear'})}catch{for(const [k,v] of Object.entries(end))x.style.setProperty(k,v)}});return}}catch(e){console.warn('SOURCE_SAFE_CMD',cmd,e)}},delay)};
+const run=cmd=>{const delay=Math.max(0,Number(cmd?.delay_ms)||0);setTimeout(()=>{try{if(cmd.type==='scroll-unlock')return unlock();if(cmd.type==='scroll-lock')return lock();if(cmd.type==='reveal-sections')return revealSections();if(cmd.type==='play-audio-all'){document.querySelectorAll('audio').forEach(a=>a.play?.().catch(()=>{}));return}const els=cmd.selector?qa(cmd.selector):[];if(cmd.type==='play'){els.forEach(x=>x.play?.().catch(()=>{}));return}if(cmd.type==='pause'){els.forEach(x=>x.pause?.());return}if(cmd.type==='style'){els.forEach(x=>x?.style?.setProperty(cmd.property,String(cmd.value)));return}if(cmd.type==='class-add'){els.forEach(x=>x.classList?.add(cmd.class_name));return}if(cmd.type==='class-remove'){els.forEach(x=>x.classList?.remove(cmd.class_name));return}if(cmd.type==='show'){els.forEach(x=>{x.hidden=false;x.style.removeProperty('display')});return}if(cmd.type==='hide'){setTimeout(()=>els.forEach(x=>x.style.setProperty('display','none','important')),Math.max(0,Number(cmd.duration_ms)||0));return}if(cmd.type==='fade-in'){const d=Math.max(0,Number(cmd.duration_ms)||0);els.forEach(x=>{x.hidden=false;x.style.removeProperty('display');if(!d){x.style.opacity='1';return}try{x.animate([{opacity:0},{opacity:1}],{duration:d,fill:'forwards',easing:'linear'})}catch{x.style.opacity='1'}});return}if(cmd.type==='fade-out'){const d=Math.max(0,Number(cmd.duration_ms)||0);els.forEach(x=>{if(!d){x.style.opacity='0';x.style.setProperty('display','none','important');return}try{const a=x.animate([{opacity:getComputedStyle(x).opacity||1},{opacity:0}],{duration:d,fill:'forwards',easing:'linear'});a.addEventListener?.('finish',()=>x.style.setProperty('display','none','important'),{once:true})}catch{setTimeout(()=>{x.style.opacity='0';x.style.setProperty('display','none','important')},d)}});return}if(cmd.type==='animate-style'){els.forEach(x=>{const end={};for(const [k,v] of Object.entries(cmd.properties||{}))end[k]=v;const cs=getComputedStyle(x),start={};for(const k of Object.keys(end))start[k]=cs[k]||cs.getPropertyValue(k);try{x.animate([start,end],{duration:Math.max(0,Number(cmd.duration_ms)||0),fill:'forwards',easing:'linear'})}catch{for(const [k,v] of Object.entries(end))x.style.setProperty(k,v)}});return}}catch(e){console.warn('SOURCE_SAFE_CMD',cmd,e)}},delay)};
 (plan.initial||[]).forEach(run);
 let opened=false;const openSel=plan.open_selector||G?.interactions?.find?.(x=>x.type==='open-invitation')?.selector||'';let btn=q(openSel)||document.querySelector('[data-native-open],#tombolbuka,.tombolbuka');if(btn&&!btn.matches('a,button,[role=button]'))btn=btn.querySelector('a,button,[role=button]')||btn;
 const cover=document.querySelector('#cover')||btn?.closest?.('.elementor-top-section,section,[data-element_type="section"]')||null;
 const startObserver=()=>{const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){reveal(e.target);io.unobserve(e.target)}}),{threshold:.12,rootMargin:'0px 0px -6%'});document.querySelectorAll('[data-native-reveal]').forEach(el=>{if(cover?.contains(el))return;io.observe(el)})};
 if(cover)cover.querySelectorAll('[data-native-reveal]').forEach(reveal);if(btn){btn.classList.remove('elementor-invisible');btn.setAttribute('data-native-open','1');reveal(btn)}
-const open=ev=>{if(opened)return;opened=true;if(ev){ev.preventDefault();ev.stopPropagation()}(plan.on_open||[]).forEach(run);startObserver();if(cover&&!plan.on_open?.some?.(x=>x.selector==='#cover'&&(x.type==='animate-style'||x.type==='hide'))){cover.style.transition='opacity .45s ease';cover.style.opacity='0';setTimeout(()=>{cover.style.display='none';cover.setAttribute('aria-hidden','true')},450)}};
+const open=ev=>{if(opened)return;opened=true;if(ev){ev.preventDefault();ev.stopPropagation()}(plan.on_open||[]).forEach(run);startObserver();if(cover&&!plan.on_open?.some?.(x=>x.selector==='#cover'&&(x.type==='animate-style'||x.type==='hide'||x.type==='fade-out'))){cover.style.transition='opacity .45s ease';cover.style.opacity='0';setTimeout(()=>{cover.style.display='none';cover.setAttribute('aria-hidden','true')},450)}};
 if(btn){btn.addEventListener('click',open,{capture:true});btn.addEventListener('touchend',open,{passive:false,capture:true})}else{unlock();startObserver()}
 const startCountdown=()=>document.querySelectorAll('[data-date]').forEach(root=>{if(root.dataset.nativeCountdown)return;root.dataset.nativeCountdown='1';const tick=()=>{const target=Date.parse(root.getAttribute('data-date')||'');if(!Number.isFinite(target))return;let left=Math.max(0,target-Date.now());const d=Math.floor(left/86400000);left-=d*86400000;const h=Math.floor(left/3600000);left-=h*3600000;const m=Math.floor(left/60000);left-=m*60000;const s=Math.floor(left/1000);const put=(sel,v)=>{const el=root.querySelector(sel);if(el)el.textContent=String(v).padStart(2,'0')};put('[data-days]',d);put('[data-hours]',h);put('[data-minutes]',m);put('[data-seconds]',s)};tick();setInterval(tick,1000)});startCountdown();
 document.documentElement.setAttribute('data-dini-source-runtime','${VERSION}');
@@ -184,13 +187,19 @@ document.documentElement.setAttribute('data-dini-source-runtime','${VERSION}');
     patchHost(doc.head);patchHost(doc.body);
   }
 
+  function writeTruthTemplate(doc,tpl,graph){
+    const text=doc.createTextNode(JSON.stringify(graph));
+    if(tpl.content?.replaceChildren)tpl.content.replaceChildren(text);
+    else tpl.textContent=JSON.stringify(graph);
+  }
+
   VR.sanitizeRuntimeNoise=function(doc){
     const r=originalSanitize(doc);
     try{
       const graph=graphByDoc.get(doc);
       if(graph?.source_truth_version){
         let tpl=doc.querySelector('template[data-dini-source-truth]');if(!tpl){tpl=doc.createElement('template');tpl.setAttribute('data-dini-source-truth','1');doc.body.appendChild(tpl)}
-        tpl.textContent=JSON.stringify(graph);
+        writeTruthTemplate(doc,tpl,graph);
         installAppendInterceptors(doc,graph);
       }
     }catch(err){console.warn('[DINI SOURCE RUNTIME] install gagal; legacy runtime dipertahankan',err)}
