@@ -47,6 +47,44 @@ jobs:
         with:
           node-version: '24'
 
+      - name: Inspect persisted Source Truth authority
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs=require('node:fs');
+          const crypto=require('node:crypto');
+          (async()=>{
+            const f=JSON.parse(fs.readFileSync('golden-tests/template-7/fixture.json','utf8'));
+            const url=new URL('manifest.json',f.artifact_base).href;
+            const r=await fetch(url,{redirect:'follow',signal:AbortSignal.timeout(30000)});
+            if(!r.ok) throw new Error(`manifest HTTP ${r.status}`);
+            const b=Buffer.from(await r.arrayBuffer());
+            const pin=f.artifacts['manifest.json'];
+            const hash=crypto.createHash('md5').update(b).digest('hex');
+            if(b.length!==pin.bytes||hash!==pin.md5) throw new Error(`manifest pin mismatch ${b.length}/${hash}`);
+            const m=JSON.parse(b.toString('utf8'));
+            const g=m.source_graph||{};
+            const l=g.lifecycle||{};
+            const safe=l.safe_plan||{};
+            const delays=[];
+            for(const x of l.timers||[]) if(Number.isFinite(Number(x?.delay_ms))) delays.push(Number(x.delay_ms));
+            for(const x of safe.on_open||[]) if(Number.isFinite(Number(x?.delay_ms))) delays.push(Number(x.delay_ms));
+            console.log('PERSISTED_SOURCE_TRUTH='+JSON.stringify({
+              source_truth_version:g.source_truth_version||0,
+              authority:g.authority?.editor_rule||'',
+              lifecycle_keys:Object.keys(l),
+              counts:l.counts||{},
+              timers:Array.isArray(l.timers)?l.timers.length:0,
+              events:Array.isArray(l.events)?l.events.length:0,
+              actions:Array.isArray(l.actions)?l.actions.length:0,
+              safe_plan_present:Boolean(l.safe_plan),
+              safe_on_open:Array.isArray(safe.on_open)?safe.on_open.length:0,
+              delays:[...new Set(delays)].sort((a,b)=>a-b).slice(0,30),
+              runtime_policy:g.runtime_policy||null
+            }));
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
+
       - name: Install pinned Playwright runtime
         shell: bash
         run: |
