@@ -1,0 +1,53 @@
+ROAD TO FINAL — PERSONALIZATION 35-38
+
+Status: IMPLEMENTED + REGRESSION PASS
+Branch: engine/road-to-final-dini-faqih
+Tested commit: a9ba47d3757106b2e34e931e5eaf3420df62d9f8
+Workflow: Road To Final — Personalization 35-38
+Workflow run: 35129756735
+
+RESULT
+- Chromium: PASS 30/30, failed 0
+  Job: 104907534431
+  Artifact: 10459999753
+- WebKit: PASS 30/30, failed 0
+  Job: 104907534082
+  Artifact: 10460579074
+- Combined: PASS 60/60, failed 0
+
+POINT 35 — Personalization Scanner
+- Source personalization authority loaded after Source Truth Scanner.
+- Explicit/source-probed guest slot becomes personalization field guest_name.
+- Heuristic candidates remain candidates unless sufficiently authoritative; no blind global replacement.
+
+POINT 36 — Dynamic Field Binding guest_name
+- Source-native node is marked with stable guest_name binding metadata.
+- Binding records source owner/node path/selectors and textContent-only mutation policy.
+- Style/animation/node ownership remains with the template.
+
+POINT 37 — URL PERSONALIZATION ?to=Agus
+- Guest input is sanitized as plain text.
+- Runtime changes only textContent on the bound source-native node.
+- No cloneNode, createElement, force visibility, class mutation, or style mutation.
+- Regression verifies literal HTML-like guest text is not executed.
+- Existing class, inline animation/style, identity, siblings and unrelated text are preserved.
+
+POINT 38 — PUBLIC TEMPLATE PARITY
+- Public ?to= bridge targets the canonical iframe template node using Source Truth binding.
+- Guest name follows the template's existing typography/style/animation instead of a global guest overlay.
+- Regression verifies no new child UI, no cover-class mutation and no unrelated-content mutation.
+
+FILES
+- assets/js/source-personalization-v1.js
+- dashboard-admin-fetch/guest-slot-probe-v1.js
+- assets/js/guest-runtime-v1.js
+- assets/js/public-personalization-bridge-v1.js
+- dashboard-admin-fetch/index.html
+- public-entry-v18.html
+- .github/scripts/personalization-regression-v1.mjs
+- .github/workflows/road-to-final-personalization.yml
+
+IMPORTANT
+- Template 7 golden artifact was not rewritten by this implementation.
+- This checkpoint does not claim Point 34 cleanup is complete. Point 34 remains a separate cleanup/hardening task.
+- main is not to be merged/modified as part of this checkpoint unless explicitly requested.
