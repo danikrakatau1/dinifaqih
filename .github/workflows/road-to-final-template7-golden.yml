@@ -1,0 +1,92 @@
+name: Road To Final — Template 7 Golden Regression
+
+on:
+  push:
+    branches:
+      - engine/road-to-final-dini-faqih
+    paths:
+      - 'assets/js/source-runtime-compiler-v1.js'
+      - 'assets/js/source-truth-scanner-v1.js'
+      - 'assets/js/visual-resolver.js'
+      - 'dashboard-admin-fetch/visual-resolver.js'
+      - 'dashboard-admin-fetch/studio.js'
+      - 'dashboard-admin-fetch-editor/**'
+      - 'dashboard-admin-edit/**'
+      - 'golden-tests/template-7/**'
+      - 'api/golden-template-7.js'
+      - '.github/scripts/template7-golden-regression.mjs'
+      - '.github/workflows/road-to-final-template7-golden.yml'
+  pull_request:
+    branches:
+      - main
+      - engine/road-to-final-dini-faqih
+    paths:
+      - 'assets/js/source-runtime-compiler-v1.js'
+      - 'assets/js/source-truth-scanner-v1.js'
+      - 'assets/js/visual-resolver.js'
+      - 'dashboard-admin-fetch/visual-resolver.js'
+      - 'dashboard-admin-fetch/studio.js'
+      - 'dashboard-admin-fetch-editor/**'
+      - 'dashboard-admin-edit/**'
+      - 'golden-tests/template-7/**'
+      - 'api/golden-template-7.js'
+      - '.github/scripts/template7-golden-regression.mjs'
+      - '.github/workflows/road-to-final-template7-golden.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: template7-golden-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  template7-golden-regression:
+    name: Template 7 Golden Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Syntax-check Road-to-Final engine
+        run: |
+          node --check assets/js/source-runtime-compiler-v1.js
+          node --check assets/js/source-truth-scanner-v1.js
+          if [ -f dashboard-admin-fetch/visual-resolver.js ]; then
+            node --check dashboard-admin-fetch/visual-resolver.js
+          elif [ -f assets/js/visual-resolver.js ]; then
+            node --check assets/js/visual-resolver.js
+          else
+            echo 'Visual resolver not found' >&2
+            exit 1
+          fi
+          node --check .github/scripts/template7-golden-regression.mjs
+
+      - name: Run repeatable Template 7 golden regression
+        env:
+          NODE_NO_WARNINGS: '1'
+        run: node .github/scripts/template7-golden-regression.mjs
+
+      - name: Print regression summary
+        if: always()
+        run: |
+          if [ -f template7-golden-regression-report.json ]; then
+            node -e "const r=require('./template7-golden-regression-report.json'); console.log(JSON.stringify({ok:r.ok,checks_total:r.checks_total,checks_passed:r.checks_passed,checks_failed:r.checks_failed},null,2))"
+          fi
+
+      - name: Upload golden regression report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: template7-golden-regression-${{ github.sha }}
+          path: template7-golden-regression-report.json
+          if-no-files-found: error
+          retention-days: 14
