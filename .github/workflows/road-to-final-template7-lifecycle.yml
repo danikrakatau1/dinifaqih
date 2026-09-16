@@ -90,6 +90,26 @@ jobs:
           })().catch(e=>{console.error(e);process.exit(1)});
           NODE
 
+      - name: Inspect live source timer syntax
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs=require('node:fs');
+          (async()=>{
+            const f=JSON.parse(fs.readFileSync('golden-tests/template-7/fixture.json','utf8'));
+            const r=await fetch(f.source_url,{redirect:'follow',signal:AbortSignal.timeout(30000),headers:{'user-agent':'DiniFaqih-RoadToFinal-TimerProbe/1.0'}});
+            if(!r.ok) throw new Error(`source HTTP ${r.status}`);
+            const html=await r.text();
+            const probes=[];
+            const re=/setTimeout\s*\(/g;let m;
+            while((m=re.exec(html))&&probes.length<20){
+              probes.push(html.slice(Math.max(0,m.index-220),Math.min(html.length,m.index+900)).replace(/\s+/g,' '));
+            }
+            console.log('LIVE_SOURCE_TIMER_COUNT='+probes.length);
+            probes.forEach((x,i)=>console.log(`LIVE_SOURCE_TIMER_${i+1}=${x}`));
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
+
       - name: Install pinned Playwright runtime
         shell: bash
         run: |
