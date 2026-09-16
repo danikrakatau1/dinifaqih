@@ -174,7 +174,14 @@ try {
 
   const countsBefore = { plays: beforeOpen.plays, timeouts: beforeOpen.timeouts };
   await runtimePage.locator('#tombolbuka,.tombolbuka').first().click({ timeout: 15000 });
-  await runtimePage.waitForTimeout(750);
+  const coverSettleStarted = Date.now();
+  await runtimePage.waitForFunction(() => {
+    const cover = document.querySelector('#cover');
+    if (!cover) return true;
+    const s = getComputedStyle(cover);
+    return s.display === 'none' || Number(s.opacity || 1) < .2;
+  }, null, { timeout: 5000 }).catch(() => {});
+  const coverSettleMs = Date.now() - coverSettleStarted;
   const afterOpen = await runtimePage.evaluate(({ countsBefore }) => {
     const cover = document.querySelector('#cover');
     const s = cover ? getComputedStyle(cover) : null;
@@ -188,7 +195,7 @@ try {
       timeouts: (P.timeouts || []).slice(countsBefore.timeouts)
     };
   }, { countsBefore });
-  check('runtime:cover-opened', afterOpen.coverDisplay === 'none' || Number(afterOpen.coverOpacity) < .2, 'Click dismisses the cover', 'hidden/opacity<0.2', { display: afterOpen.coverDisplay, opacity: afterOpen.coverOpacity });
+  check('runtime:cover-opened', afterOpen.coverDisplay === 'none' || Number(afterOpen.coverOpacity) < .2, 'Click dismisses the cover within lifecycle timeout', 'hidden/opacity<0.2', { display: afterOpen.coverDisplay, opacity: afterOpen.coverOpacity, settle_ms: coverSettleMs });
   check('runtime:scroll-unlocked', afterOpen.bodyOverflowY !== 'hidden' && afterOpen.htmlOverflowY !== 'hidden', 'Click unlocks page scrolling', 'not hidden', { body: afterOpen.bodyOverflowY, html: afterOpen.htmlOverflowY });
   check('runtime:audio-play', afterOpen.plays.some(x => x.tag === 'AUDIO'), 'Open lifecycle calls audio playback', 'AUDIO play call', afterOpen.plays);
   check('runtime:bg-video-play', afterOpen.plays.some(x => x.tag === 'VIDEO' && /jawa-hitam-demo\.mp4/i.test(x.src)), 'Open lifecycle calls the authored background video', 'jawa-hitam-demo.mp4 VIDEO play call', afterOpen.plays);
@@ -276,7 +283,7 @@ try {
   check('control:replay-identical', replay.srcdoc === beforeReplay, 'REPLAY reloads identical snapshot string');
   check('control:replay-cover', replay.coverDisplay !== 'none' && Number(replay.coverOpacity) > .5, 'REPLAY restores cover initial state', 'visible', { display: replay.coverDisplay, opacity: replay.coverOpacity });
 
-  observations.runtime = { beforeOpen, afterOpen, scheduledDelays };
+  observations.runtime = { beforeOpen, afterOpen, scheduledDelays, coverSettleMs };
   observations.control = { paused, live, edit, replay: { ...replay, srcdoc: undefined } };
   await compilerPage.close();
   await runtimePage.close();
