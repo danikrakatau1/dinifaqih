@@ -6,22 +6,27 @@ on:
       - engine/road-to-final-dini-faqih
     paths:
       - '.github/scripts/template7-lifecycle-regression.mjs'
+      - '.github/scripts/template7-lifecycle-regression-v2.mjs'
       - '.github/workflows/road-to-final-template7-lifecycle.yml'
       - 'golden-tests/template-7/**'
       - 'assets/js/visual-resolver.js'
       - 'assets/js/source-truth-scanner-v1.js'
       - 'assets/js/source-runtime-compiler-v1.js'
+      - 'assets/js/source-runtime-authority-v1.js'
+      - 'dashboard-admin-fetch/index.html'
       - 'dashboard-admin-fetch-editor/fetch-runtime-control-v1.js'
       - 'ROAD-TO-FINAL-PHASE-4-STATUS.md'
       - 'ROAD-TO-FINAL-PHASE-4-LIFECYCLE.txt'
   pull_request:
     paths:
-      - '.github/scripts/template7-lifecycle-regression.mjs'
+      - '.github/scripts/template7-lifecycle-regression-v2.mjs'
       - '.github/workflows/road-to-final-template7-lifecycle.yml'
       - 'golden-tests/template-7/**'
       - 'assets/js/visual-resolver.js'
       - 'assets/js/source-truth-scanner-v1.js'
       - 'assets/js/source-runtime-compiler-v1.js'
+      - 'assets/js/source-runtime-authority-v1.js'
+      - 'dashboard-admin-fetch/index.html'
       - 'dashboard-admin-fetch-editor/fetch-runtime-control-v1.js'
   workflow_dispatch:
 
@@ -92,14 +97,14 @@ jobs:
           npm install --no-audit --no-fund --save-dev playwright@1.55.0
           npx playwright install --with-deps ${{ matrix.browser }}
 
-      - name: Syntax-check lifecycle runner
-        run: node --check .github/scripts/template7-lifecycle-regression.mjs
+      - name: Syntax-check lifecycle runner V2
+        run: node --check .github/scripts/template7-lifecycle-regression-v2.mjs
 
-      - name: Run behavioral lifecycle regression
+      - name: Run behavioral lifecycle regression V2
         env:
           BROWSER_ENGINE: ${{ matrix.browser }}
           NODE_NO_WARNINGS: '1'
-        run: node .github/scripts/template7-lifecycle-regression.mjs
+        run: node .github/scripts/template7-lifecycle-regression-v2.mjs
 
       - name: Print lifecycle summary
         if: always()
@@ -116,7 +121,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: template7-lifecycle-${{ matrix.browser }}-${{ github.sha }}
+          name: template7-lifecycle-v2-${{ matrix.browser }}-${{ github.sha }}
           path: lifecycle-artifacts/${{ matrix.browser }}/
           if-no-files-found: error
           retention-days: 14
