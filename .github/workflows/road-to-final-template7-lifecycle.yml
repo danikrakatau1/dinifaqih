@@ -5,7 +5,6 @@ on:
     branches:
       - engine/road-to-final-dini-faqih
     paths:
-      - '.github/scripts/template7-lifecycle-regression.mjs'
       - '.github/scripts/template7-lifecycle-regression-v2.mjs'
       - '.github/workflows/road-to-final-template7-lifecycle.yml'
       - 'golden-tests/template-7/**'
@@ -13,8 +12,14 @@ on:
       - 'assets/js/source-truth-scanner-v1.js'
       - 'assets/js/source-runtime-compiler-v1.js'
       - 'assets/js/source-runtime-authority-v1.js'
+      - 'assets/js/legacy-parity-gate-v1.js'
+      - 'assets/js/social-link-parity-v1.js'
+      - 'assets/js/media-source-parity-v1.js'
+      - 'assets/js/source-native-background-parity-v1.js'
       - 'dashboard-admin-fetch/index.html'
+      - 'dashboard-admin-fetch-editor/index.html'
       - 'dashboard-admin-fetch-editor/fetch-runtime-control-v1.js'
+      - 'dashboard-admin-edit/index.html'
       - 'ROAD-TO-FINAL-PHASE-4-STATUS.md'
       - 'ROAD-TO-FINAL-PHASE-4-LIFECYCLE.txt'
   pull_request:
@@ -26,8 +31,14 @@ on:
       - 'assets/js/source-truth-scanner-v1.js'
       - 'assets/js/source-runtime-compiler-v1.js'
       - 'assets/js/source-runtime-authority-v1.js'
+      - 'assets/js/legacy-parity-gate-v1.js'
+      - 'assets/js/social-link-parity-v1.js'
+      - 'assets/js/media-source-parity-v1.js'
+      - 'assets/js/source-native-background-parity-v1.js'
       - 'dashboard-admin-fetch/index.html'
+      - 'dashboard-admin-fetch-editor/index.html'
       - 'dashboard-admin-fetch-editor/fetch-runtime-control-v1.js'
+      - 'dashboard-admin-edit/index.html'
   workflow_dispatch:
 
 permissions:
@@ -87,26 +98,6 @@ jobs:
               delays:[...new Set(delays)].sort((a,b)=>a-b).slice(0,30),
               runtime_policy:g.runtime_policy||null
             }));
-          })().catch(e=>{console.error(e);process.exit(1)});
-          NODE
-
-      - name: Inspect live source timer syntax
-        shell: bash
-        run: |
-          node <<'NODE'
-          const fs=require('node:fs');
-          (async()=>{
-            const f=JSON.parse(fs.readFileSync('golden-tests/template-7/fixture.json','utf8'));
-            const r=await fetch(f.source_url,{redirect:'follow',signal:AbortSignal.timeout(30000),headers:{'user-agent':'DiniFaqih-RoadToFinal-TimerProbe/1.0'}});
-            if(!r.ok) throw new Error(`source HTTP ${r.status}`);
-            const html=await r.text();
-            const probes=[];
-            const re=/setTimeout\s*\(/g;let m;
-            while((m=re.exec(html))&&probes.length<20){
-              probes.push(html.slice(Math.max(0,m.index-220),Math.min(html.length,m.index+900)).replace(/\s+/g,' '));
-            }
-            console.log('LIVE_SOURCE_TIMER_COUNT='+probes.length);
-            probes.forEach((x,i)=>console.log(`LIVE_SOURCE_TIMER_${i+1}=${x}`));
           })().catch(e=>{console.error(e);process.exit(1)});
           NODE
 
