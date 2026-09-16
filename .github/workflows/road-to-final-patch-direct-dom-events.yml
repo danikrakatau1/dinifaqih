@@ -1,11 +1,11 @@
-name: Road To Final — One Shot Direct DOM Event Patch
+name: Road To Final Direct DOM Event Patch
 
 on:
   push:
     branches:
       - engine/road-to-final-dini-faqih
     paths:
-      - '.github/PATCH-DIRECT-DOM-EVENTS.trigger'
+      - .github/PATCH-DIRECT-DOM-EVENTS.trigger
   workflow_dispatch:
 
 permissions:
@@ -15,15 +15,16 @@ jobs:
   patch:
     runs-on: ubuntu-24.04
     steps:
-      - name: Checkout exact branch
+      - name: Checkout engine branch
         uses: actions/checkout@v4
         with:
           ref: engine/road-to-final-dini-faqih
           fetch-depth: 0
 
-      - name: Patch generic direct DOM addEventListener detection
-        shell: python
+      - name: Patch compiler
+        shell: bash
         run: |
+          python3 <<'PY'
           from pathlib import Path
 
           p = Path('assets/js/source-runtime-compiler-v1.js')
@@ -32,33 +33,33 @@ jobs:
           old_version = "const VERSION='1.2.0';"
           new_version = "const VERSION='1.2.1';"
           if old_version not in s:
-              raise SystemExit('Expected compiler version 1.2.0 not found')
+              raise SystemExit('expected compiler version 1.2.0 not found')
 
           old = r'''    const add=/(document|window|[\w$]+)\.addEventListener\(\s*['"]([\w:-]+)['"]\s*,\s*(?:function\s*\([^)]*\)|\([^)]*\)\s*=>|[\w$]+\s*=>)?\s*\{/g;
     while((m=add.exec(code))){const selector=m[1]==='document'?'document':m[1]==='window'?'window':selectorOf(m[1],vars);const brace=code.indexOf('{',m.index);const body=extractBraceBlock(code,brace);if(body)out.push({event:m[2],selector,body,index:m.index})}'''
 
-          new = r'''    const addTarget="(?:document\\.getElementById\\(\\s*['\\\"][^'\\\"]+['\\\"]\\s*\\)|document\\.querySelector(?:All)?\\(\\s*['\\\"][^'\\\"]+['\\\"]\\s*\\)|document|window|[\\w$]+)";
-    const add=new RegExp('('+addTarget+')\\\\.addEventListener\\\\(\\\\s*[\\\'\\\"]([\\\\w:-]+)[\\\'\\\"]\\\\s*,\\\\s*(?:function\\\\s*\\\\([^)]*\\\\)|\\\\([^)]*\\\\)\\\\s*=>|[\\\\w$]+\\\\s*=>)?\\\\s*\\\\{','g');
+          new = r'''    const add=/(document\.getElementById\(\s*['"][^'"]+['"]\s*\)|document\.querySelector(?:All)?\(\s*['"][^'"]+['"]\s*\)|document|window|[\w$]+)\.addEventListener\(\s*['"]([\w:-]+)['"]\s*,\s*(?:function\s*\([^)]*\)|\([^)]*\)\s*=>|[\w$]+\s*=>)?\s*\{/g;
     while((m=add.exec(code))){const target=m[1];const selector=target==='document'?'document':target==='window'?'window':selectorOf(target,vars);const brace=code.indexOf('{',m.index);const body=extractBraceBlock(code,brace);if(body)out.push({event:m[2],selector,body,index:m.index})}'''
 
-          if s.count(old) != 1:
-              raise SystemExit(f'Expected exactly one addEventListener detector, found {s.count(old)}')
+          count = s.count(old)
+          if count != 1:
+              raise SystemExit(f'expected one detector block, found {count}')
 
-          s = s.replace(old_version, new_version, 1).replace(old, new, 1)
+          s = s.replace(old_version, new_version, 1)
+          s = s.replace(old, new, 1)
           p.write_text(s, encoding='utf-8')
+          PY
 
-      - name: Syntax check compiler
-        run: node --check assets/js/source-runtime-compiler-v1.js
+          node --check assets/js/source-runtime-compiler-v1.js
+          grep -F "const VERSION='1.2.1';" assets/js/source-runtime-compiler-v1.js
+          grep -F 'document\\.querySelector(?:All)?' assets/js/source-runtime-compiler-v1.js
 
-      - name: Commit patch
+      - name: Commit compiler patch
         shell: bash
         run: |
-          if git diff --quiet -- assets/js/source-runtime-compiler-v1.js; then
-            echo 'No compiler change produced' >&2
-            exit 1
-          fi
-          git config user.name 'road-to-final-bot'
-          git config user.email 'road-to-final-bot@users.noreply.github.com'
+          test -n "$(git status --porcelain -- assets/js/source-runtime-compiler-v1.js)"
+          git config user.name road-to-final-bot
+          git config user.email road-to-final-bot@users.noreply.github.com
           git add assets/js/source-runtime-compiler-v1.js
           git commit -m 'fix(runtime): detect direct DOM addEventListener targets'
           git push origin HEAD:engine/road-to-final-dini-faqih
