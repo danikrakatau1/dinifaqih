@@ -147,9 +147,53 @@ Batas verifikasi poin 30:
 - Eksekusi browser berulang/otomatis, visual-device comparison, dan lifecycle behavioral regression menjadi gate poin 31–33.
 - Tidak ada patch template-specific baru yang ditambahkan untuk membuat Template 7 lulus.
 
+### 31. Template 7 Repeatable Regression Fixture — IMPLEMENTED · CI PASS
+
+Implementasi:
+
+- `.github/scripts/template7-golden-regression.mjs`
+- `.github/workflows/road-to-final-template7-golden.yml`
+- memakai `golden-tests/template-7/fixture.json` sebagai single regression contract
+- tanpa secret; read-only terhadap source publik dan artifact Template 7
+- otomatis berjalan pada perubahan engine / Fetch / editor / golden fixture yang relevan di branch Road-to-Final
+- tersedia untuk pull request; workflow dispatch disiapkan pada workflow definition
+- regression report JSON selalu di-upload sebagai GitHub Actions artifact
+
+Repeatable gate memeriksa:
+
+- pinned Template 7 UUID/source identity
+- artifact bytes + MD5 untuk 7 golden artifacts
+- exact `index.html === source-native.html`
+- baseline hash + Fetch handoff
+- opening selector + opening video ownership
+- enam slideshow timing/transition/Ken Burns contract
+- critical external CSS ownership
+- live ART JAWA HITAM source markers + Elementor post CSS markers
+- Source Truth scanner capabilities tetap tersedia
+- runtime policy tetap source-delay-authoritative / no synthetic stagger / no arbitrary source JS / source-transform-authoritative / editor-pause-non-destructive
+- generic engine tidak mengandung Template 7 / ART JAWA HITAM hardcode
+- source ownership + CSS cascade tetap authoritative/preserved
+
+GitHub Actions verification:
+
+- workflow: `Road To Final — Template 7 Golden Regression`
+- workflow path: `.github/workflows/road-to-final-template7-golden.yml`
+- run ID: `35115148485`
+- job ID: `104858560745`
+- commit tested: `80d8b33538515d798d79b341703e3e07cfe0bf03`
+- result: **PASS**
+- checks: **58 / 58 PASS**
+- failed: **0**
+- syntax gate: PASS
+- regression runner: PASS
+- regression summary: PASS
+- artifact upload: PASS
+- report artifact ID: `10455150854`
+
+Catatan: workflow legacy `fix-fetch-editor-blank-v147.yml` adalah gate lama terpisah dan tidak dipakai sebagai verdict poin 31. Poin 31 dinilai dari Golden Regression workflow khusus di atas.
+
 ## NEXT
 
-31. Jadikan Template 7 regression fixture otomatis / repeatable.
 32. Test desktop + Android + iPhone.
 33. Lifecycle regression test, bukan screenshot saja.
 34. Hapus patch lama yang redundant hanya setelah engine baru PASS.
