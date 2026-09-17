@@ -98,6 +98,7 @@ try{
   browser=await browserType.launch({headless:true});const context=await browser.newContext({viewport:{width:450,height:900}});
   await genericResponsiveContract(context);
   await editorBridgeContract(context);
+  await inspectInvite(context,`${base}/`,'homepage');
   await inspectInvite(context,`${base}/public-entry-v18.html`,'public');
   await inspectInvite(context,`${base}/guest-entry-v18.html?guest_slug=rozak-2`,'guest','rozak');
   const failed=results.filter(x=>!x.ok);console.log(JSON.stringify({browser:engine,checks_total:results.length,checks_passed:results.length-failed.length,checks_failed:failed.length,ok:failed.length===0,results},null,2));if(failed.length)process.exitCode=1;
