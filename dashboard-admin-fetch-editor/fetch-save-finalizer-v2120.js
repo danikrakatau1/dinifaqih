@@ -8,7 +8,7 @@
   const btn=document.getElementById('saveDraftBtn');
   if(!E||!btn)return;
 
-  const VERSION='2.1.2';
+  const VERSION='2.1.2-p0c.1';
   const BUCKET='template-packages';
   const SB_URL='https://jfvmcerrsxjvbiogfqes.supabase.co';
   const SB_KEY='sb_publishable_3IqSDxkpxCGiDpxAEwdsXQ_AsJpsC4W';
@@ -94,7 +94,7 @@
     const doc=new DOMParser().parseFromString(String(html||''),'text/html');
     const before=existingGuestContract(manifest);
     const beforeCount=Array.isArray(before?.fields)?before.fields.length:0;
-    const contract=GuestCore.scanDocument(doc,before,{mark:true});
+    const contract=GuestCore.scanDocument(doc,before,{mark:true,allowSemanticSynthesis:true});
     const afterCount=Array.isArray(contract?.fields)?contract.fields.length:0;
     const htmlOut='<!doctype html>\n'+doc.documentElement.outerHTML;
     return {html:htmlOut,contract,backfilled:afterCount>beforeCount,before_count:beforeCount,after_count:afterCount};
