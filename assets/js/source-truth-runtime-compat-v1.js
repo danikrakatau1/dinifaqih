@@ -3,7 +3,7 @@
   if(window.__DINI_SOURCE_TRUTH_RUNTIME_COMPAT_V1__)return;
   window.__DINI_SOURCE_TRUTH_RUNTIME_COMPAT_V1__=true;
 
-  const VERSION='1.1.0';
+  const VERSION='1.1.1';
   const MOBILE_MAX=767;
   const boundDocs=new WeakMap();
   const boundFrames=new WeakSet();
@@ -70,6 +70,8 @@
 
   function generalIconRole(icon){
     const sig=lower(`${icon?.className||''} ${icon?.getAttribute?.('aria-label')||''} ${icon?.getAttribute?.('title')||''}`);
+    if(/instagram/.test(sig))return'instagram';
+    if(/whatsapp/.test(sig))return'whatsapp';
     if(/(?:fa-|eicon-)?copy\b|clipboard/.test(sig))return'copy';
     if(/(?:fa-|eicon-)?heart\b/.test(sig))return'heart';
     if(/(?:fa-|eicon-)?gift\b|gift-box|giftbox/.test(sig))return'gift';
@@ -90,6 +92,8 @@
 
   function generalIconSvg(role){
     const common=`data-dini-source-truth-general-svg="${role}" viewBox="0 0 24 24" aria-hidden="true" focusable="false"`;
+    if(role==='instagram')return `<svg ${common}><rect x="3" y="3" width="18" height="18" rx="5"></rect><circle cx="12" cy="12" r="4"></circle><circle cx="17.4" cy="6.6" r="1" class="dini-general-dot"></circle></svg>`;
+    if(role==='whatsapp')return `<svg ${common}><path d="M20.5 3.5A10 10 0 0 0 4.8 15.7L3.5 20.5l4.9-1.3A10 10 0 1 0 20.5 3.5Z"></path><path d="M8.3 7.8c.2-.5.4-.5.7-.5h.6c.2 0 .4.1.5.4l.8 1.8c.1.3.1.5-.1.7l-.6.7c-.2.2-.2.4-.1.6.6 1.1 1.5 2 2.6 2.6.2.1.4.1.6-.1l.8-1c.2-.2.4-.3.7-.2l1.8.8c.3.1.4.3.4.5v.6c0 .3-.1.6-.4.8-.5.5-1.4.9-2.3.8-1.4-.1-3.2-.7-5-2.3-1.6-1.5-2.6-3.4-2.8-4.9-.1-.7.1-1.7.6-2.3Z"></path></svg>`;
     if(role==='copy')return `<svg ${common}><rect x="9" y="9" width="10" height="10" rx="1.5"></rect><path d="M15 9V6.5A1.5 1.5 0 0 0 13.5 5h-8A1.5 1.5 0 0 0 4 6.5v8A1.5 1.5 0 0 0 5.5 16H9"></path></svg>`;
     if(role==='heart')return `<svg ${common} class="dini-general-fill"><path d="M12 21s-7.2-4.5-9.4-8.6C.6 8.8 2.5 5 6.4 5c2.1 0 3.7 1.2 4.6 2.5C11.9 6.2 13.5 5 15.6 5c3.9 0 5.8 3.8 3.8 7.4C17.2 16.5 12 21 12 21Z"></path></svg>`;
     if(role==='gift')return `<svg ${common} class="dini-general-fill"><path d="M20 7h-2.2c.4-.6.7-1.3.7-2 0-1.7-1.3-3-3-3-1.7 0-2.8 1.3-3.5 2.6C11.3 3.3 10.2 2 8.5 2c-1.7 0-3 1.3-3 3 0 .7.3 1.4.7 2H4c-1.1 0-2 .9-2 2v3h1v8c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-8h1V9c0-1.1-.9-2-2-2Zm-4.5-3c.6 0 1 .4 1 1 0 1.1-1.6 1.8-3.1 2 .5-1.5 1.1-3 2.1-3Zm-7 0c1 0 1.6 1.5 2.1 3-1.5-.2-3.1-.9-3.1-2 0-.6.4-1 1-1ZM4 9h7v3H4V9Zm1 5h6v6H5v-6Zm14 6h-6v-6h6v6Zm1-8h-7V9h7v3Z"></path></svg>`;
@@ -123,6 +127,7 @@
 [data-dini-source-truth-general-icon="${VERSION}"]::before{content:none!important;display:none!important}
 [data-dini-source-truth-general-icon="${VERSION}"]>[data-dini-source-truth-general-svg]{width:1em!important;height:1em!important;display:inline-block!important;vertical-align:-.125em;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
 [data-dini-source-truth-general-icon="${VERSION}"]>[data-dini-source-truth-general-svg].dini-general-fill{fill:currentColor!important;stroke:none!important}
+[data-dini-source-truth-general-icon="${VERSION}"]>[data-dini-source-truth-general-svg] .dini-general-dot{fill:currentColor;stroke:none}
 `;
   }
 
