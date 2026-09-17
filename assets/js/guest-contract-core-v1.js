@@ -2,7 +2,7 @@
   'use strict';
   if(g.DINI_GUEST_CONTRACT_CORE_V1?.version)return;
 
-  const VERSION='1.0.0';
+  const VERSION='1.1.0';
   const CONTRACT_VERSION=1;
   const clean=s=>String(s??'').replace(/\s+/g,' ').trim();
   const norm=s=>clean(s).toLowerCase();
@@ -49,6 +49,9 @@
     clean(node?.textContent||node?.getAttribute?.('placeholder')||'').slice(0,120)
   ].join('|');
   const fieldIdFor=(owner,node,role)=>'guest-'+role+'-'+hash(slotSignature(owner,node,role));
+  const SALUTATION_RE=/(?:kepada\s+(?:yth\.?|bapak\s*\/?\s*ibu\s*\/?\s*saudara(?:\s*\/?\s*i)?|bapak\/ibu\/saudara\/i)|kpd\.?\s*yth\.?|dear\s+guest)/i;
+  const PLACE_RE=/(?:di\s+tempat|at\s+place)/i;
+  const GUEST_PLACEHOLDER_RE=/(?:nama\s+tamu|guest\s*name|nama\s+guest|nama\s+undangan|__DINI_GUEST_PROBE__)/i;
 
   function markNode(node,role,id,targetKind){
     if(!node)return;
@@ -106,19 +109,40 @@
     });
     return out;
   }
-  function coverCandidates(doc){
-    const out=[];const roots=[...doc.querySelectorAll('#cover,.elementor-top-section,section,.elementor-section')];
+  function synthesizeCoverSlot(salutation){
+    if(!salutation?.parentElement)return null;
+    const existing=salutation.parentElement.querySelector?.('[data-dini-guest-synthetic="semantic-cover-slot"]');
+    if(existing)return existing;
+    const node=salutation.cloneNode(false);
+    node.removeAttribute('id');
+    for(const at of [...node.attributes]){
+      if(/^data-(?:id|element|settings|widget|dini|native)/i.test(at.name))node.removeAttribute(at.name);
+    }
+    node.textContent='Nama Tamu';
+    node.setAttribute('data-dini-guest-synthetic','semantic-cover-slot');
+    node.setAttribute('data-dini-guest-source','strong-cover-structure');
+    salutation.insertAdjacentElement('afterend',node);
+    return node;
+  }
+  function coverCandidates(doc,{allowSemanticSynthesis=false}={}){
+    const out=[];
+    const explicitCover=doc.querySelector('#cover');
+    const roots=explicitCover?[explicitCover]:[...doc.querySelectorAll('.elementor-top-section,section,.elementor-section')];
+    const rootSeen=new Set();
     for(const root of roots){
-      const ctx=norm(root.textContent);
-      if(!/kepada\s+yth|kpd\.?\s*yth|dear\s+guest/.test(ctx))continue;
-      if(!/di\s+tempat|at\s+place|guest/.test(ctx))continue;
+      if(rootSeen.has(root))continue;rootSeen.add(root);
+      const ctx=clean(root.textContent);
+      if(!SALUTATION_RE.test(ctx)||!PLACE_RE.test(ctx))continue;
       const leaves=[...root.querySelectorAll('h1,h2,h3,h4,h5,h6,p,span,strong,b,label,div')].filter(isLeafText);
-      const sal=leaves.findIndex(n=>/kepada\s+yth|kpd\.?\s*yth|dear\s+guest/i.test(clean(n.textContent)));
-      const place=leaves.findIndex((n,i)=>i>sal&&/di\s+tempat/i.test(clean(n.textContent)));
-      const between=leaves.filter((n,i)=>i>sal&&(place<0||i<place));
-      let node=between.find(n=>/nama\s+tamu|guest\s*name|__DINI_GUEST_PROBE__/i.test(clean(n.textContent)));
-      if(!node)node=between.find(n=>{const t=clean(n.textContent);return t.length>=2&&t.length<=120&&!/kepada|yth|di tempat|buka undangan|open invitation/i.test(t)});
-      if(node)out.push(node);
+      const sal=leaves.findIndex(n=>SALUTATION_RE.test(clean(n.textContent)));
+      if(sal<0)continue;
+      const place=leaves.findIndex((n,i)=>i>sal&&PLACE_RE.test(clean(n.textContent)));
+      if(place<0)continue;
+      const between=leaves.filter((n,i)=>i>sal&&i<place);
+      let node=between.find(n=>GUEST_PLACEHOLDER_RE.test(clean(n.textContent))||n.matches?.('[data-dini-bind="guest_name"],[data-dini-guest-name],[data-native-guest-name]'));
+      if(!node)node=between.find(n=>{const t=clean(n.textContent);return t.length>=2&&t.length<=120&&!SALUTATION_RE.test(t)&&!PLACE_RE.test(t)&&!/buka undangan|open invitation/i.test(t)});
+      if(!node&&allowSemanticSynthesis)node=synthesizeCoverSlot(leaves[sal]);
+      if(node&&!out.includes(node))out.push(node);
     }
     return out;
   }
@@ -134,6 +158,7 @@
   function makeField(node,role,{source='semantic-scan',confidence=1,mark=true}={}){
     const owner=ownerFor(node),targetKind=isInput(node)?'value':'text',id=fieldIdFor(owner,node,role);
     if(mark)markNode(node,role,id,targetKind);
+    const synthetic=node.getAttribute?.('data-dini-guest-synthetic')==='semantic-cover-slot';
     return {
       id,
       type:'guest_name',
@@ -146,16 +171,18 @@
       element_id:elementId(owner),
       node_path:pathWithinOwner(owner,node),
       fallback_text:isInput(node)?String(node.value||node.getAttribute('value')||node.getAttribute('placeholder')||''):clean(node.textContent),
-      source,
-      confidence,
+      source:synthetic?'cover-semantic-synthesis':source,
+      confidence:synthetic?1:confidence,
       url_parameter:'to',
       sanitize:'text-only',
       preserve_style:true,
       preserve_animation:true,
       mutation_policy:targetKind==='value'?'value-prefill':'textContent-only',
       preserve_readonly:node.hasAttribute?.('readonly')||false,
-      clone_node:false,
-      create_node:false,
+      semantic_synthesis:synthetic,
+      synthesis_kind:synthetic?'strong-cover-structure':'',
+      clone_node:synthetic,
+      create_node:synthetic,
       force_visibility:false,
       strip_identity:false
     };
@@ -164,6 +191,7 @@
   function scanDocument(doc,baseContract={},opts={}){
     if(!doc?.querySelectorAll)return baseContract||{};
     const mark=opts.mark!==false;
+    const allowSemanticSynthesis=opts.allowSemanticSynthesis===true;
     const fields=[];const seen=new Set();
     const add=(node,role,meta={})=>{
       if(!node)return;
@@ -177,7 +205,7 @@
       add(node,role,{source:'explicit-marker',confidence:1});
     }
     for(const node of exactPlaceholderNodes(doc))add(node,node.closest?.('#cover')?'cover':'generic',{source:'exact-placeholder',confidence:1});
-    for(const node of coverCandidates(doc))add(node,'cover',{source:'cover-structure',confidence:.99});
+    for(const node of coverCandidates(doc,{allowSemanticSynthesis}))add(node,'cover',{source:'cover-structure',confidence:.99});
     for(const {node,role} of formCandidates(doc))add(node,role,{source:'form-semantic',confidence:.99});
 
     const existing=Array.isArray(baseContract?.fields)?baseContract.fields:[];
@@ -190,7 +218,7 @@
     const roles=uniq(merged.map(f=>f?.role||'generic'));
     return {
       ...(baseContract||{}),
-      version:3,
+      version:4,
       contract_version:CONTRACT_VERSION,
       engine:`guest-contract-core-v${VERSION}`,
       binding:'guest_name',
@@ -213,6 +241,8 @@
         node_owner:'template',
         allow_clone:false,
         allow_create:false,
+        allow_semantic_cover_synthesis:true,
+        semantic_synthesis_rule:'strong-salutation-plus-di-tempat-only',
         allow_force_visibility:false,
         allow_style_mutation:false,
         allow_class_mutation:false
@@ -234,6 +264,6 @@
     return out;
   }
 
-  g.DINI_GUEST_CONTRACT_CORE_V1={VERSION,contract_version:CONTRACT_VERSION,scanDocument,resolveFieldNodes,markNode,roleForInput,selectorFor};
-  console.info('[DINI GUEST CONTRACT] V'+VERSION+' aktif — global multi-slot guest_name contract.');
+  g.DINI_GUEST_CONTRACT_CORE_V1={VERSION,contract_version:CONTRACT_VERSION,scanDocument,resolveFieldNodes,markNode,roleForInput,selectorFor,coverCandidates};
+  console.info('[DINI GUEST CONTRACT] V'+VERSION+' aktif — global multi-slot + proven cover semantic slot.');
 })(window);
