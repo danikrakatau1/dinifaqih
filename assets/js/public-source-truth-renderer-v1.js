@@ -3,7 +3,7 @@
   if(window.__DINI_PUBLIC_SOURCE_TRUTH_RENDERER_V1__)return;
   window.__DINI_PUBLIC_SOURCE_TRUTH_RENDERER_V1__=true;
 
-  const VERSION='1.0.2';
+  const VERSION='1.0.3';
   const CFG=window.DINI_PUBLIC_ENTRY||{};
   const MODE=CFG.mode==='guest'?'guest':'public';
   const SB='https://jfvmcerrsxjvbiogfqes.supabase.co';
@@ -60,6 +60,7 @@
     return /<\/body>/i.test(html)?html.replace(/<\/body>/i,block+'</body>'):html+block;
   };
   const safeJson=value=>JSON.stringify(value??{}).replace(/</g,'\\u003c').replace(/-->/g,'--\\>');
+  const localAsset=path=>new URL(path,location.origin).href.replace(/"/g,'&quot;');
 
   async function getActiveTemplate(){
     const q='id,name,slug,source_path,updated_at,manifest_json';
@@ -131,7 +132,7 @@
     }
     if(guest){
       blocks.push('<script type="application/json" id="diniGuestRuntimeData">'+safeJson(guest)+'</script>');
-      blocks.push('<script src="/assets/js/guest-runtime-v1.js?v=200"></script>');
+      blocks.push('<script src="'+localAsset('/assets/js/guest-runtime-v1.js?v=201')+'"></script>');
     }
     return appendRuntime(html,blocks);
   }
