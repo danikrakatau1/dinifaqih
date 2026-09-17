@@ -3,7 +3,7 @@
   if(window.__DINI_UNIVERSAL_GUEST_RUNTIME_V20__)return;
   window.__DINI_UNIVERSAL_GUEST_RUNTIME_V20__=true;
 
-  const VERSION='2.0.1';
+  const VERSION='2.0.2';
   const cfgEl=document.getElementById('diniGuestRuntimeData');
   let cfg={};try{cfg=cfgEl?JSON.parse(cfgEl.textContent||'{}'):{} }catch{}
   const qs=new URLSearchParams(location.search||'');
@@ -17,6 +17,7 @@
   if(slug)document.documentElement.dataset.guestSlug=slug;
 
   const clean=s=>String(s||'').replace(/\s+/g,' ').trim();
+  const norm=s=>clean(s).toLowerCase();
   const esc=v=>window.CSS?.escape?CSS.escape(String(v||'')):String(v||'').replace(/[^a-zA-Z0-9_-]/g,'\\$&');
   const sourceTruth=()=>{
     const tpl=document.querySelector('template[data-dini-source-truth]');
@@ -69,6 +70,16 @@
     if(out.length)return out;
 
     ['#guestName','.guest-name','.guest_name','.nama-tamu','.nama_tamu'].forEach(sel=>queryAll(sel).forEach(add));
+    if(out.length)return out;
+
+    // Exact source-truth snapshots may preserve the source placeholder without a
+    // personalization selector. Only bind an exact leaf placeholder so unrelated
+    // text is never rewritten.
+    queryAll('h1,h2,h3,h4,h5,h6,p,span,strong,b,label,div').forEach(node=>{
+      if(norm(node.textContent)!=='nama tamu')return;
+      const childOwnsPlaceholder=[...(node.children||[])].some(child=>norm(child.textContent)==='nama tamu');
+      if(!childOwnsPlaceholder)add(node);
+    });
     return out;
   }
 
@@ -78,6 +89,8 @@
       matched++;
       if(clean(node.textContent)===name)continue;
       node.textContent=name;
+      node.setAttribute?.('data-dini-guest-name','1');
+      node.setAttribute?.('data-dini-guest-slug',slug);
       changed++;
     }
     document.documentElement.dataset.guestBoundMatches=String(matched);
