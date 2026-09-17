@@ -3,7 +3,7 @@
   if(window.__DINI_PUBLIC_SOURCE_TRUTH_RENDERER_V1__)return;
   window.__DINI_PUBLIC_SOURCE_TRUTH_RENDERER_V1__=true;
 
-  const VERSION='1.0.1';
+  const VERSION='1.0.2';
   const CFG=window.DINI_PUBLIC_ENTRY||{};
   const MODE=CFG.mode==='guest'?'guest':'public';
   const SB='https://jfvmcerrsxjvbiogfqes.supabase.co';
@@ -36,17 +36,22 @@
     try{
       const doc=new DOMParser().parseFromString(String(html||''),'text/html');
       const authored=String(doc.querySelector('base')?.getAttribute('href')||'').trim();
-      if(authored)return new URL(authored,manifest.asset_base||manifest.source_url||fallback||location.href).href;
+      if(authored)return new URL(authored,manifest.source_url||manifest.asset_base||fallback||location.href).href;
     }catch{}
-    for(const raw of [manifest.asset_base,manifest.source_url,fallback]){
+    for(const raw of [manifest.source_url,manifest.asset_base,fallback]){
       const d=dirname(raw);if(d)return d;
     }
     return location.origin+'/';
   };
   const ensureBase=(html,manifest,sourcePath)=>{
     const raw=String(html||'');
-    if(/<base\b/i.test(raw))return raw;
     const href=embeddedBase(raw,manifest,sourcePath).replace(/"/g,'&quot;');
+    if(/<base\b[^>]*\bhref\s*=\s*(["'])[^"']*\1/i.test(raw)){
+      return raw.replace(/(<base\b[^>]*\bhref\s*=\s*)(["'])[^"']*\2/i,'$1"'+href+'"');
+    }
+    if(/<base\b/i.test(raw)){
+      return raw.replace(/<base\b[^>]*>/i,'<base data-dini-template-base="source-truth" href="'+href+'">');
+    }
     return /<head(\s[^>]*)?>/i.test(raw)?raw.replace(/<head(\s[^>]*)?>/i,m=>m+'<base data-dini-template-base="source-truth" href="'+href+'">'):raw;
   };
   const appendRuntime=(html,blocks)=>{
