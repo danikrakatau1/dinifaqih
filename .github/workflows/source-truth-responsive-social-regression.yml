@@ -4,7 +4,9 @@ on:
   push:
     branches:
       - fix/source-truth-responsive-social-runtime
+      - fix/homepage-social-runtime-v2
     paths:
+      - 'index.html'
       - 'assets/js/source-truth-runtime-compat-v1.js'
       - 'assets/js/public-source-truth-renderer-v1.js'
       - 'assets/js/social-link-parity-v1.js'
