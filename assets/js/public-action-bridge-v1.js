@@ -13,6 +13,11 @@
 
   const text = (value) => String(value ?? '').trim();
   const norm = (value) => text(value).toLowerCase().replace(/\s+/g, ' ');
+  const SUPABASE_URL = 'https://jfvmcerrsxjvbiogfqes.supabase.co';
+  const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_3IqSDxkpxCGiDpxAEwdsXQ_AsJpsC4W';
+  const GIFT_PROOF_BUCKET = 'gift-proofs';
+  const GIFT_PROOF_MAX_BYTES = 5 * 1024 * 1024;
+  const GIFT_PROOF_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'application/pdf']);
 
   function mergeContext(base = {}, next = {}) {
     return {
@@ -121,7 +126,75 @@
     }, 1800);
   }
 
+  function isVisibleNode(node) {
+    if (!node?.isConnected || node.hidden || node.getAttribute?.('aria-hidden') === 'true') return false;
+    try {
+      const view = node.ownerDocument?.defaultView;
+      const style = view?.getComputedStyle?.(node);
+      if (style && (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0)) return false;
+    } catch (_) {}
+    return true;
+  }
+
+  function isAddressCopyButton(button) {
+    if (!button) return false;
+    const own = norm(`${button.getAttribute?.('aria-label') || ''} ${button.getAttribute?.('title') || ''} ${button.textContent || ''} ${button.id || ''} ${button.className || ''} ${button.getAttribute?.('data-action') || ''} ${button.getAttribute?.('data-copy-kind') || ''}`);
+    if (/(alamat|address)/.test(own)) return true;
+    if (!/(salin|copy)/.test(own)) return false;
+    const host = button.closest?.('section,article,.card,.elementor-section,.elementor-element');
+    return /(alamat|address)/.test(norm(host?.textContent || '').slice(0, 900));
+  }
+
+  function candidateVisibleAddress(button) {
+    const addressCue = /\b(jl\.?|jalan|jln\.?|gang|gg\.?|dusun|dukuh|desa|kelurahan|kecamatan|kabupaten|kota|rt\.?\s*\d|rw\.?\s*\d|no\.?\s*\d)\b/i;
+    const reject = /^(alamat|address|salin alamat|copy alamat|salin|copy|google maps?|lihat maps?|buka maps?|lokasi)$/i;
+    const roots = [];
+    let node = button?.parentElement || null;
+    for (let depth = 0; node && depth < 8; depth += 1, node = node.parentElement) roots.push({ node, depth });
+
+    const seen = new Set();
+    const candidates = [];
+    let buttonRect = null;
+    try { buttonRect = button.getBoundingClientRect?.() || null; } catch (_) {}
+
+    for (const { node: root, depth } of roots) {
+      const nodes = Array.from(root.querySelectorAll?.('[data-address],[data-alamat],address,.alamat,.address,[class*="alamat" i],[class*="address" i],p,span,strong,b,small,div') || []);
+      for (const el of nodes) {
+        if (seen.has(el) || el === button || el.contains?.(button) || !isVisibleNode(el)) continue;
+        seen.add(el);
+
+        const value = text(el.getAttribute?.('data-address') || el.getAttribute?.('data-alamat') || el.getAttribute?.('data-copy-value') || el.value || el.textContent);
+        if (!value || value.length < 8 || value.length > 320 || reject.test(value) || /\b(salin|copy)\s+(rekening|nomor)/i.test(value)) continue;
+        if (/^\d[\d\s.\-]{5,}$/.test(value)) continue;
+
+        const marked = el.matches?.('[data-address],[data-alamat],address,.alamat,.address,[class*="alamat" i],[class*="address" i]');
+        const cue = addressCue.test(value);
+        const childOwnsText = Array.from(el.children || []).some((child) => text(child.textContent) === value);
+        if (!marked && !cue && childOwnsText) continue;
+
+        let score = (marked ? 180 : 0) + (cue ? 220 : 0) + Math.min(value.length, 120) / 6 - depth * 12;
+        try {
+          const rect = el.getBoundingClientRect?.();
+          if (rect && buttonRect) {
+            const vertical = Math.abs((buttonRect.top + buttonRect.bottom) / 2 - (rect.top + rect.bottom) / 2);
+            score += Math.max(0, 120 - vertical / 3);
+            if (rect.bottom <= buttonRect.top + 24) score += 35;
+          }
+        } catch (_) {}
+        candidates.push({ value, score });
+      }
+    }
+
+    candidates.sort((a, b) => b.score - a.score);
+    return candidates[0]?.value || '';
+  }
+
   function candidateCopyValue(button) {
+    if (isAddressCopyButton(button)) {
+      const visibleAddress = candidateVisibleAddress(button);
+      if (visibleAddress) return visibleAddress;
+    }
+
     const explicit = text(button.dataset.copy || button.dataset.clipboardText || button.getAttribute('data-value'));
     if (explicit) return explicit;
 
@@ -135,7 +208,7 @@
     }
 
     const lines = Array.from(card.querySelectorAll('input,textarea,p,span,strong,b,small,div'))
-      .map((node) => text(node.value || node.textContent))
+      .map((item) => text(item.value || item.textContent))
       .filter((v) => v && v !== text(button.textContent) && v.length < 240);
 
     const account = lines.find((v) => /\b\d[\d\s.-]{5,}\d\b/.test(v));
@@ -174,6 +247,43 @@
       out[key] = el.value;
     });
     return out;
+  }
+
+  function selectedGiftProof(form) {
+    const inputs = Array.from(form?.querySelectorAll?.('input[type="file"]') || []);
+    return inputs.map((input) => input.files?.[0]).find(Boolean) || null;
+  }
+
+  function safeProofFilename(raw) {
+    const value = text(raw || 'proof').normalize('NFKD').replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(-100);
+    return value || 'proof';
+  }
+
+  async function uploadGiftProof(file, invitationId) {
+    if (!file) return '';
+    if (!GIFT_PROOF_TYPES.has(String(file.type || '').toLowerCase())) throw new Error('proof_type_not_allowed');
+    if (Number(file.size || 0) <= 0) throw new Error('proof_file_empty');
+    if (Number(file.size || 0) > GIFT_PROOF_MAX_BYTES) throw new Error('proof_file_too_large');
+
+    const random = (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`).replace(/[^a-zA-Z0-9-]/g, '');
+    const objectPath = `${invitationId}/${Date.now()}-${random}-${safeProofFilename(file.name)}`;
+    const encodedPath = objectPath.split('/').map((part) => encodeURIComponent(part)).join('/');
+    const res = await fetch(`${SUPABASE_URL}/storage/v1/object/${GIFT_PROOF_BUCKET}/${encodedPath}`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+        Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+        'Content-Type': file.type,
+        'x-upsert': 'false',
+      },
+      body: file,
+    });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => '');
+      console.error('[public-action-bridge] gift proof upload failed', res.status, detail);
+      throw new Error(`proof_upload_http_${res.status}`);
+    }
+    return objectPath;
   }
 
   async function postJSON(url, payload) {
@@ -262,7 +372,9 @@
     const bankName = values.bank_name || values.bankName || values.bank || values.rekening || values['form_fields[nama_bank]'] || values['form_fields[namabank]'] || giftValue('namabank', 'bankname', 'bank');
     const amount = values.amount || values.nominal || values.jumlah || values['form_fields[nominal]'] || giftValue('nominal', 'amount');
     const note = values.note || values.message || values.ucapan || values['form_fields[ucapan]'] || giftValue('ucapan', 'note', 'message');
-    const proofPath = values.proof_path || values.proofPath || values.proof_url || values.proofUrl || '';
+    const selectedProof = selectedGiftProof(form);
+    const uploadedProofPath = selectedProof ? await uploadGiftProof(selectedProof, invitationId) : '';
+    const proofPath = uploadedProofPath || values.proof_path || values.proofPath || values.proof_url || values.proofUrl || '';
     return postJSON('/api/gift-confirmation', {
       invitation_id: invitationId,
       guest_name: guestName,
