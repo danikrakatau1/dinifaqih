@@ -746,12 +746,12 @@ document.querySelectorAll('[data-native-reveal]').forEach(el=>io.observe(el));
     lastCoverDecorAudit={version:'2.26',embedded:false,preserved:!!lastCriticalCssAudit?.preserved,bytes:lastCriticalCssAudit?.bytes||0,stylesheets:lastCriticalCssAudit?.stylesheets||0,rules:lastCriticalCssAudit?.rules||0,reason:lastCriticalCssAudit?.preserved?'source-graph-v3-css-cascade-preserved':'source-graph-no-flatten'};
     const nativeSchema=sourceNativeSchema(analysis);
     rebuild={
-      manifest:{format:'dini-anif-rebuild-package',version:3,engine:'source-native-rebuild-v2.26-smart-source-ownership',created_at:new Date().toISOString(),invitation_id:(globalThis.crypto?.randomUUID?.()||('inv-'+Date.now()+'-'+Math.random().toString(36).slice(2))),template:'source-native',source_url:sourceBaseUrl||'',visual_manifest:lastVisualManifest,source_graph:lastSourceGraph,embedded_data:analysis.embeddedAudit?.scan||null,identity_sanitized:true},
+      manifest:{format:'dini-anif-rebuild-package',version:3,engine:'source-native-rebuild-v2.26-smart-source-ownership',created_at:new Date().toISOString(),invitation_id:(globalThis.crypto?.randomUUID?.()||('inv-'+Date.now()+'-'+Math.random().toString(36).slice(2))),template:'source-native',source_url:sourceBaseUrl||'',visual_manifest:lastVisualManifest,source_graph:lastSourceGraph,layout_topology:lastSourceGraph?.layout||null,embedded_data:analysis.embeddedAudit?.scan||null,identity_sanitized:true},
       schema:{editable_coverage:100,mode:'source-native',native:nativeSchema,legacy_groups:['cover','motionHero','couple','saveDate','event','live','gallery','story','gift','rsvp','wishes','closing','brand','media','backgrounds']},
       data,
       native:{html:nativeHtml,schema:nativeSchema,source_url:sourceBaseUrl||''},
       motion:{locked:true,source_animations:analysis.animations,baseline:'source-defined animations + safe observer'},
-      report:{parity_score:analysis.parity,editable_coverage:100,unsupported_items:analysis.unsupported,detected:D,renderer:'source-native',cover_decor:lastCoverDecorAudit||null,source_graph_version:3,source_graph_audit:sourceGraphAudit(lastSourceGraph),critical_css:lastCriticalCssAudit,embedded_data:analysis.embeddedAudit?.scan||null,flatten_visuals:false}
+      report:{parity_score:analysis.parity,editable_coverage:100,unsupported_items:analysis.unsupported,detected:D,renderer:'source-native',cover_decor:lastCoverDecorAudit||null,source_graph_version:3,source_graph_audit:sourceGraphAudit(lastSourceGraph),layout_topology:lastSourceGraph?.layout||null,critical_css:lastCriticalCssAudit,embedded_data:analysis.embeddedAudit?.scan||null,flatten_visuals:false}
     };
     const snapshotRaw=JSON.stringify(rebuild);
     try{localStorage.setItem('diniAnifRebuildSnapshot',snapshotRaw)}catch(err){console.warn('localStorage snapshot quota',err)}
@@ -788,7 +788,7 @@ document.querySelectorAll('[data-native-reveal]').forEach(el=>io.observe(el));
       {name:'source-report.json',data:JSON.stringify(p.report,null,2)},
       {name:'source-native.html',data:p.native?.html||''},
       {name:'native-schema.json',data:JSON.stringify(p.native?.schema||{},null,2)},
-      {name:'visual-manifest.json',data:JSON.stringify(p.manifest?.visual_manifest||{version:2,sources:[]},null,2)},{name:'source-graph.json',data:JSON.stringify(p.manifest?.source_graph||{version:2,visuals:[],interactions:[]},null,2)},{name:'embedded-data.json',data:JSON.stringify(p.manifest?.embedded_data||{version:1,resources:[],counts:{}},null,2)},
+      {name:'visual-manifest.json',data:JSON.stringify(p.manifest?.visual_manifest||{version:2,sources:[]},null,2)},{name:'source-graph.json',data:JSON.stringify(p.manifest?.source_graph||{version:2,visuals:[],interactions:[]},null,2)},{name:'layout-topology.json',data:JSON.stringify(p.manifest?.layout_topology||p.manifest?.source_graph?.layout||{version:1,topology:'unclassified'},null,2)},{name:'embedded-data.json',data:JSON.stringify(p.manifest?.embedded_data||{version:1,resources:[],counts:{}},null,2)},
       {name:'README.txt',data:'DINI ANIF REBUILD PACKAGE V2.26 — SMART SOURCE OWNERSHIP\n\nBuka /dashboard-admin-edit untuk melanjutkan edit, atau import ZIP hasil Fetch secara manual.\nLayout/motion blueprint terkunci; konten dapat diedit setelah import.\n'}
     ];
     return window.UNDANGAN_ZIP.buildZip(entries);
