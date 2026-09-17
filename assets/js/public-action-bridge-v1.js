@@ -153,13 +153,16 @@
 
   function collectForm(form) {
     const out = {};
-    const FormDataCtor = form.ownerDocument?.defaultView?.FormData || FormData;
-    const fd = new FormDataCtor(form);
-    for (const [k, v] of fd.entries()) {
-      if (typeof v === 'string') out[k] = v;
+    if (String(form?.tagName || '').toUpperCase() === 'FORM') {
+      const FormDataCtor = form.ownerDocument?.defaultView?.FormData || FormData;
+      const fd = new FormDataCtor(form);
+      for (const [k, v] of fd.entries()) {
+        if (typeof v === 'string') out[k] = v;
+      }
     }
-    form.querySelectorAll('input,select,textarea').forEach((el) => {
-      if (!el.name && el.id && typeof el.value === 'string') out[el.id] = el.value;
+    form?.querySelectorAll?.('input,select,textarea').forEach((el) => {
+      const key = el.name || el.id;
+      if (key && typeof el.value === 'string') out[key] = el.value;
     });
     return out;
   }
@@ -187,6 +190,25 @@
     if (/gift|hadiah|konfirmasi hadiah|transfer/.test(hay)) return 'gift';
     if (/rsvp|kehadiran|hadir|ucapan/.test(hay)) return 'rsvp';
     return '';
+  }
+
+  function giftClickRoot(button) {
+    const form = button?.closest?.('form');
+    if (form) return form;
+    return button?.closest?.('[data-gift-confirm],[data-gift],.gift-confirmation,.gift-confirm,.gift-modal,[id*="gift" i],[class*="gift" i],dialog,section,article') || button?.parentElement || null;
+  }
+
+  function isGiftConfirmButton(button) {
+    if (!button?.matches || isCopyButton(button)) return false;
+    const label = norm(button.getAttribute('aria-label') || button.getAttribute('title') || button.textContent);
+    if (!/(konfirmasi|confirm|kirim|submit|selesai)/.test(label)) return false;
+
+    const ownHint = norm(`${button.id || ''} ${button.className || ''} ${button.getAttribute('data-action') || ''} ${button.getAttribute('data-gift-confirm') || ''}`);
+    if (/gift|hadiah|transfer/.test(`${ownHint} ${label}`)) return true;
+
+    const root = giftClickRoot(button);
+    const contextText = norm(root?.textContent || '').slice(0, 1800);
+    return /gift|hadiah|transfer/.test(contextText);
   }
 
   async function handlePublicForm(form, kind, context = {}) {
@@ -263,6 +285,40 @@
       } catch (error) {
         console.error('[public-action-bridge] copy failed', error);
         toast(doc, 'Gagal menyalin', false);
+      }
+    }, true);
+
+    doc.addEventListener('click', async (event) => {
+      const target = event.target;
+      const button = target?.closest ? target.closest('button,a,[role="button"]') : null;
+      if (!button || !isGiftConfirmButton(button)) return;
+
+      const ownerForm = button.closest?.('form') || null;
+      const explicitType = norm(button.getAttribute('type') || '');
+      const tag = String(button.tagName || '').toUpperCase();
+      const submitsNatively = !!ownerForm && (
+        explicitType === 'submit' ||
+        (tag === 'BUTTON' && !explicitType)
+      );
+      if (submitsNatively) return;
+
+      const root = ownerForm || giftClickRoot(button);
+      if (!root) return;
+
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const canDisable = 'disabled' in button;
+      if (canDisable) button.disabled = true;
+      try {
+        await handlePublicForm(root, 'gift', contextForDocument(doc));
+        toast(doc, 'Konfirmasi hadiah berhasil dikirim');
+        dispatch(doc, root, 'dinifaqih:gift:success');
+      } catch (error) {
+        console.error('[public-action-bridge] gift click failed', error);
+        toast(doc, 'Konfirmasi hadiah gagal dikirim', false);
+        dispatch(doc, root, 'dinifaqih:gift:error', { error: String(error?.message || error) });
+      } finally {
+        if (canDisable) button.disabled = false;
       }
     }, true);
 
