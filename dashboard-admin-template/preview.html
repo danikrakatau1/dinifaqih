@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="dini-template-preview-version" content="1.17.2">
+<meta name="dini-template-preview-version" content="1.18.0">
 <title>Preview Template — Dini Anif</title>
 <style>
 html,body{margin:0;width:100%;height:100%;min-height:100%;overflow:hidden;background:#272b32;color:#eee;font:14px system-ui}
@@ -14,7 +14,7 @@ html,body{margin:0;width:100%;height:100%;min-height:100%;overflow:hidden;backgr
 <script src="/assets/js/canonical-consumer-bridge-v1250.js?v=1250" defer></script>
 </head>
 <body>
-<div class="state" id="state"><div><b>Memuat Preview…</b><small>Canonical Saved Snapshot · V1.17.2 · Consumer Parity V1.25</small></div></div>
+<div class="state" id="state"><div><b>Memuat Preview…</b><small>Exact Saved Snapshot · Source Truth parity · V1.18.0</small></div></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/dashboard-admin-edit/template-canonical-v1160.js?v=1160"></script>
 <script src="/assets/js/social-link-parity-v1.js?v=100"></script>
@@ -25,6 +25,13 @@ html,body{margin:0;width:100%;height:100%;min-height:100%;overflow:hidden;backgr
   const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
   const q=new URLSearchParams(location.search).get('template')||'';
   const fail=(msg)=>{const state=document.getElementById('state');if(state)state.innerHTML='<div><b>Preview gagal</b><small>'+String(msg).replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]))+'</small></div>'};
+  const sourceTruthVersion=value=>Number(
+    value?.manifest?.source_graph?.source_truth_version ??
+    value?.manifest?.source_truth_package_version ??
+    value?.source_graph?.source_truth_version ??
+    value?.source_truth_version ?? 0
+  )||0;
+  const isSourceTruth=value=>sourceTruthVersion(value)>=1;
   const dirname=raw=>{try{const u=new URL(raw,location.href);if(/\.[a-z0-9]{1,8}$/i.test(u.pathname.split('/').pop()||''))u.pathname=u.pathname.replace(/[^/]*$/,'');if(!u.pathname.endsWith('/'))u.pathname+='/';u.search='';u.hash='';return u.href}catch{return ''}};
   const embeddedBase=(html,manifest={},fallback='')=>{
     try{const doc=new DOMParser().parseFromString(String(html||''),'text/html');const raw=String(doc.querySelector('base')?.getAttribute('href')||'').trim();if(raw){const d=dirname(new URL(raw,manifest.source_url||fallback||location.href).href);if(d)return d}}catch{}
@@ -33,6 +40,11 @@ html,body{margin:0;width:100%;height:100%;min-height:100%;overflow:hidden;backgr
     return dirname(fallback)||location.origin+'/';
   };
   const isTemplate1=row=>String(row?.slug||'').toLowerCase()==='template-1';
+  const appendRuntime=(html,blocks)=>{
+    const block=(blocks||[]).filter(Boolean).join('');
+    if(!block)return html;
+    return /<\/body>/i.test(html)?html.replace(/<\/body>/i,block+'</body>'):html+block;
+  };
   const injectAuthority=(html,payload)=>{
     if(!payload)return html;
     const json=JSON.stringify(payload).replace(/</g,'\\u003c').replace(/-->/g,'--\\>');
@@ -42,7 +54,7 @@ html,body{margin:0;width:100%;height:100%;min-height:100%;overflow:hidden;backgr
   const renderInEditorViewport=html=>{
     const frame=document.createElement('iframe');
     frame.id='templatePreviewFrame';
-    frame.title='Canonical Template Preview · Editor viewport parity';
+    frame.title='Exact Template Preview · Editor viewport parity';
     frame.setAttribute('sandbox','allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads');
     frame.setAttribute('referrerpolicy','strict-origin-when-cross-origin');
     frame.srcdoc=String(html||'');
@@ -78,14 +90,17 @@ html,body{margin:0;width:100%;height:100%;min-height:100%;overflow:hidden;backgr
     if(res.error)throw res.error;const row=res.data;if(!row)throw new Error('Template tidak ditemukan.');
     const source=String(row.source_path||'').trim();
 
-    let html='',manifest={...(row.manifest_json||{})},authority=null;
+    let html='',manifest={...(row.manifest_json||{})},authority=null,sourceTruthExact=false;
     let snap=await loadSnapshot(row,manifest);
     if(snap){
       if(snap?.template_id&&String(snap.template_id)!==String(row.id))throw new Error('Snapshot template mismatch.');
-      if(window.DINI_TEMPLATE_CANONICAL_V1160?.resolveSnapshot)snap=window.DINI_TEMPLATE_CANONICAL_V1160.resolveSnapshot(snap);
+      sourceTruthExact=isSourceTruth(snap);
+      if(!sourceTruthExact&&window.DINI_TEMPLATE_CANONICAL_V1160?.resolveSnapshot)snap=window.DINI_TEMPLATE_CANONICAL_V1160.resolveSnapshot(snap);
       html=String(snap?.html||snap?.baseHtml||'');if(!html)throw new Error('Editor Snapshot tidak memiliki HTML.');
       manifest={...manifest,...(snap.manifest||{})};
-      authority={schema:snap.schema||{},values:snap.values||{},transforms:snap.transforms||{},persistent:true,template_id:row.id,revision:snap.revision||manifest.revision||''};
+      if(!sourceTruthExact){
+        authority={schema:snap.schema||{},values:snap.values||{},transforms:snap.transforms||{},persistent:true,template_id:row.id,revision:snap.revision||manifest.revision||''};
+      }
     }else{
       if(!source||source==='/')throw new Error('Template ini belum memiliki source snapshot yang dapat dipreview.');
       const u=new URL(source,location.href);u.searchParams.set('_preview',String(row.updated_at||Date.now()));
@@ -105,7 +120,15 @@ html,body{margin:0;width:100%;height:100%;min-height:100%;overflow:hidden;backgr
       }
     }
 
-    html=injectAuthority(html,authority);
+    if(sourceTruthExact){
+      const blocks=['<script>document.documentElement.dataset.diniSourceTruthPreview="1";document.documentElement.dataset.diniPreviewCompatibility="source-truth-exact-plus-runtime-compat";<\/script>'];
+      if(!/source-truth-runtime-compat-v1\.js/i.test(html))blocks.push('<script src="/assets/js/source-truth-runtime-compat-v1.js?v=103"><\/script>');
+      html=appendRuntime(html,blocks);
+      document.documentElement.dataset.previewPackagePolicy='exact-source-truth-snapshot';
+    }else{
+      html=injectAuthority(html,authority);
+      document.documentElement.dataset.previewPackagePolicy='legacy-canonical-compatibility';
+    }
     renderInEditorViewport(html);
   }catch(e){fail(e.message||String(e));}
 })();
