@@ -3,7 +3,7 @@
   if(window.__DINI_GUEST_SLOT_PROBE_V2__)return;
   window.__DINI_GUEST_SLOT_PROBE_V2__=true;
 
-  const VERSION='2.0.0';
+  const VERSION='2.0.1';
   const SENTINEL='__DINI_GUEST_PROBE__';
   const PLACEHOLDER='Nama Tamu';
   const source=document.getElementById('sourceInput');
@@ -21,6 +21,17 @@
   const ownerOf=n=>n?.closest?.('.elementor-widget,[data-id]')||n?.parentElement||n;
   const elementId=n=>String(n?.getAttribute?.('data-id')||((String(n?.className||'').match(/elementor-element-([\w-]+)/)||[])[1])||n?.id||'');
   const findOwner=(doc,id)=>{if(!id)return null;try{return doc.querySelector(`[data-id="${CSS.escape(id)}"],.elementor-element-${CSS.escape(id)}`)}catch{return null}};
+  const nodePath=(owner,node)=>{
+    if(!owner||!node)return[];
+    const path=[];let n=node;
+    while(n&&n!==owner){const p=n.parentElement;if(!p)return[];path.unshift([...p.children].indexOf(n));n=p}
+    return n===owner?path:[];
+  };
+  const nodeAtPath=(owner,path)=>{
+    let n=owner;
+    for(const i of Array.isArray(path)?path:[]){n=n?.children?.[Number(i)];if(!n)return null}
+    return n||null;
+  };
   const markGuest=leaf=>{
     if(!leaf)return false;
     leaf.textContent=PLACEHOLDER;
@@ -45,15 +56,18 @@
     const probeOwner=ownerOf(probeLeaf),id=elementId(probeOwner);
     const baselineOwner=findOwner(baseline,id);
     if(baselineOwner){
-      const leaf=deepestWith(baselineOwner,SENTINEL)||[...baselineOwner.querySelectorAll('h1,h2,h3,h4,h5,h6,p,span,label,div')].find(n=>!/\S/.test(String(n.textContent||''))===false)||baselineOwner;
-      markGuest(leaf);
-      return {html:serialize(baseline),count:1,mode:'matched-existing-owner',element_id:id};
+      const path=nodePath(probeOwner,probeLeaf);
+      const leaf=nodeAtPath(baselineOwner,path);
+      if(leaf){
+        markGuest(leaf);
+        return {html:serialize(baseline),count:1,mode:'matched-existing-owner-path',element_id:id,node_path:path};
+      }
     }
 
-    // The guest node exists only in the upstream ?to= response. Use that complete upstream
-    // source document as the baseline rather than cloning/creating a guest widget locally.
+    // The personalized node exists only in the upstream ?to= source variant. Preserve that
+    // complete authored source document as the baseline instead of cloning/creating a guest UI.
     markGuest(probeLeaf);
-    return {html:serialize(probe),count:1,mode:'source-variant-authoritative',element_id:id};
+    return {html:serialize(probe),count:1,mode:'source-variant-authoritative',element_id:id,node_path:nodePath(probeOwner,probeLeaf)};
   }
 
   async function fetchProbe(url){
@@ -79,7 +93,7 @@
       if(fetchMeta){fetchMeta.classList.add('ok');fetchMeta.textContent+=' · 🔎 Guest Source Binding…'}
       const probe=await fetchProbe(canonicalUrl);
       const result=adoptSourceNativeGuest(source.value,probe.html||'');
-      source.dataset.guestProbe=JSON.stringify({version:VERSION,count:result.count,mode:result.mode,element_id:result.element_id||'',source_url:canonicalUrl,binding:'guest_name',mutation:'textContent-only',clone_node:false,create_node:false});
+      source.dataset.guestProbe=JSON.stringify({version:VERSION,count:result.count,mode:result.mode,element_id:result.element_id||'',node_path:result.node_path||[],source_url:canonicalUrl,binding:'guest_name',mutation:'textContent-only',clone_node:false,create_node:false});
       if(result.count>0){
         source.value=result.html;
         if(fetchMeta)fetchMeta.textContent=`✅ Source-native guest_name bound · ${result.mode}${result.element_id?' · '+result.element_id:''}`;
