@@ -2,7 +2,7 @@
   'use strict';
   if(g.DiniSemanticManifest?.version)return;
 
-  const VERSION='1.3.0';
+  const VERSION='1.4.0';
   const MANIFEST_VERSION=1;
   const REPEATER_CONTRACT_VERSION=1;
   const COMPONENT_IDENTITY_VERSION=1;
@@ -339,11 +339,14 @@
     if(layout?.topology)set.add('layout:'+layout.topology);
     if(Array.isArray(layout?.panes)&&layout.panes.length)set.add('layout-panes');
     if(Array.isArray(layout?.overlays)&&layout.overlays.length)set.add('fixed-overlay-ownership');
+    if(sourceGraph?.semantic_diagnostics)set.add('semantic-diagnostics');
+    if(sourceGraph?.runtime_policy?.fault_isolation)set.add('runtime-fault-isolation');
     return [...set].sort();
   }
 
   function compileDiagnostics({components,repeaters,assets,behaviors,sourceGraph,nativeSchema,embeddedData,layout}){
-    const warnings=[];
+    const semanticDiagnostics=clone(sourceGraph?.semantic_diagnostics||{version:1,warnings:[],counts:{},policy:{read_only:true,auto_fix:false}});
+    const warnings=safeArray(semanticDiagnostics?.warnings).map(x=>clone(x));
     if(sourceGraph?.source_truth_error)warnings.push({code:'SOURCE_TRUTH_SCAN_ERROR',severity:'warning',message:String(sourceGraph.source_truth_error)});
     const parseErrors=components.filter(c=>c.settings?.__parse_error);
     if(parseErrors.length)warnings.push({code:'COMPONENT_SETTINGS_PARSE_ERROR',severity:'warning',count:parseErrors.length,component_ids:parseErrors.map(x=>x.id)});
@@ -374,9 +377,13 @@
         embedded_bytes:Number(embeddedData?.counts?.bytes||0),
         layout_panes:Array.isArray(layout?.panes)?layout.panes.length:0,
         layout_owned_overlays:Array.isArray(layout?.overlays)?layout.overlays.length:0,
-        layout_breakpoints:Array.isArray(layout?.breakpoint_queries)?layout.breakpoint_queries.length:0
+        layout_breakpoints:Array.isArray(layout?.breakpoint_queries)?layout.breakpoint_queries.length:0,
+        semantic_warnings:safeArray(semanticDiagnostics?.warnings).length,
+        date_conflicts:Number(semanticDiagnostics?.counts?.date_conflicts||0),
+        unbound_actions:Number(semanticDiagnostics?.counts?.unbound_actions||0)
       },
-      layout:{topology:layout?.topology||'unclassified',confidence:Number(layout?.confidence||0),viewport_policy:layout?.runtime?.viewport_policy||'canonical-content'}
+      layout:{topology:layout?.topology||'unclassified',confidence:Number(layout?.confidence||0),viewport_policy:layout?.runtime?.viewport_policy||'canonical-content'},
+      semantic:semanticDiagnostics
     };
   }
 
@@ -396,6 +403,7 @@
     if(!Number(embeddedData?.counts?.total||0)&&decoder?.scanDocument){
       try{embeddedData=decoder.summary(decoder.scanDocument(doc,{baseUrl:sourceUrl||sourceGraph?.source?.url||''}))}catch(err){embeddedData={version:1,resources:[],counts:{total:0,css:0,javascript:0,bytes:0},error:String(err?.message||err)}}
     }
+    const semanticDiagnostics=clone(sourceGraph?.semantic_diagnostics||{version:1,warnings:[],counts:{},policy:{read_only:true,auto_fix:false}});
     const diagnostics=compileDiagnostics({components,repeaters,assets,behaviors,sourceGraph,nativeSchema,embeddedData,layout});
     return {
       format:'dini-universal-runtime-manifest',
@@ -427,6 +435,7 @@
       personalization,
       dependencies,
       embedded_data:embeddedData,
+      semantic_diagnostics:semanticDiagnostics,
       capabilities:compileCapabilities(components,sourceGraph,repeaters,embeddedData,layout),
       editor_contract:{
         component_identity:'stable-instance-id',
@@ -448,6 +457,8 @@
         layout_source_authoritative:true,
         pane_ownership_preserved:true,
         source_scroll_behavior_preserved:true,
+        semantic_diagnostics_read_only:true,
+        semantic_auto_fix:false,
         consumer_contract_version:0
       },
       runtime_policy:{
@@ -462,7 +473,11 @@
         embedded_css_policy:'decode-and-materialize-source-cascade',
         embedded_js_policy:'decode-for-evidence-and-safe-compiler-only',
         layout_execution:'source-css-plus-consumer-viewport-policy',
-        layout_normalization:false
+        layout_normalization:false,
+        fault_isolation_contract_version:1,
+        behavior_failure_policy:'isolate-and-continue',
+        runtime_fault_log_limit:80,
+        semantic_diagnostics_policy:'warn-never-normalize'
       },
       diagnostics
     };
@@ -515,6 +530,9 @@
       layout_topology:runtimeManifest.layout?.topology||'unclassified',
       layout_panes:runtimeManifest.diagnostics?.counts?.layout_panes||0,
       layout_owned_overlays:runtimeManifest.diagnostics?.counts?.layout_owned_overlays||0,
+      semantic_warnings:runtimeManifest.diagnostics?.counts?.semantic_warnings||0,
+      date_conflicts:runtimeManifest.diagnostics?.counts?.date_conflicts||0,
+      unbound_actions:runtimeManifest.diagnostics?.counts?.unbound_actions||0,
       warnings:safeArray(runtimeManifest.diagnostics?.warnings).length
     };
     return runtimeManifest;
@@ -558,5 +576,5 @@
     armLegacyStudioBridge
   };
   armLegacyStudioBridge();
-  console.info('[DINI SEMANTIC MANIFEST] V'+VERSION+' aktif — P0-A/P0-B/P0-D + P0-E Layout Topology contract.');
+  console.info('[DINI SEMANTIC MANIFEST] V'+VERSION+' aktif — P0-A/P0-B/P0-D/P0-E + P0-F Diagnostics/Fault Isolation contract.');
 })(window);
