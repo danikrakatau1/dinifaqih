@@ -196,21 +196,22 @@
       context.invitationId || context.invitation_id || state.invitationId || window.__INVITATION_ID__
     );
     const guestName = text(
-      values.guest_name || values.guestName || values.name ||
+      values.guest_name || values.guestName || values.name || values.nama || values['form_fields[nama]'] ||
       context.guestName || context.guest_name || getGuestName(form.ownerDocument, context)
     );
     if (!invitationId) throw new Error('invitation_id_missing');
     if (!guestName) throw new Error('guest_name_missing');
 
     if (kind === 'rsvp') {
-      const attendanceRaw = values.attendance || values.status || values.kehadiran || values.rsvp || 'hadir';
-      const guestCount = values.guest_count || values.guestCount || values.pax || values.jumlah || 1;
-      const message = values.message || values.note || values.ucapan || values.wishes || '';
+      const attendanceRaw = values.attendance || values.status || values.kehadiran || values.rsvp || values.konfirmasikehadiran || values['form_fields[konfirmasikehadiran]'] || 'hadir';
+      const guestCountRaw = values.guest_count || values.guestCount || values.pax || values.jumlah || values['form_fields[jumlah]'] || 1;
+      const guestCount = Number.parseInt(String(guestCountRaw), 10) || 1;
+      const message = values.message || values.note || values.ucapan || values['form_fields[ucapan]'] || values.wishes || '';
       return postJSON('/api/rsvp', {
         invitation_id: invitationId,
         guest_name: guestName,
         attendance: attendanceValue(attendanceRaw),
-        guest_count: Number(guestCount) || 1,
+        guest_count: guestCount,
         message,
       });
     }
