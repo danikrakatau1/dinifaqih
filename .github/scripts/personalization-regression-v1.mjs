@@ -64,6 +64,30 @@ try{
   check('37:runtime-declares-text-only',afterGuest.mode==='text-only',afterGuest.mode);
   check('37:runtime-used-source-binding',afterGuest.binding==='source-native',afterGuest.binding);
 
+  // Guest slug regression: exact Source Truth guest binding must not sweep an unrelated
+  // footer label that happens to use a legacy guest-like class.
+  const footerPage=await browser.newPage();
+  const footerGraph={source_truth_version:1,personalization:{version:2,fields:[{type:'guest_name',binding:'guest_name',owner_selector:'[data-id="guest-owner"]',element_id:'guest-owner',node_path:[0],mutation_policy:'textContent-only'}]}};
+  await footerPage.setContent(`<!doctype html><html><body>
+    <script type="application/json" id="diniGuestRuntimeData">{"name":"rozak","slug":"rozak-2"}</script>
+    <section data-id="guest-owner"><h2 id="slug-guest">Nama Tamu</h2></section>
+    <footer><span id="couple-footer" class="guest-name">Faqih & Dini ❤️</span></footer>
+    <template data-dini-source-truth>${JSON.stringify(footerGraph)}</template>
+  </body></html>`);
+  await footerPage.addScriptTag({content:guestRuntime});
+  await footerPage.waitForTimeout(120);
+  const footerResult=await footerPage.evaluate(()=>({
+    guest:document.getElementById('slug-guest')?.textContent,
+    footer:document.getElementById('couple-footer')?.textContent,
+    matches:document.documentElement.dataset.guestBoundMatches,
+    slug:document.documentElement.dataset.guestSlug
+  }));
+  check('guest-slug:guest-name-still-applied',footerResult.guest==='rozak',footerResult.guest);
+  check('guest-slug:couple-footer-preserved',footerResult.footer==='Faqih & Dini ❤️',footerResult.footer);
+  check('guest-slug:exact-binding-only',footerResult.matches==='1',footerResult.matches);
+  check('guest-slug:slug-preserved',footerResult.slug==='rozak-2',footerResult.slug);
+  await footerPage.close();
+
   // 37 + 38: public ?to= bridge uses source-truth node selector inside canonical iframe, no overlay/global UI.
   const context=await browser.newContext();
   const publicPage=await context.newPage();
