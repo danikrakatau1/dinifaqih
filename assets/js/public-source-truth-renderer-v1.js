@@ -3,7 +3,7 @@
   if(window.__DINI_PUBLIC_SOURCE_TRUTH_RENDERER_V1__)return;
   window.__DINI_PUBLIC_SOURCE_TRUTH_RENDERER_V1__=true;
 
-  const VERSION='1.1.1';
+  const VERSION='1.2.0';
   const CFG=window.DINI_PUBLIC_ENTRY||{};
   const MODE=CFG.mode==='guest'?'guest':'public';
   const SB='https://jfvmcerrsxjvbiogfqes.supabase.co';
@@ -73,6 +73,19 @@
       s?.source_graph?.personalization
     ];
     return candidates.find(x=>Array.isArray(x?.fields)&&x.fields.length)||candidates.find(x=>x&&typeof x==='object')||{};
+  };
+  const layoutContractFromPackage=pkg=>{
+    const m=pkg?.manifest||{},s=pkg?.snapshot||{};
+    const candidates=[
+      m?.runtime_manifest?.layout,
+      m?.layout_topology,
+      m?.source_graph?.layout,
+      s?.manifest?.runtime_manifest?.layout,
+      s?.manifest?.layout_topology,
+      s?.manifest?.source_graph?.layout,
+      s?.source_graph?.layout
+    ];
+    return candidates.find(x=>x&&typeof x==='object'&&x.topology)||candidates.find(x=>x&&typeof x==='object')||{version:1,topology:'unclassified',runtime:{viewport_policy:'canonical-content'}};
   };
 
   async function getActiveTemplate(){
@@ -153,17 +166,25 @@
     return appendRuntime(html,blocks);
   }
 
-  function renderFrame(html,title){
+  function renderFrame(html,title,layout={}){
     const frame=document.createElement('iframe');
     frame.id='diniPublicCanonicalFrame';frame.title=title||'Undangan Faqih & Dini';
     frame.setAttribute('allow','autoplay; fullscreen; clipboard-read; clipboard-write');
     frame.setAttribute('referrerpolicy','strict-origin-when-cross-origin');
-    frame.style.cssText='display:block;width:min(100vw,450px);max-width:450px;height:100vh;height:100dvh;border:0;margin:0 auto;background:#fff;box-shadow:none';
+    const topology=String(layout?.topology||'unclassified');
+    const fullDocument=layout?.runtime?.viewport_policy==='full-document'||topology==='split-shell'||topology==='fixed-sidebar';
+    frame.style.cssText=fullDocument
+      ?'display:block;width:100vw;max-width:none;height:100vh;height:100dvh;border:0;margin:0;background:#fff;box-shadow:none'
+      :'display:block;width:min(100vw,450px);max-width:450px;height:100vh;height:100dvh;border:0;margin:0 auto;background:#fff;box-shadow:none';
     frame.srcdoc=String(html||'');
     document.documentElement.style.cssText='margin:0;width:100%;height:100%;background:#fff;overflow:hidden';
-    document.body.style.cssText='margin:0;width:100%;height:100%;background:#fff;overflow:hidden;display:flex;justify-content:center;align-items:stretch';
+    document.body.style.cssText=fullDocument
+      ?'margin:0;width:100%;height:100%;background:#fff;overflow:hidden;display:block'
+      :'margin:0;width:100%;height:100%;background:#fff;overflow:hidden;display:flex;justify-content:center;align-items:stretch';
     document.body.replaceChildren(frame);
-    document.documentElement.dataset.publicCanonicalViewport='450';
+    document.documentElement.dataset.publicCanonicalViewport=fullDocument?'source-layout':'450';
+    document.documentElement.dataset.publicLayoutTopology=topology;
+    document.documentElement.dataset.publicLayoutViewportPolicy=fullDocument?'full-document':'canonical-content';
     return frame;
   }
 
@@ -172,17 +193,18 @@
       const [row,guest]=await Promise.all([getActiveTemplate(),getGuest()]);
       const pkg=await loadPackage(row);
       const html=prepareHtml(pkg,row,guest);
+      const layout=layoutContractFromPackage(pkg);
       document.documentElement.dataset.publicCanonicalMode=MODE;
       document.documentElement.dataset.publicSourceTruthVersion=String(sourceTruthVersion(pkg.snapshot||pkg.manifest));
       document.documentElement.dataset.publicPackagePolicy=pkg.source_truth?'exact-source-truth-snapshot':'legacy-canonical-compatibility';
       document.documentElement.dataset.guestSourceRestore=guest?'global-personalization-contract':'not-guest';
       if(guest){document.title='Untuk '+guest.name+' — Faqih & Dini';}else document.title=(row.name?row.name+' — ':'')+'Faqih & Dini';
-      renderFrame(html,guest?'Untuk '+guest.name:'Undangan Faqih & Dini');
+      renderFrame(html,guest?'Untuk '+guest.name:'Undangan Faqih & Dini',layout);
     }catch(err){
       console.error('PUBLIC_SOURCE_TRUTH_RENDERER_V1',err);
       fail(MODE==='guest'?'Undangan belum dapat dimuat':'Template belum dapat dimuat',err?.message||String(err),500);
     }
   })();
 
-  window.DINI_PUBLIC_SOURCE_TRUTH_RENDERER={VERSION,sourceTruthVersion,isSourceTruth,guestContractFromPackage};
+  window.DINI_PUBLIC_SOURCE_TRUTH_RENDERER={VERSION,sourceTruthVersion,isSourceTruth,guestContractFromPackage,layoutContractFromPackage};
 })();
