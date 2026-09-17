@@ -196,7 +196,9 @@
 
   function classifyForm(form) {
     const hay = norm(`${form.id} ${form.className} ${form.getAttribute('action') || ''} ${form.textContent}`);
-    if (/gift|hadiah|konfirmasi hadiah|transfer/.test(hay)) return 'gift';
+    const giftByText = /gift|hadiah|konfirmasi hadiah|transfer|bukti\s*tf/.test(hay);
+    const giftByFields = /nama\s*bank/.test(hay) && /nominal/.test(hay);
+    if (giftByText || giftByFields) return 'gift';
     if (/rsvp|kehadiran|hadir|ucapan/.test(hay)) return 'rsvp';
     return '';
   }
