@@ -249,9 +249,19 @@
       });
     }
 
-    const bankName = values.bank_name || values.bankName || values.bank || values.rekening || '';
-    const amount = values.amount || values.nominal || values.jumlah || '';
-    const note = values.note || values.message || values.ucapan || '';
+    const giftValue = (...hints) => {
+      for (const [key, value] of Object.entries(values)) {
+        const compactKey = String(key).toLowerCase().replace(/[^a-z0-9]+/g, '');
+        if (!hints.some((hint) => compactKey === hint || compactKey.endsWith(hint))) continue;
+        const payload = text(value);
+        if (payload) return payload;
+      }
+      return '';
+    };
+
+    const bankName = values.bank_name || values.bankName || values.bank || values.rekening || values['form_fields[nama_bank]'] || values['form_fields[namabank]'] || giftValue('namabank', 'bankname', 'bank');
+    const amount = values.amount || values.nominal || values.jumlah || values['form_fields[nominal]'] || giftValue('nominal', 'amount');
+    const note = values.note || values.message || values.ucapan || values['form_fields[ucapan]'] || giftValue('ucapan', 'note', 'message');
     const proofPath = values.proof_path || values.proofPath || values.proof_url || values.proofUrl || '';
     return postJSON('/api/gift-confirmation', {
       invitation_id: invitationId,
