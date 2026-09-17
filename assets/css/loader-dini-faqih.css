@@ -1,0 +1,59 @@
+/* Dini & Faqih Premium Loader V1 */
+.state.dini-premium-loader{
+  min-height:100vh;
+  min-height:100dvh;
+  display:grid;
+  place-items:center;
+  box-sizing:border-box;
+  padding:28px;
+  background:
+    radial-gradient(circle at 50% 45%,rgba(251,124,170,.085),transparent 34%),
+    linear-gradient(180deg,#fbf8f6 0%,#f6f1ee 100%);
+  color:#7f7069;
+  text-align:center;
+  overflow:hidden;
+}
+.dini-premium-loader__inner{
+  width:min(92vw,620px);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:14px;
+  animation:diniLoaderEnter .42s cubic-bezier(.22,1,.36,1) both;
+}
+.dini-premium-loader__logo{
+  display:block;
+  width:min(78vw,520px);
+  height:auto;
+  max-height:210px;
+  user-select:none;
+  pointer-events:none;
+  filter:drop-shadow(0 10px 30px rgba(251,124,170,.08));
+}
+.dini-premium-loader__copy{
+  margin:0;
+  font:500 clamp(11px,1.4vw,13px)/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  letter-spacing:.075em;
+  color:#8a7b74;
+  opacity:.88;
+  animation:diniLoaderCopy .55s ease .38s both;
+}
+.dini-premium-loader__dot{
+  width:4px;height:4px;border-radius:999px;
+  background:#fb7caa;
+  box-shadow:-10px 0 0 rgba(251,124,170,.26),10px 0 0 rgba(251,124,170,.26);
+  animation:diniLoaderDot 1.45s ease-in-out .7s infinite;
+}
+@keyframes diniLoaderEnter{from{opacity:0;transform:translateY(7px) scale(.99)}to{opacity:1;transform:none}}
+@keyframes diniLoaderCopy{from{opacity:0;transform:translateY(4px)}to{opacity:.88;transform:none}}
+@keyframes diniLoaderDot{0%,100%{opacity:.35;transform:scale(.85)}50%{opacity:1;transform:scale(1)}}
+@media (max-width:480px){
+  .state.dini-premium-loader{padding:22px}
+  .dini-premium-loader__inner{gap:10px}
+  .dini-premium-loader__logo{width:min(84vw,360px);max-height:170px}
+  .dini-premium-loader__copy{font-size:11px;letter-spacing:.06em}
+}
+@media (prefers-reduced-motion:reduce){
+  .dini-premium-loader__inner,.dini-premium-loader__copy,.dini-premium-loader__dot{animation:none!important}
+}
