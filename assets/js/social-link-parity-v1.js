@@ -115,7 +115,7 @@
     E.saveSession=async session=>{
       const persist=deep(session);const original=session?.__diniSocialSourceBaseline||sourceBaseline.get(session);
       if(original)persist.baseline=deep(original);
-      const saved=await baseSave(persist);session.updated_at=saved?.updated_at||session.updated_at;return saved;
+      const saved=await baseSave(persist);session.updated_at=saved?.updated_at||session.updated_at;return session;
     };
     E.augmentSocialSnapshot=augmentSnapshot;E.__diniSocialParityV1=VERSION;
     document.documentElement.dataset.socialFetchExtension=VERSION;
