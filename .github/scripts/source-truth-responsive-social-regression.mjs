@@ -8,7 +8,7 @@ const engine=(process.env.BROWSER_ENGINE||'chromium').toLowerCase();
 const browserType=engine==='webkit'?webkit:chromium;
 const port=4173;
 const base=`http://127.0.0.1:${port}`;
-const COMPAT='1.0.1';
+const COMPAT='1.0.2';
 
 const mime={
   '.html':'text/html; charset=utf-8','.js':'application/javascript; charset=utf-8','.mjs':'application/javascript; charset=utf-8',
@@ -38,13 +38,13 @@ async function genericResponsiveContract(context){
   const page=await context.newPage();attachErrors(page);
   try{
     await page.setViewportSize({width:1024,height:900});
-    await page.setContent(`<!doctype html><html><head><base href="${base}/"></head><body><div id="probe" class="elementor-invisible" data-settings='{"_animation":"zoomIn","_animation_mobile":"none"}'>Probe</div><script src="/assets/js/source-truth-runtime-compat-v1.js?v=101"></script></body></html>`,{waitUntil:'domcontentloaded'});
+    await page.setContent(`<!doctype html><html><head><base href="${base}/"></head><body><div id="probe" class="elementor-invisible" data-settings='{"_animation":"zoomIn","_animation_mobile":"none"}'>Probe</div><script src="/assets/js/source-truth-runtime-compat-v1.js?v=102"></script></body></html>`,{waitUntil:'domcontentloaded'});
     await page.waitForTimeout(250);
     const desktop=await page.$eval('#probe',el=>({invisible:el.classList.contains('elementor-invisible'),marker:el.getAttribute('data-dini-mobile-none-compat')||'',visibility:getComputedStyle(el).visibility}));
     add('generic: desktop authored animation remains untouched',desktop.invisible&&desktop.marker==='',desktop);
 
     await page.setViewportSize({width:450,height:900});
-    await page.setContent(`<!doctype html><html><head><base href="${base}/"></head><body><style>.elementor-invisible{visibility:hidden}</style><div id="probe" class="elementor-invisible" data-settings='{"_animation":"zoomIn","_animation_mobile":"none"}'>Probe</div><script src="/assets/js/source-truth-runtime-compat-v1.js?v=101"></script></body></html>`,{waitUntil:'domcontentloaded'});
+    await page.setContent(`<!doctype html><html><head><base href="${base}/"></head><body><style>.elementor-invisible{visibility:hidden}</style><div id="probe" class="elementor-invisible" data-settings='{"_animation":"zoomIn","_animation_mobile":"none"}'>Probe</div><script src="/assets/js/source-truth-runtime-compat-v1.js?v=102"></script></body></html>`,{waitUntil:'domcontentloaded'});
     await page.waitForTimeout(250);
     const mobile=await page.$eval('#probe',el=>({invisible:el.classList.contains('elementor-invisible'),marker:el.getAttribute('data-dini-mobile-none-compat')||'',visibility:getComputedStyle(el).visibility,opacity:getComputedStyle(el).opacity,priority:el.style.getPropertyPriority('visibility')}));
     add('generic: mobile none overrides stale stylesheet visibility',!mobile.invisible&&mobile.marker===COMPAT&&mobile.visibility==='visible'&&mobile.opacity==='1'&&mobile.priority==='important',mobile);
