@@ -2,7 +2,7 @@
   'use strict';
   if(g.DiniSemanticManifest?.version)return;
 
-  const VERSION='1.0.0';
+  const VERSION='1.0.1';
   const MANIFEST_VERSION=1;
   const clean=s=>String(s??'').replace(/\s+/g,' ').trim();
   const clone=v=>{try{return structuredClone(v)}catch{try{return JSON.parse(JSON.stringify(v))}catch{return v}}};
@@ -258,6 +258,62 @@
     };
   }
 
+  function attachToRebuildPackage(pkg,{doc}={}){
+    if(!pkg?.manifest||pkg.manifest.format!=='dini-anif-rebuild-package')return null;
+    if(pkg.manifest.runtime_manifest?.format==='dini-universal-runtime-manifest')return pkg.manifest.runtime_manifest;
+    let sourceDoc=doc;
+    if(!sourceDoc?.querySelectorAll){
+      const raw=String(document.getElementById('sourceInput')?.value||'').trim();
+      if(raw)sourceDoc=new DOMParser().parseFromString(raw,'text/html');
+    }
+    if(!sourceDoc?.querySelectorAll)throw new Error('Runtime Manifest: source Document tidak tersedia.');
+    const runtimeManifest=compile({
+      doc:sourceDoc,
+      sourceGraph:pkg.manifest.source_graph||{},
+      visualManifest:pkg.manifest.visual_manifest||{},
+      nativeSchema:pkg.native?.schema||pkg.schema?.native||{},
+      sourceUrl:pkg.manifest.source_url||pkg.native?.source_url||'',
+      createdAt:pkg.manifest.created_at||''
+    });
+    pkg.manifest.runtime_manifest=runtimeManifest;
+    pkg.manifest.runtime_manifest_version=MANIFEST_VERSION;
+    pkg.manifest.runtime_manifest_ref='manifest.runtime_manifest';
+    pkg.schema=pkg.schema||{};
+    pkg.schema.runtime_manifest_version=MANIFEST_VERSION;
+    pkg.schema.runtime_contract={version:1,manifest_path:'manifest.runtime_manifest',authority:'source-semantic'};
+    pkg.report=pkg.report||{};
+    pkg.report.runtime_manifest={
+      version:MANIFEST_VERSION,
+      compiler:runtimeManifest.compiler,
+      components:runtimeManifest.diagnostics?.counts?.components||0,
+      assets:runtimeManifest.diagnostics?.counts?.assets||0,
+      behaviors:runtimeManifest.diagnostics?.counts?.behaviors||0,
+      warnings:safeArray(runtimeManifest.diagnostics?.warnings).length
+    };
+    return runtimeManifest;
+  }
+
+  // P0-A compatibility bridge. Studio V2.26 keeps rebuild state private inside its closure.
+  // Intercept only serialization of that exact rebuild package, attach the semantic manifest once,
+  // then delegate to the native serializer unchanged. No other JSON payload is modified.
+  const nativeStringify=JSON.stringify.bind(JSON);
+  let bridgeBusy=false;
+  function armLegacyStudioBridge(){
+    if(JSON.stringify?.__diniSemanticManifestBridge)return;
+    const wrapped=function(value,replacer,space){
+      if(!bridgeBusy&&value?.manifest?.format==='dini-anif-rebuild-package'&&!value.manifest.runtime_manifest){
+        bridgeBusy=true;
+        try{attachToRebuildPackage(value)}catch(err){
+          console.error('[DINI SEMANTIC MANIFEST] gagal attach ke rebuild package',err);
+          value.manifest.runtime_manifest_error=String(err?.message||err);
+        }finally{bridgeBusy=false}
+      }
+      return nativeStringify(value,replacer,space);
+    };
+    Object.defineProperty(wrapped,'__diniSemanticManifestBridge',{value:true});
+    JSON.stringify=wrapped;
+  }
+
   g.DiniSemanticManifest={
     version:VERSION,
     manifest_version:MANIFEST_VERSION,
@@ -265,7 +321,10 @@
     compileComponents,
     compileAssets,
     compileBehaviors,
-    compileInteractions
+    compileInteractions,
+    attachToRebuildPackage,
+    armLegacyStudioBridge
   };
+  armLegacyStudioBridge();
   console.info('[DINI SEMANTIC MANIFEST] V'+VERSION+' aktif — Universal Runtime Manifest P0-A.');
 })(window);
