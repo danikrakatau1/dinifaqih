@@ -4,7 +4,9 @@ on:
   push:
     branches:
       - fix/source-truth-responsive-social-runtime
+      - fix/homepage-social-runtime
     paths:
+      - 'index.html'
       - 'assets/js/source-truth-runtime-compat-v1.js'
       - 'assets/js/public-source-truth-renderer-v1.js'
       - 'assets/js/social-link-parity-v1.js'
@@ -51,5 +53,5 @@ jobs:
       - name: Run responsive Source Truth regression
         env:
           BROWSER_ENGINE: ${{ matrix.browser }}
-          NODE_NO_WARNINGS: '1'
+          NODE_NO_WARNINGS: 1
         run: node .github/scripts/source-truth-responsive-social-regression.mjs
