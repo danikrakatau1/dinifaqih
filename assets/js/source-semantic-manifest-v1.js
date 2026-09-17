@@ -2,7 +2,7 @@
   'use strict';
   if(g.DiniSemanticManifest?.version)return;
 
-  const VERSION='1.1.0';
+  const VERSION='1.2.0';
   const MANIFEST_VERSION=1;
   const REPEATER_CONTRACT_VERSION=1;
   const COMPONENT_IDENTITY_VERSION=1;
@@ -322,7 +322,7 @@
     return [...raw,...semantic,...itemActions];
   }
 
-  function compileCapabilities(components,sourceGraph,repeaters){
+  function compileCapabilities(components,sourceGraph,repeaters,embeddedData){
     const set=new Set();
     components.forEach(c=>set.add(c.type));
     const frameworks=safeArray(sourceGraph?.dependencies?.frameworks);
@@ -333,10 +333,13 @@
     if(safeArray(sourceGraph?.personalization?.fields).length||safeArray(sourceGraph?.personalization?.candidates).length)set.add('personalization');
     if(repeaters.length)set.add('universal-repeater');
     if(components.length)set.add('component-instance-isolation');
+    if(Number(embeddedData?.counts?.css||0)>0)set.add('embedded-css');
+    if(Number(embeddedData?.counts?.javascript||0)>0)set.add('embedded-js-evidence');
+    if(Number(embeddedData?.counts?.total||0)>0)set.add('embedded-data-decoder');
     return [...set].sort();
   }
 
-  function compileDiagnostics({components,repeaters,assets,behaviors,sourceGraph,nativeSchema}){
+  function compileDiagnostics({components,repeaters,assets,behaviors,sourceGraph,nativeSchema,embeddedData}){
     const warnings=[];
     if(sourceGraph?.source_truth_error)warnings.push({code:'SOURCE_TRUTH_SCAN_ERROR',severity:'warning',message:String(sourceGraph.source_truth_error)});
     const parseErrors=components.filter(c=>c.settings?.__parse_error);
@@ -361,7 +364,11 @@
         behaviors:behaviors.length,
         native_fields:safeArray(nativeSchema?.fields).length,
         personalization_fields:safeArray(sourceGraph?.personalization?.fields).length,
-        personalization_candidates:safeArray(sourceGraph?.personalization?.candidates).length
+        personalization_candidates:safeArray(sourceGraph?.personalization?.candidates).length,
+        embedded_resources:Number(embeddedData?.counts?.total||0),
+        embedded_css:Number(embeddedData?.counts?.css||0),
+        embedded_javascript:Number(embeddedData?.counts?.javascript||0),
+        embedded_bytes:Number(embeddedData?.counts?.bytes||0)
       }
     };
   }
@@ -376,7 +383,12 @@
     const personalization=clone(sourceGraph?.personalization||{version:1,fields:[],candidates:[],binding_policy:{}});
     const responsive=clone(sourceGraph?.responsive||{version:1});
     const dependencies=clone(sourceGraph?.dependencies||{version:1,external_scripts:[],stylesheets:[],fonts:[],frameworks:[]});
-    const diagnostics=compileDiagnostics({components,repeaters,assets,behaviors,sourceGraph,nativeSchema});
+    const decoder=g.DiniEmbeddedDataDecoder;
+    let embeddedData=clone(sourceGraph?.embedded_data||{});
+    if(!Number(embeddedData?.counts?.total||0)&&decoder?.scanDocument){
+      try{embeddedData=decoder.summary(decoder.scanDocument(doc,{baseUrl:sourceUrl||sourceGraph?.source?.url||''}))}catch(err){embeddedData={version:1,resources:[],counts:{total:0,css:0,javascript:0,bytes:0},error:String(err?.message||err)}}
+    }
+    const diagnostics=compileDiagnostics({components,repeaters,assets,behaviors,sourceGraph,nativeSchema,embeddedData});
     return {
       format:'dini-universal-runtime-manifest',
       version:MANIFEST_VERSION,
@@ -406,7 +418,8 @@
       layout:{version:1,mode:'source-native',topology:'unclassified',source_authority:true},
       personalization,
       dependencies,
-      capabilities:compileCapabilities(components,sourceGraph,repeaters),
+      embedded_data:embeddedData,
+      capabilities:compileCapabilities(components,sourceGraph,repeaters,embeddedData),
       editor_contract:{
         component_identity:'stable-instance-id',
         component_identity_version:COMPONENT_IDENTITY_VERSION,
@@ -420,6 +433,9 @@
         reorder_preserves_item_identity:true,
         arbitrary_item_count:true,
         viewport_count_independent_from_item_count:true,
+        embedded_data_contract_version:1,
+        embedded_css_preserved:true,
+        embedded_javascript_semantic_only:true,
         consumer_contract_version:0
       },
       runtime_policy:{
@@ -429,7 +445,10 @@
         source_responsive_authoritative:true,
         null_safe_required:true,
         fault_isolation_required:true,
-        cross_instance_mutation:false
+        cross_instance_mutation:false,
+        execute_embedded_source_js:false,
+        embedded_css_policy:'decode-and-materialize-source-cascade',
+        embedded_js_policy:'decode-for-evidence-and-safe-compiler-only'
       },
       diagnostics
     };
@@ -476,6 +495,9 @@
       repeater_items:runtimeManifest.diagnostics?.counts?.repeater_items||0,
       assets:runtimeManifest.diagnostics?.counts?.assets||0,
       behaviors:runtimeManifest.diagnostics?.counts?.behaviors||0,
+      embedded_resources:runtimeManifest.diagnostics?.counts?.embedded_resources||0,
+      embedded_css:runtimeManifest.diagnostics?.counts?.embedded_css||0,
+      embedded_javascript:runtimeManifest.diagnostics?.counts?.embedded_javascript||0,
       warnings:safeArray(runtimeManifest.diagnostics?.warnings).length
     };
     return runtimeManifest;
@@ -519,5 +541,5 @@
     armLegacyStudioBridge
   };
   armLegacyStudioBridge();
-  console.info('[DINI SEMANTIC MANIFEST] V'+VERSION+' aktif — P0-A + P0-B Component Isolation / Universal Repeater.');
+  console.info('[DINI SEMANTIC MANIFEST] V'+VERSION+' aktif — P0-A/P0-B + P0-D Embedded Data contract.');
 })(window);
