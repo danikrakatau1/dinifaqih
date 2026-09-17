@@ -3,7 +3,7 @@
   if(window.__DINI_UNIVERSAL_GUEST_RUNTIME_V20__)return;
   window.__DINI_UNIVERSAL_GUEST_RUNTIME_V20__=true;
 
-  const VERSION='2.0.0';
+  const VERSION='2.0.1';
   const cfgEl=document.getElementById('diniGuestRuntimeData');
   let cfg={};try{cfg=cfgEl?JSON.parse(cfgEl.textContent||'{}'):{} }catch{}
   const qs=new URLSearchParams(location.search||'');
@@ -33,8 +33,6 @@
 
   function nodesFromField(field){
     const out=[];
-    if(field?.node_selector)out.push(...queryAll(field.node_selector));
-    if(field?.selector)out.push(...queryAll(field.selector));
     if(field?.owner_selector&&Array.isArray(field?.node_path)){
       for(const owner of queryAll(field.owner_selector)){const node=byPath(owner,field.node_path);if(node)out.push(node)}
     }
@@ -43,6 +41,10 @@
       const owner=query(`[data-id="${id}"],.elementor-element-${id}`);
       const node=byPath(owner,field.node_path);if(node)out.push(node);
     }
+    if(out.length)return out;
+    if(field?.node_selector)out.push(...queryAll(field.node_selector));
+    if(out.length)return out;
+    if(field?.selector)out.push(...queryAll(field.selector));
     return out;
   }
 
@@ -51,15 +53,22 @@
     const fields=(graph?.personalization?.fields||[]).filter(f=>String(f?.type||f?.binding||'')==='guest_name');
     const out=[],seen=new Set();
     const add=n=>{if(!n||seen.has(n)||n.matches?.('script,style,noscript,template,iframe,object,input,textarea,select'))return;seen.add(n);out.push(n)};
+
+    // Source Truth is authoritative. Once an exact guest field resolves, do not sweep
+    // legacy class/id aliases that may belong to unrelated template text such as footer labels.
     fields.forEach(f=>nodesFromField(f).forEach(add));
+    if(out.length)return out;
+
     [
       '[data-dini-bind="guest_name"]',
       '[data-dini-personalization-field="guest_name"]',
       '[data-native-guest-name]',
       '[data-dini-guest-name]',
-      '[data-guest-name]',
-      '#guestName','.guest-name','.guest_name','.nama-tamu','.nama_tamu'
+      '[data-guest-name]'
     ].forEach(sel=>queryAll(sel).forEach(add));
+    if(out.length)return out;
+
+    ['#guestName','.guest-name','.guest_name','.nama-tamu','.nama_tamu'].forEach(sel=>queryAll(sel).forEach(add));
     return out;
   }
 
