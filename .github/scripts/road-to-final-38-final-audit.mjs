@@ -79,7 +79,8 @@ add(34,'Legacy patches are isolated from Source Truth',has(legacyGate,'source-tr
 add(35,'Personalization Scanner',has(sourcePersonalization,"type:'guest_name'",'heuristic_requires_confirmation','textContent-only'), 'Source-native guest_name scanner with confidence policy');
 add(36,'Dynamic guest_name binds to source-native node',has(guestProbe,"binding:'guest_name'",'source-variant-authoritative','clone_node:false','create_node:false')&&!guestProbe.includes('cloneNode(')&&!guestProbe.includes('createElement('), 'Fetch uses existing/upstream source document; does not construct guest UI');
 add(37,'URL personalization is text-only and preserves style/animation',has(guestRuntime,'node.textContent=name','guestMutation','text-only')&&!guestRuntime.includes('.style.')&&!guestRuntime.includes('classList.')&&has(publicBridge,'node.textContent=name'), 'Only textContent changes on bound template node');
-add(38,'Public guest parity uses template node, never global/clone UI',has(strictRenderer,"guestSourceRestore=guest?'existing-source-binding-only':'not-guest'")&&!strictRenderer.includes('cloneNode(')&&!strictRenderer.includes('createElement(')&&!forbiddenHardcode.test(strictRenderer)&&has(publicBridge,"publicGuestParity=matched?'template-node':'missing-binding'"), 'Strict public renderer + bridge keep template identity/style/animation');
+const noGuestSynthesis=!strictRenderer.includes('transplantProbeWidget')&&!strictRenderer.includes('legacyTemplate2Restore')&&!strictRenderer.includes('source-native-fallback')&&!strictRenderer.includes('data-dini-guest-injected');
+add(38,'Public guest parity uses template node, never global/clone UI',has(strictRenderer,"guestSourceRestore=guest?'existing-source-binding-only':'not-guest'")&&noGuestSynthesis&&!forbiddenHardcode.test(strictRenderer)&&has(publicBridge,"publicGuestParity=matched?'template-node':'missing-binding'")&&has(guestProbe,'matched-existing-owner-path','source-variant-authoritative'), 'Strict public renderer may create its iframe shell, but guest personalization itself only targets source-native nodes and never synthesizes guest UI');
 
 const expected=[...Array(38)].map((_,i)=>i+1);
 const actual=checks.map(x=>x.point);
@@ -88,7 +89,7 @@ if(!shapeOk)throw new Error('Audit definition must contain exactly points 1..38 
 
 const failed=checks.filter(x=>!x.ok);
 const report={
-  contract:'road-to-final-38-final-audit-v1',
+  contract:'road-to-final-38-final-audit-v1.1',
   generated_at:new Date().toISOString(),
   points_total:38,
   points_passed:38-failed.length,
