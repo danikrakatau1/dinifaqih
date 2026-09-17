@@ -1,9 +1,9 @@
 (()=>{
   'use strict';
-  if(window.__DINI_UNIVERSAL_GUEST_RUNTIME_V21__)return;
-  window.__DINI_UNIVERSAL_GUEST_RUNTIME_V21__=true;
+  if(window.__DINI_UNIVERSAL_GUEST_RUNTIME_V211__)return;
+  window.__DINI_UNIVERSAL_GUEST_RUNTIME_V211__=true;
 
-  const VERSION='2.1.0';
+  const VERSION='2.1.1';
   const Core=window.DINI_GUEST_CONTRACT_CORE_V1;
   const cfgEl=document.getElementById('diniGuestRuntimeData');
   let cfg={};try{cfg=cfgEl?JSON.parse(cfgEl.textContent||'{}'):{} }catch{}
@@ -13,7 +13,7 @@
   const slug=String(cfg.slug||'').trim();
   if(!name)return;
 
-  document.documentElement.dataset.guestRuntime='v2.1';
+  document.documentElement.dataset.guestRuntime='v2.1.1';
   document.documentElement.dataset.guestMutation='role-aware';
   if(slug)document.documentElement.dataset.guestSlug=slug;
 
@@ -57,11 +57,10 @@
 
   function currentContract(){
     const direct=dedicatedContract();
-    if(Array.isArray(direct?.fields)&&direct.fields.length)return direct;
     const source=contractFromSourceTruth();
-    if(Array.isArray(source?.fields)&&source.fields.length)return source;
-    if(Core?.scanDocument)return Core.scanDocument(document,source||direct||{},{mark:true});
-    return source||direct||{};
+    const base=(Array.isArray(direct?.fields)&&direct.fields.length)?direct:((Array.isArray(source?.fields)&&source.fields.length)?source:(direct&&Object.keys(direct).length?direct:source||{}));
+    if(Core?.scanDocument)return Core.scanDocument(document,base||{},{mark:true,allowSemanticSynthesis:true});
+    return base||{};
   }
 
   function structuralFallbackNodes(){
@@ -81,7 +80,7 @@
 
   function boundSlots(){
     let contract=currentContract();
-    if((!Array.isArray(contract?.fields)||!contract.fields.length)&&Core?.scanDocument)contract=Core.scanDocument(document,contract||{},{mark:true});
+    if((!Array.isArray(contract?.fields)||!contract.fields.length)&&Core?.scanDocument)contract=Core.scanDocument(document,contract||{},{mark:true,allowSemanticSynthesis:true});
     const slots=[],seen=new Set();
     const add=(node,field={})=>{
       if(!node||seen.has(node)||node.matches?.('script,style,noscript,template,iframe,object'))return;
