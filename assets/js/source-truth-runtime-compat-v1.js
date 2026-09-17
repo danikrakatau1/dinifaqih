@@ -3,7 +3,7 @@
   if(window.__DINI_SOURCE_TRUTH_RUNTIME_COMPAT_V1__)return;
   window.__DINI_SOURCE_TRUTH_RUNTIME_COMPAT_V1__=true;
 
-  const VERSION='1.0.0';
+  const VERSION='1.0.1';
   const MOBILE_MAX=767;
   const boundDocs=new WeakMap();
   const boundFrames=new WeakSet();
@@ -25,11 +25,25 @@
     if(!host||host.nodeType!==1||!isMobileDoc(doc)||mobileAnimation(host)!=='none')return false;
     let changed=false;
     if(host.classList?.contains('elementor-invisible')){host.classList.remove('elementor-invisible');changed=true}
+
     const visibility=lower(host.style?.getPropertyValue?.('visibility'));
-    if(visibility==='hidden'||visibility==='collapse'){host.style.removeProperty('visibility');changed=true}
+    const visibilityPriority=lower(host.style?.getPropertyPriority?.('visibility'));
+    if(visibility!=='visible'||visibilityPriority!=='important'){
+      host.style?.setProperty('visibility','visible','important');
+      changed=true;
+    }
+
     const opacity=String(host.style?.getPropertyValue?.('opacity')||'').trim();
-    if(opacity==='0'){host.style.removeProperty('opacity');changed=true}
-    host.setAttribute('data-dini-mobile-none-compat',VERSION);
+    const opacityPriority=lower(host.style?.getPropertyPriority?.('opacity'));
+    if(opacity!=='1'||opacityPriority!=='important'){
+      host.style?.setProperty('opacity','1','important');
+      changed=true;
+    }
+
+    if(host.getAttribute('data-dini-mobile-none-compat')!==VERSION){
+      host.setAttribute('data-dini-mobile-none-compat',VERSION);
+      changed=true;
+    }
     return changed;
   }
 
