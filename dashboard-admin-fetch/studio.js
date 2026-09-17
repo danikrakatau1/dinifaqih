@@ -57,6 +57,7 @@
     const doc=new DOMParser().parseFromString(html,'text/html');
     const declaredBase=doc.querySelector('base')?.getAttribute('href') || '';
     const base=declaredBase ? abs(declaredBase, baseOverride) : baseOverride;
+    const embeddedAudit=window.DiniEmbeddedDataDecoder?.materializeDocument?.(doc,{baseUrl:base||baseOverride||location.href})||null;
     const allText=unique([...doc.querySelectorAll('h1,h2,h3,h4,p,span,div,a,button,label')].map(el=>cleanText(el.textContent)).filter(t=>t.length>=2&&t.length<350));
     const imgs=unique([...doc.images].flatMap(img=>[img.getAttribute('src'),img.getAttribute('data-src'),img.getAttribute('data-lazy-src')]).filter(Boolean).map(u=>abs(u,base)));
     const bg=[]; const animations=[]; const settings=[];
@@ -76,13 +77,13 @@
     const canvas=doc.querySelectorAll('canvas').length;
     const iframes=doc.querySelectorAll('iframe').length;
     const elementor=!!doc.querySelector('.elementor,.elementor-section,[data-elementor-type]') || /elementor/i.test(html);
-    const detected={sections:sections.length,texts:allText.length,images:imgs.length,backgrounds:unique(bg).length,videos:videos.length,audios:audios.length,links:links.length,forms:forms.length,animations:unique(animations).length,canvas,iframes,customScripts,externalScripts:externalScripts.length,elementor};
+    const detected={sections:sections.length,texts:allText.length,images:imgs.length,backgrounds:unique(bg).length,videos:videos.length,audios:audios.length,links:links.length,forms:forms.length,animations:unique(animations).length,canvas,iframes,customScripts,externalScripts:externalScripts.length,elementor,embeddedCss:embeddedAudit?.counts?.css||0,embeddedJs:embeddedAudit?.counts?.javascript||0,embeddedBytes:embeddedAudit?.counts?.bytes||0};
     const unsupported=canvas+iframes+Math.min(customScripts,5);
     let parity=68;
     if(elementor) parity+=14;
     if(detected.images) parity+=4;if(detected.animations)parity+=4;if(detected.forms)parity+=3;if(detected.videos)parity+=3;
     parity=Math.max(25,Math.min(98,parity-unsupported*3));
-    return {doc,html,baseUrl:base,allText,imgs,backgrounds:unique(bg),videos,audios,links,animations:unique(animations),detected,unsupported,parity};
+    return {doc,html,baseUrl:base,allText,imgs,backgrounds:unique(bg),videos,audios,links,animations:unique(animations),detected,unsupported,parity,embeddedAudit};
   }
 
 
@@ -202,6 +203,7 @@
   function makeSourceNativeHtml(a){
     const doc=new DOMParser().parseFromString(a.html,'text/html');
     const base=a.baseUrl||sourceBaseUrl||location.href;
+    const embeddedNativeAudit=window.DiniEmbeddedDataDecoder?.materializeDocument?.(doc,{baseUrl:base})||null;
     const cssSources=Array.isArray(a.linkedCss)?a.linkedCss:[]; // V1.7.8.1 hotfix: exact slideshow geometry uses fetched source CSS in this scope.
     const nativeFields=[];
     const nativeSections=[];
@@ -725,7 +727,7 @@ document.querySelectorAll('[data-native-reveal]').forEach(el=>io.observe(el));
 
   function reportRows(a){
     const D=a.detected;
-    const rows=[['Framework',D.elementor?'Elementor / WordPress terdeteksi':'Generic HTML'],['Sections',D.sections],['Text nodes',D.texts],['Images',D.images],['Backgrounds',D.backgrounds],['Video',D.videos],['Music/Audio',D.audios],['Links',D.links],['Forms',D.forms],['Animations',D.animations],['Canvas',D.canvas],['Iframes',D.iframes],['Custom scripts',D.customScripts]];
+    const rows=[['Framework',D.elementor?'Elementor / WordPress terdeteksi':'Generic HTML'],['Sections',D.sections],['Text nodes',D.texts],['Images',D.images],['Backgrounds',D.backgrounds],['Video',D.videos],['Music/Audio',D.audios],['Links',D.links],['Forms',D.forms],['Animations',D.animations],['Embedded CSS',D.embeddedCss||0],['Embedded JS (inert)',D.embeddedJs||0],['Canvas',D.canvas],['Iframes',D.iframes],['Custom scripts',D.customScripts]];
     $('#detectList').classList.remove('empty');$('#detectList').innerHTML=rows.map(([k,v])=>`<div class="detect-row"><b>${k}</b><span>${v}</span></div>`).join('');
   }
   function setAnalysis(a){
@@ -744,12 +746,12 @@ document.querySelectorAll('[data-native-reveal]').forEach(el=>io.observe(el));
     lastCoverDecorAudit={version:'2.26',embedded:false,preserved:!!lastCriticalCssAudit?.preserved,bytes:lastCriticalCssAudit?.bytes||0,stylesheets:lastCriticalCssAudit?.stylesheets||0,rules:lastCriticalCssAudit?.rules||0,reason:lastCriticalCssAudit?.preserved?'source-graph-v3-css-cascade-preserved':'source-graph-no-flatten'};
     const nativeSchema=sourceNativeSchema(analysis);
     rebuild={
-      manifest:{format:'dini-anif-rebuild-package',version:3,engine:'source-native-rebuild-v2.26-smart-source-ownership',created_at:new Date().toISOString(),invitation_id:(globalThis.crypto?.randomUUID?.()||('inv-'+Date.now()+'-'+Math.random().toString(36).slice(2))),template:'source-native',source_url:sourceBaseUrl||'',visual_manifest:lastVisualManifest,source_graph:lastSourceGraph,identity_sanitized:true},
+      manifest:{format:'dini-anif-rebuild-package',version:3,engine:'source-native-rebuild-v2.26-smart-source-ownership',created_at:new Date().toISOString(),invitation_id:(globalThis.crypto?.randomUUID?.()||('inv-'+Date.now()+'-'+Math.random().toString(36).slice(2))),template:'source-native',source_url:sourceBaseUrl||'',visual_manifest:lastVisualManifest,source_graph:lastSourceGraph,embedded_data:analysis.embeddedAudit?.scan||null,identity_sanitized:true},
       schema:{editable_coverage:100,mode:'source-native',native:nativeSchema,legacy_groups:['cover','motionHero','couple','saveDate','event','live','gallery','story','gift','rsvp','wishes','closing','brand','media','backgrounds']},
       data,
       native:{html:nativeHtml,schema:nativeSchema,source_url:sourceBaseUrl||''},
       motion:{locked:true,source_animations:analysis.animations,baseline:'source-defined animations + safe observer'},
-      report:{parity_score:analysis.parity,editable_coverage:100,unsupported_items:analysis.unsupported,detected:D,renderer:'source-native',cover_decor:lastCoverDecorAudit||null,source_graph_version:3,source_graph_audit:sourceGraphAudit(lastSourceGraph),critical_css:lastCriticalCssAudit,flatten_visuals:false}
+      report:{parity_score:analysis.parity,editable_coverage:100,unsupported_items:analysis.unsupported,detected:D,renderer:'source-native',cover_decor:lastCoverDecorAudit||null,source_graph_version:3,source_graph_audit:sourceGraphAudit(lastSourceGraph),critical_css:lastCriticalCssAudit,embedded_data:analysis.embeddedAudit?.scan||null,flatten_visuals:false}
     };
     const snapshotRaw=JSON.stringify(rebuild);
     try{localStorage.setItem('diniAnifRebuildSnapshot',snapshotRaw)}catch(err){console.warn('localStorage snapshot quota',err)}
@@ -786,7 +788,7 @@ document.querySelectorAll('[data-native-reveal]').forEach(el=>io.observe(el));
       {name:'source-report.json',data:JSON.stringify(p.report,null,2)},
       {name:'source-native.html',data:p.native?.html||''},
       {name:'native-schema.json',data:JSON.stringify(p.native?.schema||{},null,2)},
-      {name:'visual-manifest.json',data:JSON.stringify(p.manifest?.visual_manifest||{version:2,sources:[]},null,2)},{name:'source-graph.json',data:JSON.stringify(p.manifest?.source_graph||{version:2,visuals:[],interactions:[]},null,2)},
+      {name:'visual-manifest.json',data:JSON.stringify(p.manifest?.visual_manifest||{version:2,sources:[]},null,2)},{name:'source-graph.json',data:JSON.stringify(p.manifest?.source_graph||{version:2,visuals:[],interactions:[]},null,2)},{name:'embedded-data.json',data:JSON.stringify(p.manifest?.embedded_data||{version:1,resources:[],counts:{}},null,2)},
       {name:'README.txt',data:'DINI ANIF REBUILD PACKAGE V2.26 — SMART SOURCE OWNERSHIP\n\nBuka /dashboard-admin-edit untuk melanjutkan edit, atau import ZIP hasil Fetch secara manual.\nLayout/motion blueprint terkunci; konten dapat diedit setelah import.\n'}
     ];
     return window.UNDANGAN_ZIP.buildZip(entries);
