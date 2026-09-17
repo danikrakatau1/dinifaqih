@@ -3,7 +3,7 @@
   if(window.__DINI_PUBLIC_SOURCE_TRUTH_RENDERER_V1__)return;
   window.__DINI_PUBLIC_SOURCE_TRUTH_RENDERER_V1__=true;
 
-  const VERSION='1.0.5';
+  const VERSION='1.1.0';
   const CFG=window.DINI_PUBLIC_ENTRY||{};
   const MODE=CFG.mode==='guest'?'guest':'public';
   const SB='https://jfvmcerrsxjvbiogfqes.supabase.co';
@@ -61,6 +61,19 @@
   };
   const safeJson=value=>JSON.stringify(value??{}).replace(/</g,'\\u003c').replace(/-->/g,'--\\>');
   const localAsset=path=>new URL(path,location.origin).href.replace(/"/g,'&quot;');
+  const guestContractFromPackage=pkg=>{
+    const m=pkg?.manifest||{},s=pkg?.snapshot||{};
+    const candidates=[
+      m?.runtime_manifest?.personalization,
+      m?.personalization_contract,
+      m?.source_graph?.personalization,
+      s?.manifest?.runtime_manifest?.personalization,
+      s?.manifest?.personalization_contract,
+      s?.manifest?.source_graph?.personalization,
+      s?.source_graph?.personalization
+    ];
+    return candidates.find(x=>Array.isArray(x?.fields)&&x.fields.length)||candidates.find(x=>x&&typeof x==='object')||{};
+  };
 
   async function getActiveTemplate(){
     const q='id,name,slug,source_path,updated_at,manifest_json';
@@ -131,8 +144,11 @@
       blocks.push('<script src="/assets/js/public-visibility-chain-v1241.js?v=1241"></script>');
     }
     if(guest){
+      const contract=guestContractFromPackage(pkg);
       blocks.push('<script type="application/json" id="diniGuestRuntimeData">'+safeJson(guest)+'</script>');
-      blocks.push('<script src="'+localAsset('/assets/js/guest-runtime-v1.js?v=201')+'"></script>');
+      blocks.push('<script type="application/json" id="diniGuestPersonalizationContract">'+safeJson(contract)+'</script>');
+      blocks.push('<script src="'+localAsset('/assets/js/guest-contract-core-v1.js?v=100')+'"></script>');
+      blocks.push('<script src="'+localAsset('/assets/js/guest-runtime-v1.js?v=210')+'"></script>');
     }
     return appendRuntime(html,blocks);
   }
@@ -159,7 +175,7 @@
       document.documentElement.dataset.publicCanonicalMode=MODE;
       document.documentElement.dataset.publicSourceTruthVersion=String(sourceTruthVersion(pkg.snapshot||pkg.manifest));
       document.documentElement.dataset.publicPackagePolicy=pkg.source_truth?'exact-source-truth-snapshot':'legacy-canonical-compatibility';
-      document.documentElement.dataset.guestSourceRestore=guest?'existing-source-binding-only':'not-guest';
+      document.documentElement.dataset.guestSourceRestore=guest?'global-personalization-contract':'not-guest';
       if(guest){document.title='Untuk '+guest.name+' — Faqih & Dini';}else document.title=(row.name?row.name+' — ':'')+'Faqih & Dini';
       renderFrame(html,guest?'Untuk '+guest.name:'Undangan Faqih & Dini');
     }catch(err){
@@ -168,5 +184,5 @@
     }
   })();
 
-  window.DINI_PUBLIC_SOURCE_TRUTH_RENDERER={VERSION,sourceTruthVersion,isSourceTruth};
+  window.DINI_PUBLIC_SOURCE_TRUTH_RENDERER={VERSION,sourceTruthVersion,isSourceTruth,guestContractFromPackage};
 })();
