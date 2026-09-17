@@ -30,15 +30,14 @@
       const doc=new DOMParser().parseFromString(String(html||''),'text/html');
       const raw=String(doc.querySelector('base')?.getAttribute('href')||'').trim();
       if(raw){
-        const d=dirname(new URL(raw,manifest.asset_base||manifest.origin_source_url||manifest.source_url||fallback||location.href).href);
+        const d=dirname(new URL(raw,manifest.origin_source_url||manifest.source_url||manifest.asset_base||fallback||location.href).href);
         if(d)return d;
       }
     }catch{}
-    const asset=String(manifest.asset_base||'').trim();
-    if(asset){const d=dirname(asset);if(d)return d}
-    const source=String(manifest.source_url||'').trim();
-    if(source){const d=dirname(source);if(d)return d}
-    return dirname(fallback)||location.origin+'/';
+    for(const raw of [manifest.origin_source_url,manifest.source_url,manifest.asset_base,fallback]){
+      const d=dirname(raw);if(d)return d;
+    }
+    return location.origin+'/';
   };
   const isTemplate1=row=>String(row?.slug||'').toLowerCase()==='template-1';
 
