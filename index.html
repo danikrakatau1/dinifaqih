@@ -11,13 +11,21 @@ html,body{margin:0;width:100%;height:100%;min-height:100%;background:#fff;color:
 .state{min-height:100vh;min-height:100dvh;display:grid;place-items:center;text-align:center;padding:28px;box-sizing:border-box}
 .state b{font-size:19px;display:block;margin-bottom:7px}.state small{opacity:.72}
 </style>
+<link rel="preload" href="/assets/branding/loader-dini-faqih.svg?v=100" as="image" type="image/svg+xml">
+<link rel="stylesheet" href="/assets/css/loader-dini-faqih.css?v=100">
 <script>window.DINI_PUBLIC_ENTRY={mode:'public'};</script>
 <script src="/dashboard-admin-edit/template-canonical-v1160.js?v=1160"></script>
 <script src="/assets/js/canonical-consumer-bridge-v1250.js?v=1250" defer></script>
 <script src="/assets/js/source-truth-runtime-compat-v1.js?v=101" defer></script>
 </head>
 <body>
-<div class="state" id="diniPublicState"><div><b>Memuat undangan…</b><small>Canonical Public Renderer · V1.8.2 · Consumer Parity V1.25</small></div></div>
+<div class="state dini-premium-loader" id="diniPublicState" aria-live="polite" aria-busy="true">
+  <div class="dini-premium-loader__inner">
+    <img class="dini-premium-loader__logo" src="/assets/branding/loader-dini-faqih.svg?v=100" alt="DINI & FAQIH" width="1200" height="360" decoding="async" fetchpriority="high">
+    <p class="dini-premium-loader__copy">Menyiapkan undangan spesial...</p>
+    <span class="dini-premium-loader__dot" aria-hidden="true"></span>
+  </div>
+</div>
 <script src="/assets/js/public-canonical-renderer-v18.js?v=182"></script>
 <script>
 (()=>{
