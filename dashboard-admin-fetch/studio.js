@@ -72,7 +72,7 @@
     const links=unique([...doc.querySelectorAll('a[href]')].map(a=>a.href).filter(Boolean));
     const sections=[...doc.querySelectorAll('section,.elementor-top-section')];
     const forms=[...doc.querySelectorAll('form')];
-    const customScripts=[...doc.scripts].filter(s=>!s.src && cleanText(s.textContent).length>80).length;
+    const customScripts=[...doc.scripts].filter(s=>!s.src&&!s.hasAttribute('data-dini-source-js-inert')&&cleanText(s.textContent).length>80).length;
     const externalScripts=[...doc.scripts].filter(s=>/^https?:/i.test(s.src)).map(s=>s.src);
     const canvas=doc.querySelectorAll('canvas').length;
     const iframes=doc.querySelectorAll('iframe').length;
