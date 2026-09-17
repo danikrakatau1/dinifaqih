@@ -2,7 +2,7 @@
   'use strict';
   if(g.DiniSemanticManifest?.version)return;
 
-  const VERSION='1.2.0';
+  const VERSION='1.3.0';
   const MANIFEST_VERSION=1;
   const REPEATER_CONTRACT_VERSION=1;
   const COMPONENT_IDENTITY_VERSION=1;
@@ -322,7 +322,7 @@
     return [...raw,...semantic,...itemActions];
   }
 
-  function compileCapabilities(components,sourceGraph,repeaters,embeddedData){
+  function compileCapabilities(components,sourceGraph,repeaters,embeddedData,layout){
     const set=new Set();
     components.forEach(c=>set.add(c.type));
     const frameworks=safeArray(sourceGraph?.dependencies?.frameworks);
@@ -336,10 +336,13 @@
     if(Number(embeddedData?.counts?.css||0)>0)set.add('embedded-css');
     if(Number(embeddedData?.counts?.javascript||0)>0)set.add('embedded-js-evidence');
     if(Number(embeddedData?.counts?.total||0)>0)set.add('embedded-data-decoder');
+    if(layout?.topology)set.add('layout:'+layout.topology);
+    if(Array.isArray(layout?.panes)&&layout.panes.length)set.add('layout-panes');
+    if(Array.isArray(layout?.overlays)&&layout.overlays.length)set.add('fixed-overlay-ownership');
     return [...set].sort();
   }
 
-  function compileDiagnostics({components,repeaters,assets,behaviors,sourceGraph,nativeSchema,embeddedData}){
+  function compileDiagnostics({components,repeaters,assets,behaviors,sourceGraph,nativeSchema,embeddedData,layout}){
     const warnings=[];
     if(sourceGraph?.source_truth_error)warnings.push({code:'SOURCE_TRUTH_SCAN_ERROR',severity:'warning',message:String(sourceGraph.source_truth_error)});
     const parseErrors=components.filter(c=>c.settings?.__parse_error);
@@ -368,8 +371,12 @@
         embedded_resources:Number(embeddedData?.counts?.total||0),
         embedded_css:Number(embeddedData?.counts?.css||0),
         embedded_javascript:Number(embeddedData?.counts?.javascript||0),
-        embedded_bytes:Number(embeddedData?.counts?.bytes||0)
-      }
+        embedded_bytes:Number(embeddedData?.counts?.bytes||0),
+        layout_panes:Array.isArray(layout?.panes)?layout.panes.length:0,
+        layout_owned_overlays:Array.isArray(layout?.overlays)?layout.overlays.length:0,
+        layout_breakpoints:Array.isArray(layout?.breakpoint_queries)?layout.breakpoint_queries.length:0
+      },
+      layout:{topology:layout?.topology||'unclassified',confidence:Number(layout?.confidence||0),viewport_policy:layout?.runtime?.viewport_policy||'canonical-content'}
     };
   }
 
@@ -383,12 +390,13 @@
     const personalization=clone(sourceGraph?.personalization||{version:1,fields:[],candidates:[],binding_policy:{}});
     const responsive=clone(sourceGraph?.responsive||{version:1});
     const dependencies=clone(sourceGraph?.dependencies||{version:1,external_scripts:[],stylesheets:[],fonts:[],frameworks:[]});
+    const layout=clone(sourceGraph?.layout||{version:1,mode:'source-native',topology:'unclassified',source_authority:true,runtime:{viewport_policy:'canonical-content',synthesize_layout:false}});
     const decoder=g.DiniEmbeddedDataDecoder;
     let embeddedData=clone(sourceGraph?.embedded_data||{});
     if(!Number(embeddedData?.counts?.total||0)&&decoder?.scanDocument){
       try{embeddedData=decoder.summary(decoder.scanDocument(doc,{baseUrl:sourceUrl||sourceGraph?.source?.url||''}))}catch(err){embeddedData={version:1,resources:[],counts:{total:0,css:0,javascript:0,bytes:0},error:String(err?.message||err)}}
     }
-    const diagnostics=compileDiagnostics({components,repeaters,assets,behaviors,sourceGraph,nativeSchema,embeddedData});
+    const diagnostics=compileDiagnostics({components,repeaters,assets,behaviors,sourceGraph,nativeSchema,embeddedData,layout});
     return {
       format:'dini-universal-runtime-manifest',
       version:MANIFEST_VERSION,
@@ -415,11 +423,11 @@
       behaviors,
       interactions,
       responsive,
-      layout:{version:1,mode:'source-native',topology:'unclassified',source_authority:true},
+      layout,
       personalization,
       dependencies,
       embedded_data:embeddedData,
-      capabilities:compileCapabilities(components,sourceGraph,repeaters,embeddedData),
+      capabilities:compileCapabilities(components,sourceGraph,repeaters,embeddedData,layout),
       editor_contract:{
         component_identity:'stable-instance-id',
         component_identity_version:COMPONENT_IDENTITY_VERSION,
@@ -436,6 +444,10 @@
         embedded_data_contract_version:1,
         embedded_css_preserved:true,
         embedded_javascript_semantic_only:true,
+        layout_topology_contract_version:Number(layout?.version||1),
+        layout_source_authoritative:true,
+        pane_ownership_preserved:true,
+        source_scroll_behavior_preserved:true,
         consumer_contract_version:0
       },
       runtime_policy:{
@@ -448,7 +460,9 @@
         cross_instance_mutation:false,
         execute_embedded_source_js:false,
         embedded_css_policy:'decode-and-materialize-source-cascade',
-        embedded_js_policy:'decode-for-evidence-and-safe-compiler-only'
+        embedded_js_policy:'decode-for-evidence-and-safe-compiler-only',
+        layout_execution:'source-css-plus-consumer-viewport-policy',
+        layout_normalization:false
       },
       diagnostics
     };
@@ -498,6 +512,9 @@
       embedded_resources:runtimeManifest.diagnostics?.counts?.embedded_resources||0,
       embedded_css:runtimeManifest.diagnostics?.counts?.embedded_css||0,
       embedded_javascript:runtimeManifest.diagnostics?.counts?.embedded_javascript||0,
+      layout_topology:runtimeManifest.layout?.topology||'unclassified',
+      layout_panes:runtimeManifest.diagnostics?.counts?.layout_panes||0,
+      layout_owned_overlays:runtimeManifest.diagnostics?.counts?.layout_owned_overlays||0,
       warnings:safeArray(runtimeManifest.diagnostics?.warnings).length
     };
     return runtimeManifest;
@@ -541,5 +558,5 @@
     armLegacyStudioBridge
   };
   armLegacyStudioBridge();
-  console.info('[DINI SEMANTIC MANIFEST] V'+VERSION+' aktif — P0-A/P0-B + P0-D Embedded Data contract.');
+  console.info('[DINI SEMANTIC MANIFEST] V'+VERSION+' aktif — P0-A/P0-B/P0-D + P0-E Layout Topology contract.');
 })(window);
