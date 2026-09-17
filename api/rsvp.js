@@ -1,4 +1,5 @@
-import { getSupabaseAdmin } from './_supabase-auth.js';
+const SUPABASE_URL = 'https://jfvmcerrsxjvbiogfqes.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_3IqSDxkpxCGiDpxAEwdsXQ_AsJpsC4W';
 
 const json = (res, status, body) => {
   res.statusCode = status;
@@ -8,6 +9,11 @@ const json = (res, status, body) => {
 };
 
 const text = (value, max = 500) => String(value ?? '').trim().slice(0, max);
+
+const supabaseHeaders = (extra = {}) => ({
+  apikey: SUPABASE_PUBLISHABLE_KEY,
+  ...extra,
+});
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -28,32 +34,47 @@ export default async function handler(req, res) {
       return json(res, 400, { ok: false, error: 'missing_required_fields' });
     }
 
-    const supabase = getSupabaseAdmin();
-    const { data: invitation, error: invitationError } = await supabase
-      .from('invitations')
-      .select('id,status')
-      .eq('id', invitationId)
-      .maybeSingle();
+    const invitationUrl = new URL(`${SUPABASE_URL}/rest/v1/invitations`);
+    invitationUrl.searchParams.set('id', `eq.${invitationId}`);
+    invitationUrl.searchParams.set('status', 'eq.published');
+    invitationUrl.searchParams.set('select', 'id');
+    invitationUrl.searchParams.set('limit', '1');
 
-    if (invitationError) throw invitationError;
-    if (!invitation || invitation.status !== 'published') {
+    const invitationResponse = await fetch(invitationUrl, {
+      headers: supabaseHeaders({ Accept: 'application/json' }),
+    });
+
+    if (!invitationResponse.ok) {
+      const detail = (await invitationResponse.text()).slice(0, 300);
+      throw new Error(`supabase_invitation_${invitationResponse.status}:${detail}`);
+    }
+
+    const invitations = await invitationResponse.json();
+    if (!Array.isArray(invitations) || invitations.length === 0) {
       return json(res, 404, { ok: false, error: 'invitation_not_found' });
     }
 
-    const { data, error } = await supabase
-      .from('invitation_rsvps')
-      .insert({
+    const insertResponse = await fetch(`${SUPABASE_URL}/rest/v1/invitation_rsvps`, {
+      method: 'POST',
+      headers: supabaseHeaders({
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal',
+      }),
+      body: JSON.stringify({
         invitation_id: invitationId,
         guest_name: guestName,
         attendance,
         guest_count: guestCount,
         message: message || null,
-      })
-      .select('id,created_at')
-      .single();
+      }),
+    });
 
-    if (error) throw error;
-    return json(res, 200, { ok: true, id: data.id, created_at: data.created_at });
+    if (!insertResponse.ok) {
+      const detail = (await insertResponse.text()).slice(0, 300);
+      throw new Error(`supabase_rsvp_${insertResponse.status}:${detail}`);
+    }
+
+    return json(res, 200, { ok: true });
   } catch (error) {
     console.error('[api/rsvp]', error);
     return json(res, 500, { ok: false, error: 'server_error' });
