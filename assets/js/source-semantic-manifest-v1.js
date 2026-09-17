@@ -2,8 +2,11 @@
   'use strict';
   if(g.DiniSemanticManifest?.version)return;
 
-  const VERSION='1.0.1';
+  const VERSION='1.1.0';
   const MANIFEST_VERSION=1;
+  const REPEATER_CONTRACT_VERSION=1;
+  const COMPONENT_IDENTITY_VERSION=1;
+
   const clean=s=>String(s??'').replace(/\s+/g,' ').trim();
   const clone=v=>{try{return structuredClone(v)}catch{try{return JSON.parse(JSON.stringify(v))}catch{return v}}};
   const uniq=a=>[...new Set((a||[]).filter(v=>v!==''&&v!=null))];
@@ -26,8 +29,12 @@
     if(el.id)return '#'+el.id;
     const id=elementId(el);
     if(id)return `[data-id="${id}"]`;
+    const repeater=[...(el.classList||[])].find(x=>/^elementor-repeater-item-/.test(x));
+    if(repeater)return'.'+repeater;
     const cls=[...(el.classList||[])].find(x=>/^elementor-element-/.test(x));
     if(cls)return'.'+cls;
+    const name=el.getAttribute?.('name');
+    if(name)return `${String(el.tagName||'input').toLowerCase()}[name="${String(name).replaceAll('"','\\"')}"]`;
     return String(el.tagName||'element').toLowerCase();
   };
   const safeArray=v=>Array.isArray(v)?v:[];
@@ -56,63 +63,200 @@
     const sec=el?.closest?.('.elementor-top-section,body > section,section');
     return elementId(sec)||sec?.id||'';
   };
-  const itemCountFor=(el,type)=>{
-    if(!el)return 0;
-    const selectors={
-      'image-carousel':'.swiper-slide',
-      'media-carousel':'.swiper-slide',
-      'testimonial-carousel':'.swiper-slide',
-      'gallery':'.e-gallery-item,.elementor-gallery-item',
-      'timeline':'.weddingpress-timeline-item',
-      'guestbook':'.cui-item-comment',
-      'icon-list':'.elementor-icon-list-item',
-      'social-links':'.elementor-grid-item',
-      'form':'.elementor-field-group'
-    };
-    const q=selectors[type];
-    return q?el.querySelectorAll(q).length:0;
-  };
   const actionStateFor=el=>{
     const link=el?.matches?.('a,button,[role="button"]')?el:el?.querySelector?.('a,button,[role="button"]');
     if(!link)return null;
     const disabled=link.hasAttribute('disabled')||link.getAttribute('aria-disabled')==='true'||link.classList?.contains('disabled');
     const href=link.getAttribute?.('href');
-    return {state:disabled?'disabled':href&&href!=='#'&&!/^javascript:/i.test(href)?'bound':'unbound',href:href||'',target:link.getAttribute?.('target')||'',label:clean(link.textContent)};
+    return {
+      state:disabled?'disabled':href&&href!=='#'&&!/^javascript:/i.test(href)?'bound':'unbound',
+      href:href||'',
+      target:link.getAttribute?.('target')||'',
+      label:clean(link.textContent)
+    };
+  };
+
+  const REPEATER_SPECS={
+    'image-carousel':{selector:'.swiper-slide',mode:'carousel'},
+    'media-carousel':{selector:'.swiper-slide',mode:'carousel'},
+    'testimonial-carousel':{selector:'.swiper-slide',mode:'carousel'},
+    'gallery':{selector:'.e-gallery-item,.elementor-gallery-item',mode:'gallery'},
+    'timeline':{selector:'.weddingpress-timeline-item,.bdt-timeline-item',mode:'timeline'},
+    'guestbook':{selector:'.cui-item-comment',mode:'guestbook'},
+    'icon-list':{selector:'.elementor-icon-list-item',mode:'list'},
+    'social-links':{selector:'.elementor-grid-item,.elementor-social-icon',mode:'social'},
+    'form':{selector:'.elementor-field-group',mode:'fields'}
+  };
+
+  const itemExplicitId=el=>{
+    if(!el)return'';
+    const candidates=[
+      el.getAttribute?.('data-id'),
+      el.id,
+      ([...(el.classList||[])].find(x=>/^elementor-repeater-item-/.test(x))||'').replace(/^elementor-repeater-item-/,''),
+      el.getAttribute?.('data-e-action-hash'),
+      el.getAttribute?.('data-field-id'),
+      el.querySelector?.('[name]')?.getAttribute?.('name'),
+      el.querySelector?.('[id]')?.id
+    ].filter(Boolean);
+    return String(candidates[0]||'');
+  };
+  const itemMedia=el=>{
+    const urls=[];
+    el?.querySelectorAll?.('img,source,video,audio').forEach(n=>{
+      for(const at of ['src','data-src','data-lazy-src','poster']){
+        const v=n.getAttribute?.(at);if(v)urls.push(v);
+      }
+    });
+    const style=String(el?.getAttribute?.('style')||'');
+    for(const m of style.matchAll(/url\(\s*["']?([^"')]+)["']?\s*\)/ig))urls.push(m[1]);
+    const a=el?.querySelector?.('a[href]')?.getAttribute?.('href');
+    if(a)urls.push(a);
+    return uniq(urls).slice(0,20);
+  };
+  const itemText=el=>{
+    const leaf=[...el.querySelectorAll?.('h1,h2,h3,h4,h5,h6,p,span,label,a,button')||[]]
+      .map(n=>clean(n.textContent))
+      .filter(t=>t&&t.length<=300);
+    const all=clean(el?.textContent).slice(0,500);
+    return uniq(leaf.length?leaf:[all]).slice(0,20);
+  };
+  const repeaterViewport=cfg=>{
+    const pick=(...keys)=>{for(const k of keys)if(cfg?.[k]!==undefined&&cfg?.[k]!==null&&cfg?.[k]!=='')return cfg[k];return null};
+    return {
+      desktop:pick('slides_per_view','slides_to_show','slides_to_show_desktop','slides_per_view_desktop'),
+      tablet:pick('slides_per_view_tablet','slides_to_show_tablet'),
+      mobile:pick('slides_per_view_mobile','slides_to_show_mobile')
+    };
+  };
+  function compileRepeater(el,type,componentId){
+    const spec=REPEATER_SPECS[type];
+    if(!spec||!el)return null;
+    let nodes=[...el.querySelectorAll(spec.selector)];
+    if(/carousel/.test(spec.mode))nodes=nodes.filter(n=>!n.classList.contains('swiper-slide-duplicate'));
+    // Some social widgets match both wrapper and anchor. Keep the most specific repeated nodes only.
+    if(type==='social-links'){
+      const grid=nodes.filter(n=>n.classList.contains('elementor-grid-item'));
+      if(grid.length)nodes=grid;
+    }
+    const seenKeys=new Map();
+    const items=nodes.map((node,order)=>{
+      const explicit=itemExplicitId(node);
+      const text=itemText(node);
+      const media=itemMedia(node);
+      const action=actionStateFor(node);
+      const contentSignature=hash([explicit,clean(node.getAttribute?.('class')||''),text.join('|'),media.join('|'),action?.href||''].join('||'));
+      const baseKey=explicit?`source:${explicit}`:`content:${contentSignature}`;
+      const occurrence=(seenKeys.get(baseKey)||0)+1;seenKeys.set(baseKey,occurrence);
+      const stableKey=occurrence===1?baseKey:`${baseKey}|dup:${occurrence}`;
+      const id=`item-${hash(componentId+'|'+stableKey)}`;
+      const settings=parseSettings(node);
+      return {
+        id,
+        source_id:explicit,
+        order,
+        selector:selectorFor(node),
+        text,
+        media,
+        action,
+        settings,
+        source_html_hash:hash(node.outerHTML||''),
+        source_authority:true
+      };
+    });
+    const cfg=parseSettings(el);
+    return {
+      version:REPEATER_CONTRACT_VERSION,
+      mode:spec.mode,
+      item_selector:spec.selector,
+      item_count:items.length,
+      item_ids:items.map(x=>x.id),
+      viewport_items:repeaterViewport(cfg),
+      items,
+      isolation:{
+        component_id:componentId,
+        scope:selectorFor(el),
+        mutation_scope:'component-only',
+        cross_instance_writes:false
+      }
+    };
+  }
+
+  const componentFingerprint=(el,kind,type)=>{
+    const settings=parseSettings(el);
+    const section=nearestSectionId(el);
+    const text=clean(el?.textContent).slice(0,240);
+    const cls=uniq(String(el?.className||'').split(/\s+/)).sort().join('.');
+    return hash([kind,type,section,selectorFor(el),cls,hash(JSON.stringify(settings||{})),text].join('|'));
   };
 
   function compileComponents(doc,nativeSchema){
-    const out=[];const seen=new Set();
+    const out=[];const seenIds=new Map();
     const add=(el,{kind='widget',type='',index=0}={})=>{
       if(!el)return;
       const sourceId=elementId(el)||el.id||'';
       const selector=selectorFor(el);
       const widgetRaw=el.getAttribute?.('data-widget_type')||'';
       const normalized=type||normalizeWidgetType(widgetRaw);
-      const stableKey=[kind,normalized,sourceId,selector,index].join('|');
-      const id='cmp-'+hash(stableKey);
-      if(seen.has(id))return;seen.add(id);
+      const identityBase=sourceId
+        ?[kind,normalized,'source',sourceId].join('|')
+        :[kind,normalized,'fingerprint',componentFingerprint(el,kind,normalized)].join('|');
+      let id='cmp-'+hash(identityBase);
+      const collision=(seenIds.get(id)||0)+1;seenIds.set(id,collision);
+      if(collision>1)id='cmp-'+hash(identityBase+'|collision:'+collision);
       const settings=parseSettings(el);
       const action=actionStateFor(el);
+      const repeater=compileRepeater(el,normalized,id);
       out.push({
         id,
+        instance_id:id,
+        identity_version:COMPONENT_IDENTITY_VERSION,
         source_id:sourceId,
         kind,
         type:normalized,
         widget_type:widgetRaw,
         selector,
+        instance_scope:selector,
         section_id:nearestSectionId(el),
         order:out.length,
-        item_count:itemCountFor(el,normalized),
+        item_count:repeater?.item_count||0,
+        items:repeater?.items||[],
+        repeater,
         settings,
         action,
         classes:uniq(String(el.className||'').split(/\s+/)).slice(0,80),
-        editable_field_ids:safeArray(nativeSchema?.fields).filter(f=>f?.source_element_id===sourceId||f?.node_id===el.getAttribute?.('data-native-node-id')).map(f=>f.id),
+        editable_field_ids:safeArray(nativeSchema?.fields)
+          .filter(f=>f?.source_element_id===sourceId||f?.node_id===el.getAttribute?.('data-native-node-id'))
+          .map(f=>f.id),
+        isolation:{
+          key:'isolate-'+hash(id+'|'+selector),
+          scope:selector,
+          cross_instance_writes:false,
+          editor_mutation_scope:'instance-only'
+        },
         source_authority:true
       });
     };
     [...doc.querySelectorAll('.elementor-top-section,body > section')].forEach((el,i)=>add(el,{kind:'section',type:'section',index:i}));
     [...doc.querySelectorAll('[data-widget_type]')].forEach((el,i)=>add(el,{kind:'widget',index:i}));
     return out;
+  }
+
+  function compileRepeaters(components){
+    return components.filter(c=>c.repeater).map(c=>({
+      id:'rep-'+hash(c.id),
+      version:REPEATER_CONTRACT_VERSION,
+      component_id:c.id,
+      component_type:c.type,
+      instance_scope:c.instance_scope,
+      mode:c.repeater.mode,
+      item_selector:c.repeater.item_selector,
+      item_count:c.repeater.item_count,
+      item_ids:c.repeater.item_ids,
+      viewport_items:clone(c.repeater.viewport_items),
+      isolation:clone(c.repeater.isolation),
+      source_authority:true
+    }));
   }
 
   function compileAssets(sourceGraph,visualManifest){
@@ -161,10 +305,24 @@
       action:clone(c.action),
       source_authority:true
     }));
-    return [...raw,...semantic];
+    const itemActions=[];
+    for(const c of components){
+      for(const item of safeArray(c.items)){
+        if(!item.action)continue;
+        itemActions.push({
+          id:'interaction-'+hash(c.id+'|'+item.id+'|action'),
+          type:'repeater-item-action',
+          component_id:c.id,
+          item_id:item.id,
+          action:clone(item.action),
+          source_authority:true
+        });
+      }
+    }
+    return [...raw,...semantic,...itemActions];
   }
 
-  function compileCapabilities(components,sourceGraph){
+  function compileCapabilities(components,sourceGraph,repeaters){
     const set=new Set();
     components.forEach(c=>set.add(c.type));
     const frameworks=safeArray(sourceGraph?.dependencies?.frameworks);
@@ -173,10 +331,12 @@
     if(safeArray(sourceGraph?.lifecycle?.timers).length)set.add('timers');
     if(safeArray(sourceGraph?.lifecycle?.events).length)set.add('lifecycle-events');
     if(safeArray(sourceGraph?.personalization?.fields).length||safeArray(sourceGraph?.personalization?.candidates).length)set.add('personalization');
+    if(repeaters.length)set.add('universal-repeater');
+    if(components.length)set.add('component-instance-isolation');
     return [...set].sort();
   }
 
-  function compileDiagnostics({components,assets,behaviors,sourceGraph,nativeSchema}){
+  function compileDiagnostics({components,repeaters,assets,behaviors,sourceGraph,nativeSchema}){
     const warnings=[];
     if(sourceGraph?.source_truth_error)warnings.push({code:'SOURCE_TRUTH_SCAN_ERROR',severity:'warning',message:String(sourceGraph.source_truth_error)});
     const parseErrors=components.filter(c=>c.settings?.__parse_error);
@@ -185,11 +345,18 @@
     components.forEach(c=>{if(c.source_id)(duplicateSourceIds[c.source_id]=(duplicateSourceIds[c.source_id]||0)+1)});
     const dup=Object.entries(duplicateSourceIds).filter(([,n])=>n>1);
     if(dup.length)warnings.push({code:'DUPLICATE_SOURCE_ID',severity:'info',items:dup.map(([source_id,count])=>({source_id,count}))});
+    const itemIds=new Map();
+    for(const c of components)for(const item of safeArray(c.items))itemIds.set(item.id,(itemIds.get(item.id)||0)+1);
+    const duplicateItemIds=[...itemIds.entries()].filter(([,n])=>n>1);
+    if(duplicateItemIds.length)warnings.push({code:'DUPLICATE_REPEATER_ITEM_ID',severity:'warning',items:duplicateItemIds.map(([item_id,count])=>({item_id,count}))});
     return {
-      version:1,
+      version:2,
       warnings,
       counts:{
         components:components.length,
+        isolated_components:components.filter(c=>c.isolation?.cross_instance_writes===false).length,
+        repeaters:repeaters.length,
+        repeater_items:repeaters.reduce((n,r)=>n+Number(r.item_count||0),0),
         assets:assets.length,
         behaviors:behaviors.length,
         native_fields:safeArray(nativeSchema?.fields).length,
@@ -202,13 +369,14 @@
   function compile({doc,sourceGraph={},visualManifest={},nativeSchema={},sourceUrl='',createdAt=''}={}){
     if(!doc?.querySelectorAll)throw new Error('DiniSemanticManifest.compile membutuhkan Document source.');
     const components=compileComponents(doc,nativeSchema);
+    const repeaters=compileRepeaters(components);
     const assets=compileAssets(sourceGraph,visualManifest);
     const behaviors=compileBehaviors(sourceGraph);
     const interactions=compileInteractions(sourceGraph,components);
     const personalization=clone(sourceGraph?.personalization||{version:1,fields:[],candidates:[],binding_policy:{}});
     const responsive=clone(sourceGraph?.responsive||{version:1});
     const dependencies=clone(sourceGraph?.dependencies||{version:1,external_scripts:[],stylesheets:[],fonts:[],frameworks:[]});
-    const diagnostics=compileDiagnostics({components,assets,behaviors,sourceGraph,nativeSchema});
+    const diagnostics=compileDiagnostics({components,repeaters,assets,behaviors,sourceGraph,nativeSchema});
     return {
       format:'dini-universal-runtime-manifest',
       version:MANIFEST_VERSION,
@@ -230,6 +398,7 @@
         plugin_specific_template_hardcode:false
       },
       components,
+      repeaters,
       assets,
       behaviors,
       interactions,
@@ -237,13 +406,20 @@
       layout:{version:1,mode:'source-native',topology:'unclassified',source_authority:true},
       personalization,
       dependencies,
-      capabilities:compileCapabilities(components,sourceGraph),
+      capabilities:compileCapabilities(components,sourceGraph,repeaters),
       editor_contract:{
         component_identity:'stable-instance-id',
+        component_identity_version:COMPONENT_IDENTITY_VERSION,
         source_ids_preserved:true,
         source_settings_preserved:true,
         explicit_none_preserved:true,
-        repeater_contract_version:0,
+        instance_isolation:true,
+        mutation_scope:'instance-only',
+        repeater_contract_version:REPEATER_CONTRACT_VERSION,
+        repeater_item_identity:'stable-source-or-content-id',
+        reorder_preserves_item_identity:true,
+        arbitrary_item_count:true,
+        viewport_count_independent_from_item_count:true,
         consumer_contract_version:0
       },
       runtime_policy:{
@@ -252,7 +428,8 @@
         source_delays_authoritative:true,
         source_responsive_authoritative:true,
         null_safe_required:true,
-        fault_isolation_required:true
+        fault_isolation_required:true,
+        cross_instance_mutation:false
       },
       diagnostics
     };
@@ -260,7 +437,8 @@
 
   function attachToRebuildPackage(pkg,{doc}={}){
     if(!pkg?.manifest||pkg.manifest.format!=='dini-anif-rebuild-package')return null;
-    if(pkg.manifest.runtime_manifest?.format==='dini-universal-runtime-manifest')return pkg.manifest.runtime_manifest;
+    const currentCompiler=`dini-semantic-manifest-v${VERSION}`;
+    if(pkg.manifest.runtime_manifest?.format==='dini-universal-runtime-manifest'&&pkg.manifest.runtime_manifest?.compiler===currentCompiler)return pkg.manifest.runtime_manifest;
     let sourceDoc=doc;
     if(!sourceDoc?.querySelectorAll){
       const raw=String(document.getElementById('sourceInput')?.value||'').trim();
@@ -280,12 +458,22 @@
     pkg.manifest.runtime_manifest_ref='manifest.runtime_manifest';
     pkg.schema=pkg.schema||{};
     pkg.schema.runtime_manifest_version=MANIFEST_VERSION;
-    pkg.schema.runtime_contract={version:1,manifest_path:'manifest.runtime_manifest',authority:'source-semantic'};
+    pkg.schema.runtime_contract={
+      version:2,
+      manifest_path:'manifest.runtime_manifest',
+      authority:'source-semantic',
+      component_identity_version:COMPONENT_IDENTITY_VERSION,
+      repeater_contract_version:REPEATER_CONTRACT_VERSION,
+      instance_isolation:true
+    };
     pkg.report=pkg.report||{};
     pkg.report.runtime_manifest={
       version:MANIFEST_VERSION,
       compiler:runtimeManifest.compiler,
       components:runtimeManifest.diagnostics?.counts?.components||0,
+      isolated_components:runtimeManifest.diagnostics?.counts?.isolated_components||0,
+      repeaters:runtimeManifest.diagnostics?.counts?.repeaters||0,
+      repeater_items:runtimeManifest.diagnostics?.counts?.repeater_items||0,
       assets:runtimeManifest.diagnostics?.counts?.assets||0,
       behaviors:runtimeManifest.diagnostics?.counts?.behaviors||0,
       warnings:safeArray(runtimeManifest.diagnostics?.warnings).length
@@ -293,15 +481,17 @@
     return runtimeManifest;
   }
 
-  // P0-A compatibility bridge. Studio V2.26 keeps rebuild state private inside its closure.
-  // Intercept only serialization of that exact rebuild package, attach the semantic manifest once,
-  // then delegate to the native serializer unchanged. No other JSON payload is modified.
+  // Compatibility bridge: Studio V2.26 keeps rebuild state private inside its closure.
+  // Intercept only serialization of that exact rebuild package, attach/upgrade the semantic
+  // manifest, then delegate to the native serializer unchanged. No other payload is modified.
   const nativeStringify=JSON.stringify.bind(JSON);
   let bridgeBusy=false;
   function armLegacyStudioBridge(){
     if(JSON.stringify?.__diniSemanticManifestBridge)return;
     const wrapped=function(value,replacer,space){
-      if(!bridgeBusy&&value?.manifest?.format==='dini-anif-rebuild-package'&&!value.manifest.runtime_manifest){
+      const currentCompiler=`dini-semantic-manifest-v${VERSION}`;
+      const stale=value?.manifest?.format==='dini-anif-rebuild-package'&&value?.manifest?.runtime_manifest?.compiler!==currentCompiler;
+      if(!bridgeBusy&&value?.manifest?.format==='dini-anif-rebuild-package'&&(!value.manifest.runtime_manifest||stale)){
         bridgeBusy=true;
         try{attachToRebuildPackage(value)}catch(err){
           console.error('[DINI SEMANTIC MANIFEST] gagal attach ke rebuild package',err);
@@ -317,8 +507,11 @@
   g.DiniSemanticManifest={
     version:VERSION,
     manifest_version:MANIFEST_VERSION,
+    repeater_contract_version:REPEATER_CONTRACT_VERSION,
+    component_identity_version:COMPONENT_IDENTITY_VERSION,
     compile,
     compileComponents,
+    compileRepeaters,
     compileAssets,
     compileBehaviors,
     compileInteractions,
@@ -326,5 +519,5 @@
     armLegacyStudioBridge
   };
   armLegacyStudioBridge();
-  console.info('[DINI SEMANTIC MANIFEST] V'+VERSION+' aktif — Universal Runtime Manifest P0-A.');
+  console.info('[DINI SEMANTIC MANIFEST] V'+VERSION+' aktif — P0-A + P0-B Component Isolation / Universal Repeater.');
 })(window);
