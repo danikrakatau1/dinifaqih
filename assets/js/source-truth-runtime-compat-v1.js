@@ -3,10 +3,11 @@
   if(window.__DINI_SOURCE_TRUTH_RUNTIME_COMPAT_V1__)return;
   window.__DINI_SOURCE_TRUTH_RUNTIME_COMPAT_V1__=true;
 
-  const VERSION='1.0.1';
+  const VERSION='1.0.2';
   const MOBILE_MAX=767;
   const boundDocs=new WeakMap();
-  const boundFrames=new WeakSet();
+  const listenedFrames=new WeakSet();
+  const frameDocs=new WeakMap();
 
   const lower=v=>String(v??'').trim().toLowerCase();
   const parseSettings=host=>{
@@ -127,12 +128,30 @@
     [60,180,500,1200,3000,6000].forEach(ms=>setTimeout(run,ms));
   }
 
+  function syncFrame(frame){
+    if(!frame)return;
+    try{
+      const doc=frame.contentDocument;
+      if(!doc?.documentElement)return;
+      if(frameDocs.get(frame)!==doc){
+        frameDocs.set(frame,doc);
+        bindDocument(doc);
+      }else{
+        applyDocument(doc);
+      }
+    }catch{}
+  }
+
   function bindFrame(frame){
-    if(!frame||boundFrames.has(frame))return;
-    boundFrames.add(frame);
-    const run=()=>{try{bindDocument(frame.contentDocument)}catch{}};
-    frame.addEventListener('load',()=>{run();[40,120,400,1000,2500].forEach(ms=>setTimeout(run,ms))});
-    run();
+    if(!frame)return;
+    if(!listenedFrames.has(frame)){
+      listenedFrames.add(frame);
+      frame.addEventListener('load',()=>{
+        syncFrame(frame);
+        [40,120,400,1000,2500].forEach(ms=>setTimeout(()=>syncFrame(frame),ms));
+      });
+    }
+    syncFrame(frame);
   }
 
   function discoverFrames(doc=document){
@@ -146,5 +165,5 @@
   [100,300,800,1800,4000,8000].forEach(ms=>setTimeout(discoverFrames,ms));
   setTimeout(()=>rootObserver.disconnect(),15000);
 
-  window.DINI_SOURCE_TRUTH_RUNTIME_COMPAT_V1={VERSION,applyDocument,revealMobileNone,patchSocial,isMobileDoc};
+  window.DINI_SOURCE_TRUTH_RUNTIME_COMPAT_V1={VERSION,applyDocument,revealMobileNone,patchSocial,isMobileDoc,syncFrame};
 })();
