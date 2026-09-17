@@ -1,0 +1,179 @@
+name: Road To Final — 38/38 Final Acceptance
+
+on:
+  push:
+    branches:
+      - engine/road-to-final-dini-faqih
+    paths:
+      - '.github/scripts/road-to-final-38-final-audit.mjs'
+      - '.github/workflows/road-to-final-38-final.yml'
+      - 'assets/js/source-truth-scanner-v1.js'
+      - 'assets/js/source-truth-gap-closure-v1.js'
+      - 'assets/js/source-runtime-compiler-v1.js'
+      - 'assets/js/source-runtime-authority-v1.js'
+      - 'assets/js/source-personalization-v1.js'
+      - 'assets/js/public-source-truth-renderer-v1.js'
+      - 'assets/js/public-personalization-bridge-v1.js'
+      - 'assets/js/guest-runtime-v1.js'
+      - 'assets/js/legacy-parity-gate-v1.js'
+      - 'dashboard-admin-fetch/**'
+      - 'dashboard-admin-fetch-editor/**'
+      - 'dashboard-admin-edit/**'
+      - 'public-entry-v18.html'
+      - 'guest-entry-v18.html'
+      - 'golden-tests/template-7/**'
+      - 'ROAD-TO-FINAL-DINI-FAQIH.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: road-to-final-38-final-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    name: 38-point contract + golden gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Syntax check final engine
+        run: |
+          node --check assets/js/source-truth-scanner-v1.js
+          node --check assets/js/source-truth-gap-closure-v1.js
+          node --check assets/js/source-runtime-compiler-v1.js
+          node --check assets/js/source-runtime-authority-v1.js
+          node --check assets/js/source-personalization-v1.js
+          node --check assets/js/public-source-truth-renderer-v1.js
+          node --check assets/js/public-personalization-bridge-v1.js
+          node --check assets/js/guest-runtime-v1.js
+          node --check dashboard-admin-fetch/guest-slot-probe-v2.js
+          node --check dashboard-admin-fetch/fetch-deep-source-ui-v1.js
+          node --check .github/scripts/road-to-final-38-final-audit.mjs
+      - name: Run explicit 38-point contract audit
+        run: node .github/scripts/road-to-final-38-final-audit.mjs
+      - name: Verify legacy isolation
+        run: node .github/scripts/legacy-parity-gate-regression.mjs
+      - name: Run Template 7 repeatable golden regression
+        env:
+          NODE_NO_WARNINGS: '1'
+        run: node .github/scripts/template7-golden-regression.mjs
+      - name: Upload contract evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: road-to-final-38-contract-${{ github.sha }}
+          path: |
+            road-to-final-38-artifacts/
+            legacy-parity-gate-regression-report.json
+            template7-golden-regression-report.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  personalization:
+    name: Personalization 35-38 · ${{ matrix.browser }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, webkit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install Playwright
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install --no-audit --no-fund --save-dev playwright@1.55.0
+          npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Run personalization regression
+        env:
+          BROWSER_ENGINE: ${{ matrix.browser }}
+          NODE_NO_WARNINGS: '1'
+        run: node .github/scripts/personalization-regression-v1.mjs
+      - name: Upload personalization evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: road-to-final-38-personalization-${{ matrix.browser }}-${{ github.sha }}
+          path: personalization-artifacts/${{ matrix.browser }}/
+          if-no-files-found: error
+          retention-days: 14
+
+  device:
+    name: Device · ${{ matrix.profile }} · ${{ matrix.browser }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - profile: desktop
+            browser: chromium
+          - profile: android
+            browser: chromium
+          - profile: iphone
+            browser: webkit
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install Playwright
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install --no-audit --no-fund --save-dev playwright@1.55.0
+          npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Run device matrix regression
+        env:
+          DEVICE_PROFILE: ${{ matrix.profile }}
+          BROWSER_ENGINE: ${{ matrix.browser }}
+          NODE_NO_WARNINGS: '1'
+        run: node .github/scripts/template7-device-matrix.mjs
+      - name: Upload device evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: road-to-final-38-device-${{ matrix.profile }}-${{ github.sha }}
+          path: device-matrix-artifacts/${{ matrix.profile }}/
+          if-no-files-found: error
+          retention-days: 14
+
+  lifecycle:
+    name: Lifecycle · ${{ matrix.browser }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, webkit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install Playwright
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install --no-audit --no-fund --save-dev playwright@1.55.0
+          npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Run lifecycle regression
+        env:
+          BROWSER_ENGINE: ${{ matrix.browser }}
+          NODE_NO_WARNINGS: '1'
+        run: node .github/scripts/template7-lifecycle-regression-v2.mjs
+      - name: Upload lifecycle evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: road-to-final-38-lifecycle-${{ matrix.browser }}-${{ github.sha }}
+          path: lifecycle-artifacts/${{ matrix.browser }}/
+          if-no-files-found: error
+          retention-days: 14
