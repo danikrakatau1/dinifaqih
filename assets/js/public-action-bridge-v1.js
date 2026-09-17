@@ -153,16 +153,25 @@
 
   function collectForm(form) {
     const out = {};
-    if (String(form?.tagName || '').toUpperCase() === 'FORM') {
+    const isNativeForm = String(form?.tagName || '').toUpperCase() === 'FORM';
+
+    if (isNativeForm) {
       const FormDataCtor = form.ownerDocument?.defaultView?.FormData || FormData;
       const fd = new FormDataCtor(form);
       for (const [k, v] of fd.entries()) {
         if (typeof v === 'string') out[k] = v;
       }
+      form.querySelectorAll('input,select,textarea').forEach((el) => {
+        if (!el.name && el.id && typeof el.value === 'string') out[el.id] = el.value;
+      });
+      return out;
     }
+
     form?.querySelectorAll?.('input,select,textarea').forEach((el) => {
       const key = el.name || el.id;
-      if (key && typeof el.value === 'string') out[key] = el.value;
+      if (!key || typeof el.value !== 'string') return;
+      if ((el.type === 'radio' || el.type === 'checkbox') && !el.checked) return;
+      out[key] = el.value;
     });
     return out;
   }
