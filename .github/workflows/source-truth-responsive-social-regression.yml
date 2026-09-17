@@ -1,0 +1,55 @@
+name: Source Truth — Responsive Footer + Social Regression
+
+on:
+  push:
+    branches:
+      - fix/source-truth-responsive-social-runtime
+    paths:
+      - 'assets/js/source-truth-runtime-compat-v1.js'
+      - 'assets/js/public-source-truth-renderer-v1.js'
+      - 'assets/js/social-link-parity-v1.js'
+      - '.github/scripts/source-truth-responsive-social-regression.mjs'
+      - '.github/workflows/source-truth-responsive-social-regression.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    name: Responsive parity · ${{ matrix.browser }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, webkit]
+
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v4
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install pinned Playwright runtime
+        shell: bash
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install --no-audit --no-fund --save-dev playwright@1.55.0
+          npx playwright install --with-deps ${{ matrix.browser }}
+
+      - name: Syntax check runtime + regression
+        run: |
+          node --check assets/js/source-truth-runtime-compat-v1.js
+          node --check assets/js/public-source-truth-renderer-v1.js
+          node --check assets/js/social-link-parity-v1.js
+          node --check .github/scripts/source-truth-responsive-social-regression.mjs
+
+      - name: Run responsive Source Truth regression
+        env:
+          BROWSER_ENGINE: ${{ matrix.browser }}
+          NODE_NO_WARNINGS: '1'
+        run: node .github/scripts/source-truth-responsive-social-regression.mjs
