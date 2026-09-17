@@ -3,7 +3,7 @@
   if(window.__DINI_SOCIAL_LINK_PARITY_V1__)return;
   window.__DINI_SOCIAL_LINK_PARITY_V1__=true;
 
-  const VERSION='1.0.0';
+  const VERSION='1.0.1';
   const deep=v=>JSON.parse(JSON.stringify(v??null));
   const own=(o,k)=>Object.prototype.hasOwnProperty.call(o||{},k);
   const safe=v=>String(v||'social').toLowerCase().replace(/[^a-z0-9_-]+/g,'-').replace(/^-+|-+$/g,'')||'social';
@@ -115,12 +115,22 @@
     E.saveSession=async session=>{
       const persist=deep(session);const original=session?.__diniSocialSourceBaseline||sourceBaseline.get(session);
       if(original)persist.baseline=deep(original);
-      const saved=await baseSave(persist);session.updated_at=saved?.updated_at||session.updated_at;return session;
+      const saved=await baseSave(persist);session.updated_at=saved?.updated_at||session.updated_at;return saved;
     };
     E.augmentSocialSnapshot=augmentSnapshot;E.__diniSocialParityV1=VERSION;
     document.documentElement.dataset.socialFetchExtension=VERSION;
   }
 
-  patchCanonical();patchFetch();
-  window.DINI_SOCIAL_LINK_PARITY_V1={VERSION,augment,augmentSnapshot,patchCanonical,patchFetch};
+  function ensureRuntimeCompat(){
+    if(window.__DINI_SOURCE_TRUTH_RUNTIME_COMPAT_V1__)return;
+    if(document.querySelector('script[data-dini-source-truth-runtime-compat-loader]'))return;
+    const s=document.createElement('script');
+    s.src='/assets/js/source-truth-runtime-compat-v1.js?v=100';
+    s.async=false;
+    s.setAttribute('data-dini-source-truth-runtime-compat-loader',VERSION);
+    (document.head||document.documentElement).appendChild(s);
+  }
+
+  patchCanonical();patchFetch();ensureRuntimeCompat();
+  window.DINI_SOCIAL_LINK_PARITY_V1={VERSION,augment,augmentSnapshot,patchCanonical,patchFetch,ensureRuntimeCompat};
 })();
