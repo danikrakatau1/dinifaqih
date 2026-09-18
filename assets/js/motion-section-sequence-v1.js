@@ -2,7 +2,7 @@
   'use strict';
   if(window.DINI_MOTION_SECTION_SEQUENCE_V1?.version)return;
 
-  const VERSION='1.4.3';
+  const VERSION='1.5.0';
   const section=document.querySelector('.motionSection');
   const motionText=section?.querySelector('.motionText');
   const logo=motionText?.querySelector('.delay-image');
@@ -67,7 +67,9 @@
   let released=false;
   let clicked=false;
   let fallbackTimer=0;
+  let wallClockTimer=0;
   let pollTimer=0;
+  let coverObserver=null;
 
   const isMobile=()=>{
     try{return matchMedia('(max-width:767px)').matches}catch{return innerWidth<=767}
@@ -152,6 +154,7 @@
 
   function cleanupWatch(){
     if(pollTimer){clearInterval(pollTimer);pollTimer=0}
+    try{coverObserver?.disconnect()}catch{}
     if(video){
       video.removeEventListener('timeupdate',checkVideoProgress);
       video.removeEventListener('loadedmetadata',checkVideoProgress);
@@ -165,9 +168,15 @@
     if(released)return;
     released=true;
     if(fallbackTimer)clearTimeout(fallbackTimer);
+    if(wallClockTimer)clearTimeout(wallClockTimer);
     cleanupWatch();
 
-    if(getComputedStyle(motionText).display==='none')motionText.style.display='flex';
+    // Mobile browsers were occasionally leaving the whole motionText column
+    // hidden even after the child animation fired. Force the parent into a
+    // visible state at the exact release point.
+    motionText.style.setProperty('display','flex','important');
+    motionText.style.setProperty('opacity','1','important');
+    motionText.style.setProperty('visibility','visible','important');
 
     // Source layout uses the couple names as three centered lines:
     // NAME / & / NAME. Re-apply at release in case upstream text substitution
@@ -209,6 +218,7 @@
           );
 
           el.classList.remove('elementor-invisible');
+          el.style.setProperty('visibility','visible','important');
           el.setAttribute('data-dini-motion-seq-released',tag);
 
           // Two paints guarantee the browser commits the start state before
@@ -226,7 +236,9 @@
 
           const finalize=()=>{
             if(!el?.isConnected)return;
+            el.classList.remove('elementor-invisible');
             el.style.removeProperty('transition');
+            el.style.setProperty('visibility','visible','important');
             el.style.setProperty('opacity','1','important');
             el.style.setProperty('transform','none','important');
             el.removeAttribute('data-dini-motion-seq-play');
@@ -284,11 +296,57 @@
     checkVideoProgress();
   }
 
-  function onOpen(){
+  function beginSequence(reason='button'){
     if(clicked)return;
     clicked=true;
     lockMotion();
     armVideoWatch();
+
+    // Master wall-clock fallback. This is independent from video.currentTime,
+    // so Android/iOS cannot lose the overlay if hosted-video timeupdate events
+    // are throttled or skipped inside the srcdoc iframe.
+    wallClockTimer=setTimeout(
+      ()=>showOverlayTogether('open-wallclock-fallback'),
+      7050
+    );
+
+    document.documentElement.setAttribute('data-dini-motion-open-trigger',reason);
+  }
+
+  const isOpenTarget=target=>!!target?.closest?.('#tombolbuka,.tombolbuka');
+
+  // Use document-level capture for mobile. The source's own click handler opens
+  // the cover, but some Android WebView/Chrome combinations did not invoke the
+  // listener attached to the wrapper element reliably.
+  document.addEventListener('click',event=>{
+    if(isOpenTarget(event.target))beginSequence('document-click');
+  },true);
+  document.addEventListener('pointerup',event=>{
+    if(isOpenTarget(event.target))beginSequence('document-pointerup');
+  },true);
+  document.addEventListener('touchend',event=>{
+    if(isOpenTarget(event.target))beginSequence('document-touchend');
+  },{capture:true,passive:true});
+
+  if(opener)opener.addEventListener('click',()=>beginSequence('opener-click'),true);
+
+  // Second independent trigger: jQuery animates #cover's inline opacity/top
+  // immediately after Buka Undangan. Watching that style guarantees sequence
+  // start even if a mobile event path bypasses all listeners above.
+  const cover=document.querySelector('#cover');
+  if(cover){
+    const detectCoverOpening=()=>{
+      if(clicked)return;
+      const opacity=parseFloat(cover.style.opacity||'1');
+      const top=String(cover.style.top||'').trim();
+      const display=String(cover.style.display||'').trim().toLowerCase();
+      if((Number.isFinite(opacity)&&opacity<.98)||top||display==='none'){
+        beginSequence('cover-style-change');
+      }
+    };
+    coverObserver=new MutationObserver(detectCoverOpening);
+    try{coverObserver.observe(cover,{attributes:true,attributeFilter:['style','class']})}catch{}
+    [150,400,800,1500,3000].forEach(ms=>setTimeout(detectCoverOpening,ms));
   }
 
   // Match the authored source composition before animations are armed.
@@ -296,8 +354,6 @@
 
   // Lock before the generic source animation runtime initializes.
   lockMotion();
-  if(opener)opener.addEventListener('click',onOpen,{capture:true,once:true});
-  else onOpen();
 
   window.DINI_MOTION_SECTION_SEQUENCE_V1={
     version:VERSION,
