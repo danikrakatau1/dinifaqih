@@ -2,7 +2,7 @@
   'use strict';
   if(g.DiniSemanticManifest?.version)return;
 
-  const VERSION='2.3.0';
+  const VERSION='2.4.0';
   const MANIFEST_VERSION=1;
   const REPEATER_CONTRACT_VERSION=1;
   const COMPONENT_IDENTITY_VERSION=1;
@@ -397,6 +397,13 @@
     if(Number(sr?.counts?.repeaters||0)>0)set.add('semantic-repeater-contract');
     if(Number(sr?.counts?.icon_list_repeaters||0)>0)set.add('semantic-icon-list-repeater');
     if(Number(sr?.counts?.social_repeaters||0)>0)set.add('semantic-social-repeater');
+    const nf=sourceGraph?.semantic_components?.native_forms_v1;
+    if(Number(nf?.counts?.rsvp_forms||0)>0)set.add('native-rsvp-form');
+    if(Number(nf?.counts?.gift_forms||0)>0)set.add('native-gift-form');
+    if(Number(nf?.counts?.guestbook_forms||0)>0)set.add('native-guestbook-form');
+    if(Number(nf?.counts?.copy_actions||0)>0)set.add('native-copy-actions');
+    if(Number(nf?.counts?.gift_accounts||0)>0)set.add('native-gift-accounts');
+    if(Number(nf?.counts?.guestbook_surfaces||0)>0)set.add('native-guestbook-surfaces');
     return [...set].sort();
   }
 
@@ -490,7 +497,17 @@
         semantic_repeater_items:Number(sourceGraph?.semantic_components?.repeaters_v1?.counts?.repeater_items||0),
         semantic_icon_list_repeaters:Number(sourceGraph?.semantic_components?.repeaters_v1?.counts?.icon_list_repeaters||0),
         semantic_social_repeaters:Number(sourceGraph?.semantic_components?.repeaters_v1?.counts?.social_repeaters||0),
-        semantic_event_repeaters:Number(sourceGraph?.semantic_components?.repeaters_v1?.counts?.event_repeaters||0)
+        semantic_event_repeaters:Number(sourceGraph?.semantic_components?.repeaters_v1?.counts?.event_repeaters||0),
+        native_forms:Number(sourceGraph?.semantic_components?.native_forms_v1?.counts?.forms||0),
+        native_rsvp_forms:Number(sourceGraph?.semantic_components?.native_forms_v1?.counts?.rsvp_forms||0),
+        native_gift_forms:Number(sourceGraph?.semantic_components?.native_forms_v1?.counts?.gift_forms||0),
+        native_guestbook_forms:Number(sourceGraph?.semantic_components?.native_forms_v1?.counts?.guestbook_forms||0),
+        native_form_fields:Number(sourceGraph?.semantic_components?.native_forms_v1?.counts?.fields||0),
+        native_copy_actions:Number(sourceGraph?.semantic_components?.native_forms_v1?.counts?.copy_actions||0),
+        native_copy_bound:Number(sourceGraph?.semantic_components?.native_forms_v1?.counts?.copy_bound||0),
+        native_copy_unbound:Number(sourceGraph?.semantic_components?.native_forms_v1?.counts?.copy_unbound||0),
+        native_gift_accounts:Number(sourceGraph?.semantic_components?.native_forms_v1?.counts?.gift_accounts||0),
+        native_guestbook_surfaces:Number(sourceGraph?.semantic_components?.native_forms_v1?.counts?.guestbook_surfaces||0)
       },
       layout:{topology:layout?.topology||'unclassified',confidence:Number(layout?.confidence||0),viewport_policy:layout?.runtime?.viewport_policy||'canonical-content'},
       semantic:semanticDiagnostics
@@ -626,6 +643,18 @@
         semantic_repeater_source_order_preserved:true,
         semantic_repeater_component_scoped_mutations:true,
         semantic_countdown_labels_preserved:true,
+        native_form_contract_version:Number(semanticComponents?.native_forms_v1?.version||0),
+        native_form_source_dom_preserved:true,
+        native_form_source_style_preserved:true,
+        native_form_validation_preserved:true,
+        native_form_backend_owner:'dini-faqih',
+        native_form_upstream_wp_admin_ajax:false,
+        native_form_upstream_wp_nonce:false,
+        rsvp_backend_endpoint:'/api/rsvp',
+        gift_backend_endpoint:'/api/gift-confirmation',
+        gift_proof_bucket:'gift-proofs',
+        guestbook_backend_owner:'dini-faqih',
+        copy_action_value_synthesis:false,
         consumer_contract_version:0
       },
       runtime_policy:{
@@ -671,7 +700,13 @@
         disabled_action_policy:'preserve-disabled',
         event_repeater_execution:'semantic-contract-only-until-consumer-integration',
         semantic_repeater_execution:'contract-only-until-consumer-integration',
-        countdown_display_execution:'preserve-source-labels-and-runtime-slots'
+        countdown_display_execution:'preserve-source-labels-and-runtime-slots',
+        native_form_execution:'existing-public-action-bridge-plus-P2-D-consumer-contract',
+        native_form_backend_policy:'replace-upstream-wordpress-with-dini-faqih',
+        native_form_execute_admin_ajax:false,
+        native_form_execute_wp_nonce:false,
+        native_copy_execution:'existing-DiniFaqihPublicActions-copy',
+        guestbook_execution:'existing-guestbook-runtime-plus-P2-D-consumer-contract'
       },
       diagnostics
     };
@@ -780,6 +815,14 @@
       semantic_icon_list_repeaters:runtimeManifest.diagnostics?.counts?.semantic_icon_list_repeaters||0,
       semantic_social_repeaters:runtimeManifest.diagnostics?.counts?.semantic_social_repeaters||0,
       semantic_event_repeaters:runtimeManifest.diagnostics?.counts?.semantic_event_repeaters||0,
+      native_forms:runtimeManifest.diagnostics?.counts?.native_forms||0,
+      native_rsvp_forms:runtimeManifest.diagnostics?.counts?.native_rsvp_forms||0,
+      native_gift_forms:runtimeManifest.diagnostics?.counts?.native_gift_forms||0,
+      native_guestbook_forms:runtimeManifest.diagnostics?.counts?.native_guestbook_forms||0,
+      native_form_fields:runtimeManifest.diagnostics?.counts?.native_form_fields||0,
+      native_copy_actions:runtimeManifest.diagnostics?.counts?.native_copy_actions||0,
+      native_gift_accounts:runtimeManifest.diagnostics?.counts?.native_gift_accounts||0,
+      native_guestbook_surfaces:runtimeManifest.diagnostics?.counts?.native_guestbook_surfaces||0,
       warnings:safeArray(runtimeManifest.diagnostics?.warnings).length
     };
     return runtimeManifest;
@@ -823,5 +866,5 @@
     armLegacyStudioBridge
   };
   armLegacyStudioBridge();
-  console.info('[DINI SEMANTIC MANIFEST] V'+VERSION+' aktif — P0/P1 + P2-A CTA/Action + P2-B Event/Repeater contract.');
+  console.info('[DINI SEMANTIC MANIFEST] V'+VERSION+' aktif — P0/P1 + P2-A/B + P2-C Native RSVP/Gift/Guestbook form contract.');
 })(window);
