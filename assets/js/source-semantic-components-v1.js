@@ -112,8 +112,9 @@
       const label=clean(click?.textContent||node.textContent||'');
       if(!provider&&!/save\s+the\s+date|calendar|kalender/i.test(label))return;
       const sourceId=elementId(node)||elementId(node.closest?.('[data-widget_type]'))||'';
-      const id='calendar-'+hash([sourceId,selectorFor(node),href,index].join('|'));
-      if(seen.has(id))return;seen.add(id);
+      const semanticKey=[provider||'unknown',href,selectorFor(click||node),label].join('|');
+      if(seen.has(semanticKey))return;seen.add(semanticKey);
+      const id='calendar-'+hash([sourceId,semanticKey,index].join('|'));
       const action=actionFor(click||node,{role:'calendar-cta',provider:provider||'unknown',componentId:id});
       out.push({
         id,
