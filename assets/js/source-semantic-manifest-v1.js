@@ -2,7 +2,7 @@
   'use strict';
   if(g.DiniSemanticManifest?.version)return;
 
-  const VERSION='2.1.0';
+  const VERSION='2.2.0';
   const MANIFEST_VERSION=1;
   const REPEATER_CONTRACT_VERSION=1;
   const COMPONENT_IDENTITY_VERSION=1;
@@ -385,6 +385,12 @@
     if(Number(ce?.counts?.effects||0)>0)set.add('powerpack-background-effects');
     if(Number(ce?.counts?.snow||0)>0)set.add('powerpack-snow');
     if(Number(ce?.counts?.particles||0)>0)set.add('powerpack-particles');
+    const sc=sourceGraph?.semantic_components?.actions_v1;
+    if(Number(sc?.counts?.calendars||0)>0)set.add('calendar-cta');
+    if(Number(sc?.counts?.icon_lists||0)>0)set.add('icon-list-semantic');
+    if(Number(sc?.counts?.social_groups||0)>0)set.add('social-links-semantic');
+    if(Number(sc?.counts?.live_ctas||0)>0)set.add('live-cta');
+    if(Number(sc?.counts?.actions||0)>0)set.add('action-state-contract');
     return [...set].sort();
   }
 
@@ -460,7 +466,17 @@
         counter_adapters:Number(sourceGraph?.behavior_adapters?.countdown_effects?.counts?.counters||0),
         powerpack_effects:Number(sourceGraph?.behavior_adapters?.countdown_effects?.counts?.effects||0),
         powerpack_snow:Number(sourceGraph?.behavior_adapters?.countdown_effects?.counts?.snow||0),
-        powerpack_particles:Number(sourceGraph?.behavior_adapters?.countdown_effects?.counts?.particles||0)
+        powerpack_particles:Number(sourceGraph?.behavior_adapters?.countdown_effects?.counts?.particles||0),
+        calendar_ctas:Number(sourceGraph?.semantic_components?.actions_v1?.counts?.calendars||0),
+        icon_lists:Number(sourceGraph?.semantic_components?.actions_v1?.counts?.icon_lists||0),
+        icon_list_items:Number(sourceGraph?.semantic_components?.actions_v1?.counts?.icon_list_items||0),
+        social_groups:Number(sourceGraph?.semantic_components?.actions_v1?.counts?.social_groups||0),
+        social_links:Number(sourceGraph?.semantic_components?.actions_v1?.counts?.social_links||0),
+        live_ctas:Number(sourceGraph?.semantic_components?.actions_v1?.counts?.live_ctas||0),
+        action_contract_total:Number(sourceGraph?.semantic_components?.actions_v1?.counts?.actions||0),
+        action_contract_bound:Number(sourceGraph?.semantic_components?.actions_v1?.counts?.bound||0),
+        action_contract_unbound:Number(sourceGraph?.semantic_components?.actions_v1?.counts?.unbound||0),
+        action_contract_disabled:Number(sourceGraph?.semantic_components?.actions_v1?.counts?.disabled||0)
       },
       layout:{topology:layout?.topology||'unclassified',confidence:Number(layout?.confidence||0),viewport_policy:layout?.runtime?.viewport_policy||'canonical-content'},
       semantic:semanticDiagnostics
@@ -485,6 +501,7 @@
     }
     const semanticDiagnostics=clone(sourceGraph?.semantic_diagnostics||{version:1,warnings:[],counts:{},policy:{read_only:true,auto_fix:false}});
     const behaviorAdapters=clone(sourceGraph?.behavior_adapters||{});
+    const semanticComponents=clone(sourceGraph?.semantic_components||{});
     const diagnostics=compileDiagnostics({components,repeaters,assets,behaviors,sourceGraph,nativeSchema,embeddedData,layout});
     return {
       format:'dini-universal-runtime-manifest',
@@ -518,6 +535,7 @@
       embedded_data:embeddedData,
       semantic_diagnostics:semanticDiagnostics,
       behavior_adapters:behaviorAdapters,
+      semantic_components:semanticComponents,
       capabilities:compileCapabilities(components,sourceGraph,repeaters,embeddedData,layout),
       editor_contract:{
         component_identity:'stable-instance-id',
@@ -578,6 +596,15 @@
         countdown_source_date_preserved:true,
         elementor_counter_source_values_preserved:true,
         powerpack_effect_settings_preserved:true,
+        semantic_action_contract_version:Number(semanticComponents?.actions_v1?.version||0),
+        semantic_action_states:['bound','unbound','disabled'],
+        preserve_exact_action_href:true,
+        synthesize_missing_action_href:false,
+        preserve_action_target_rel:true,
+        calendar_provider_semantics:true,
+        icon_list_item_actions:true,
+        social_link_provider_semantics:true,
+        live_cta_unbound_state_preserved:true,
         consumer_contract_version:0
       },
       runtime_policy:{
@@ -616,7 +643,11 @@
         countdown_execution:'semantic-countdown-zero-stop',
         counter_execution:'intersection-once-source-duration',
         powerpack_execution:'internal-canvas-source-settings',
-        powerpack_external_runtime_dependency:false
+        powerpack_external_runtime_dependency:false,
+        semantic_action_execution:'native-source-action-only',
+        synthesize_missing_href:false,
+        unbound_action_policy:'preserve-unbound',
+        disabled_action_policy:'preserve-disabled'
       },
       diagnostics
     };
@@ -707,6 +738,16 @@
       powerpack_effects:runtimeManifest.diagnostics?.counts?.powerpack_effects||0,
       powerpack_snow:runtimeManifest.diagnostics?.counts?.powerpack_snow||0,
       powerpack_particles:runtimeManifest.diagnostics?.counts?.powerpack_particles||0,
+      calendar_ctas:runtimeManifest.diagnostics?.counts?.calendar_ctas||0,
+      icon_lists:runtimeManifest.diagnostics?.counts?.icon_lists||0,
+      icon_list_items:runtimeManifest.diagnostics?.counts?.icon_list_items||0,
+      social_groups:runtimeManifest.diagnostics?.counts?.social_groups||0,
+      social_links:runtimeManifest.diagnostics?.counts?.social_links||0,
+      live_ctas:runtimeManifest.diagnostics?.counts?.live_ctas||0,
+      action_contract_total:runtimeManifest.diagnostics?.counts?.action_contract_total||0,
+      action_contract_bound:runtimeManifest.diagnostics?.counts?.action_contract_bound||0,
+      action_contract_unbound:runtimeManifest.diagnostics?.counts?.action_contract_unbound||0,
+      action_contract_disabled:runtimeManifest.diagnostics?.counts?.action_contract_disabled||0,
       warnings:safeArray(runtimeManifest.diagnostics?.warnings).length
     };
     return runtimeManifest;
@@ -750,5 +791,5 @@
     armLegacyStudioBridge
   };
   armLegacyStudioBridge();
-  console.info('[DINI SEMANTIC MANIFEST] V'+VERSION+' aktif — P0 Core + P1-A/B/C/D/E/F + P1-G Countdown/Counter/PowerPack contract.');
+  console.info('[DINI SEMANTIC MANIFEST] V'+VERSION+' aktif — P0/P1 + P2-A Semantic CTA/Action contract.');
 })(window);
