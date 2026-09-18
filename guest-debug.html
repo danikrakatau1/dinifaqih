@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dini & Faqih — Guest DOM Debug</title>
+<style>
+body{font:14px/1.45 system-ui;margin:0;padding:16px;background:#f5f5f5;color:#111}
+h1{font-size:18px;margin:0 0 10px}
+.controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+input,button{font:inherit;padding:8px 10px}
+iframe{width:100%;height:54vh;border:1px solid #bbb;background:#fff}
+pre{white-space:pre-wrap;word-break:break-word;background:#111;color:#eee;padding:12px;border-radius:8px;max-height:38vh;overflow:auto}
+.ok{color:#0a7a32}.warn{color:#a15b00}
+</style>
+</head>
+<body>
+<h1>Guest DOM Debug — read-only</h1>
+<div class="controls">
+  <input id="slug" placeholder="slug tamu" value="">
+  <button id="load">Load</button>
+  <button id="scan">Scan DOM</button>
+  <span id="status"></span>
+</div>
+<iframe id="page" title="guest route debug"></iframe>
+<pre id="out">Belum scan.</pre>
+<script>
+(()=>{
+  const q=new URLSearchParams(location.search);
+  const slugInput=document.getElementById('slug');
+  const frame=document.getElementById('page');
+  const out=document.getElementById('out');
+  const status=document.getElementById('status');
+  slugInput.value=(q.get('slug')||'rozak').trim();
+
+  const clean=v=>String(v??'').replace(/\s+/g,' ').trim();
+  const ownText=el=>{
+    let s='';
+    for(const n of el.childNodes||[]) if(n.nodeType===3) s+=n.nodeValue||'';
+    return clean(s);
+  };
+  const styleOf=el=>{
+    try{
+      const cs=el.ownerDocument.defaultView.getComputedStyle(el);
+      return {
+        display:cs.display,visibility:cs.visibility,opacity:cs.opacity,
+        position:cs.position,color:cs.color,font:cs.font,textAlign:cs.textAlign,
+        zIndex:cs.zIndex
+      };
+    }catch{return{}}
+  };
+  const rectOf=el=>{
+    try{const r=el.getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height}}catch{return{}}
+  };
+  const describe=el=>{
+    const owner=el.closest?.('[data-id]');
+    return {
+      tag:el.tagName?.toLowerCase()||'',
+      id:el.id||'',
+      class:typeof el.className==='string'?el.className:'',
+      text:clean(el.textContent),
+      ownText:ownText(el),
+      value:'value' in el?clean(el.value):'',
+      role:el.getAttribute?.('data-dini-guest-role')||'',
+      bind:el.getAttribute?.('data-dini-bind')||'',
+      personalization:el.getAttribute?.('data-dini-personalization-field')||'',
+      guestName:el.getAttribute?.('data-dini-guest-name')||'',
+      nativeGuest:el.getAttribute?.('data-native-guest-name')||'',
+      sourceProbe:el.getAttribute?.('data-dini-guest-source-probe')||'',
+      synthetic:el.getAttribute?.('data-dini-guest-synthetic')||'',
+      source:el.getAttribute?.('data-dini-guest-source')||'',
+      dataId:el.getAttribute?.('data-id')||'',
+      ownerDataId:owner?.getAttribute?.('data-id')||'',
+      ownerClass:typeof owner?.className==='string'?owner.className:'',
+      rect:rectOf(el),
+      style:styleOf(el),
+      html:(el.outerHTML||'').slice(0,900)
+    };
+  };
+
+  function load(){
+    const slug=slugInput.value.trim().replace(/^\/+|\/+$/g,'');
+    if(!slug)return;
+    status.textContent='loading /'+slug;
+    frame.src='/'+encodeURIComponent(slug)+'?__guest_dom_debug=1&_='+Date.now();
+  }
+
+  function scan(){
+    try{
+      const outer=frame.contentDocument;
+      const innerFrame=outer?.getElementById('diniPublicCanonicalFrame');
+      const doc=innerFrame?.contentDocument;
+      if(!doc?.documentElement)throw new Error('canonical frame belum siap');
+
+      let guest='';
+      try{
+        const raw=doc.getElementById('diniGuestRuntimeData')?.textContent||'{}';
+        guest=clean(JSON.parse(raw)?.name||'');
+      }catch{}
+
+      const marked=[...doc.querySelectorAll(
+        '[data-dini-bind="guest_name"],[data-dini-personalization-field="guest_name"],[data-dini-guest-name],[data-native-guest-name],[data-dini-guest-synthetic]'
+      )];
+
+      const exact=[];
+      for(const el of doc.querySelectorAll('h1,h2,h3,h4,h5,h6,p,span,strong,b,label,div,input,textarea')){
+        const value='value' in el?clean(el.value):'';
+        const t=clean(el.textContent);
+        const own=ownText(el);
+        if(guest && (value===guest || own===guest || (t===guest && !(el.children||[]).length))) exact.push(el);
+      }
+
+      const uniq=a=>[...new Set(a)];
+      const result={
+        guest,
+        runtime:doc.documentElement.dataset.guestRuntime||'',
+        binding:doc.documentElement.dataset.guestBinding||'',
+        roles:doc.documentElement.dataset.guestRoles||'',
+        matched:doc.documentElement.dataset.guestBoundMatches||'',
+        changed:doc.documentElement.dataset.guestChanged||'',
+        probePruned:doc.documentElement.dataset.guestProbeDuplicatesPruned||'',
+        marked:uniq(marked).map(describe),
+        exactGuestVisibleCandidates:uniq(exact).map(describe)
+      };
+      out.textContent=JSON.stringify(result,null,2);
+      status.textContent='SCAN OK';
+      status.className='ok';
+    }catch(err){
+      status.textContent='belum siap';
+      status.className='warn';
+      out.textContent=String(err?.stack||err);
+    }
+  }
+
+  document.getElementById('load').onclick=load;
+  document.getElementById('scan').onclick=scan;
+  frame.addEventListener('load',()=>{status.textContent='outer loaded';setTimeout(scan,2500);setTimeout(scan,6000)});
+  load();
+})();
+</script>
+</body>
+</html>
