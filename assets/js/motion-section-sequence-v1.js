@@ -2,7 +2,7 @@
   'use strict';
   if(window.DINI_MOTION_SECTION_SEQUENCE_V1?.version)return;
 
-  const VERSION='1.4.0';
+  const VERSION='1.4.1';
   const section=document.querySelector('.motionSection');
   const motionText=section?.querySelector('.motionText');
   const logo=motionText?.querySelector('.delay-image');
@@ -26,12 +26,12 @@
   style.id='diniMotionSectionSequenceStyle';
   style.textContent=`
     @keyframes diniSourceFadeInUp{
-      from{opacity:0;transform:translate3d(0,18px,0)}
-      to{opacity:1;transform:translate3d(0,0,0)}
+      from{opacity:0;clip-path:inset(100% 0 0 0);transform:none}
+      to{opacity:1;clip-path:inset(0 0 0 0);transform:none}
     }
     @-webkit-keyframes diniSourceFadeInUp{
-      from{opacity:0;-webkit-transform:translate3d(0,18px,0);transform:translate3d(0,18px,0)}
-      to{opacity:1;-webkit-transform:translate3d(0,0,0);transform:translate3d(0,0,0)}
+      from{opacity:0;-webkit-clip-path:inset(100% 0 0 0);clip-path:inset(100% 0 0 0);-webkit-transform:none;transform:none}
+      to{opacity:1;-webkit-clip-path:inset(0 0 0 0);clip-path:inset(0 0 0 0);-webkit-transform:none;transform:none}
     }
     @keyframes diniSourceZoomIn{
       from{opacity:0;transform:scale3d(.3,.3,.3)}
@@ -98,6 +98,8 @@
     el.style.removeProperty('-webkit-animation-duration');
     el.style.removeProperty('opacity');
     el.style.removeProperty('transform');
+    el.style.removeProperty('clip-path');
+    el.style.removeProperty('-webkit-clip-path');
   }
 
   function neutralizeGenericReveal(el){
@@ -197,8 +199,8 @@
 
           const keyframes=sourceAnim==='fadeInUp'
             ?[
-              {opacity:0,transform:'translate3d(0,18px,0)'},
-              {opacity:1,transform:'translate3d(0,0,0)'}
+              {opacity:0,clipPath:'inset(100% 0 0 0)',transform:'none'},
+              {opacity:1,clipPath:'inset(0 0 0 0)',transform:'none'}
             ]
             :[
               {opacity:0,transform:'scale3d(.3,.3,.3)'},
@@ -223,6 +225,7 @@
             animation.finished.then(()=>{
               el.style.opacity='1';
               el.style.transform='none';
+              el.style.clipPath='inset(0 0 0 0)';
               animation.cancel();
             }).catch(()=>{});
             return;
@@ -230,14 +233,18 @@
 
           // CSS fallback for older engines.
           el.style.opacity='0';
-          el.style.transform=sourceAnim==='fadeInUp'
-            ?'translate3d(0,18px,0)'
-            :'scale3d(.3,.3,.3)';
+          if(sourceAnim==='fadeInUp'){
+            el.style.transform='none';
+            el.style.clipPath='inset(100% 0 0 0)';
+          }else{
+            el.style.transform='scale3d(.3,.3,.3)';
+          }
           el.classList.remove('elementor-invisible');
           void el.offsetWidth;
           el.setAttribute('data-dini-motion-seq-play',sourceAnim);
           el.style.removeProperty('opacity');
           el.style.removeProperty('transform');
+          el.style.removeProperty('clip-path');
           el.setAttribute('data-dini-motion-seq-released',tag);
         },wait);
       };
