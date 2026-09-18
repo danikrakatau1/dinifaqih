@@ -8,7 +8,7 @@
   const btn=document.getElementById('saveDraftBtn');
   if(!E||!btn)return;
 
-  const VERSION='2.1.2-p0c.1';
+  const VERSION='2.1.3-p2d.1';
   const BUCKET='template-packages';
   const SB_URL='https://jfvmcerrsxjvbiogfqes.supabase.co';
   const SB_KEY='sb_publishable_3IqSDxkpxCGiDpxAEwdsXQ_AsJpsC4W';
@@ -100,6 +100,28 @@
     return {html:htmlOut,contract,backfilled:afterCount>beforeCount,before_count:beforeCount,after_count:afterCount};
   }
 
+  function persistConsumerContract(manifest){
+    const runtime=manifest?.runtime_manifest;
+    manifest.consumer_contract_version=1;
+    manifest.consumer_contract={
+      version:1,
+      runtime_manifest_path:'manifest.runtime_manifest',
+      runtime_manifest_compiler:runtime?.compiler||'',
+      semantic_components_path:'manifest.runtime_manifest.semantic_components',
+      personalization_path:'manifest.runtime_manifest.personalization',
+      chain:['fetch','preview','editor','apply','save','supabase','renderer','guest-route','reload'],
+      backend_owner:'dini-faqih',
+      source_dom_authoritative:true,
+      arbitrary_source_js:false
+    };
+    if(runtime){
+      runtime.consumer_contract_version=1;
+      runtime.editor_contract={...(runtime.editor_contract||{}),consumer_contract_version:1,consumer_chain_persistent:true};
+      runtime.runtime_policy={...(runtime.runtime_policy||{}),consumer_execution:'manifest-driven',consumer_backend_owner:'dini-faqih'};
+    }
+    return manifest.consumer_contract;
+  }
+
   function persistGuestContract(manifest,contract){
     manifest.personalization_contract=contract;
     manifest.personalization_contract_version=contract?.contract_version||1;
@@ -185,6 +207,7 @@
     const guestResult=normalizeGuestContract(html,manifestBase);
     html=guestResult.html;
     persistGuestContract(manifestBase,guestResult.contract);
+    const consumerContract=persistConsumerContract(manifestBase);
 
     const sourceUrl=await uploadText(`${base}/index.html`,html,'text/html');
     await uploadText(`${base}/source-native.html`,html,'text/html');
@@ -205,6 +228,8 @@
       guest_personalization_persisted:true,
       guest_personalization_fields:guestResult.after_count||0,
       guest_personalization_roles:guestResult.contract?.roles||[],
+      consumer_contract_version:consumerContract?.version||1,
+      consumer_chain_persisted:true,
       saved_at:E.now(),
       ...(session.package_storage?{package_storage:session.package_storage}:{})
     };
@@ -219,6 +244,8 @@
       schema,
       assets:cloudAssets,
       personalization_contract:guestResult.contract,
+      runtime_manifest:manifest.runtime_manifest||null,
+      consumer_contract:consumerContract,
       save_finalizer:{
         version:VERSION,
         asset_count:cloudAssets.length,
@@ -228,6 +255,8 @@
         guest_fields:guestResult.after_count||0,
         guest_roles:guestResult.contract?.roles||[],
         guest_backfilled:!!guestResult.backfilled,
+        consumer_contract_version:consumerContract?.version||1,
+        consumer_runtime_manifest_compiler:manifest.runtime_manifest?.compiler||'',
         finalized_at:E.now()
       }
     };
@@ -235,7 +264,7 @@
     const snapshotUrl=await uploadText(`${base}/editor-snapshot.json`,JSON.stringify(cloudSnap),'application/json');
     manifest.editor_snapshot_url=snapshotUrl;
     await uploadText(`${base}/native-schema.json`,JSON.stringify(schema,null,2),'application/json');
-    await uploadText(`${base}/native-data.json`,JSON.stringify({values,transforms:snap.transforms||{},delta,personalization_contract:guestResult.contract},null,2),'application/json');
+    await uploadText(`${base}/native-data.json`,JSON.stringify({values,transforms:snap.transforms||{},delta,personalization_contract:guestResult.contract,runtime_manifest:manifest.runtime_manifest||null,consumer_contract:consumerContract},null,2),'application/json');
     await uploadText(`${base}/fetch-delta.json`,JSON.stringify(delta,null,2),'application/json');
     await uploadText(`${base}/manifest.json`,JSON.stringify(manifest,null,2),'application/json');
 
