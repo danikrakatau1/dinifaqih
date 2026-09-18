@@ -2,7 +2,7 @@
   'use strict';
   if(g.DiniSemanticManifest?.version)return;
 
-  const VERSION='1.4.0';
+  const VERSION='1.5.0';
   const MANIFEST_VERSION=1;
   const REPEATER_CONTRACT_VERSION=1;
   const COMPONENT_IDENTITY_VERSION=1;
@@ -341,6 +341,10 @@
     if(Array.isArray(layout?.overlays)&&layout.overlays.length)set.add('fixed-overlay-ownership');
     if(sourceGraph?.semantic_diagnostics)set.add('semantic-diagnostics');
     if(sourceGraph?.runtime_policy?.fault_isolation)set.add('runtime-fault-isolation');
+    const as=sourceGraph?.behavior_adapters?.animation_scroll;
+    if(Number(as?.counts?.elementor||0)>0)set.add('elementor-responsive-animation');
+    if(Number(as?.counts?.scrollspy||0)>0)set.add('bdt-scrollspy');
+    if(Number(as?.counts?.parallax||0)>0)set.add('bdt-parallax');
     return [...set].sort();
   }
 
@@ -380,7 +384,11 @@
         layout_breakpoints:Array.isArray(layout?.breakpoint_queries)?layout.breakpoint_queries.length:0,
         semantic_warnings:safeArray(semanticDiagnostics?.warnings).length,
         date_conflicts:Number(semanticDiagnostics?.counts?.date_conflicts||0),
-        unbound_actions:Number(semanticDiagnostics?.counts?.unbound_actions||0)
+        unbound_actions:Number(semanticDiagnostics?.counts?.unbound_actions||0),
+        elementor_animation_adapters:Number(sourceGraph?.behavior_adapters?.animation_scroll?.counts?.elementor||0),
+        scrollspy_adapters:Number(sourceGraph?.behavior_adapters?.animation_scroll?.counts?.scrollspy||0),
+        parallax_adapters:Number(sourceGraph?.behavior_adapters?.animation_scroll?.counts?.parallax||0),
+        unsupported_parallax_properties:Number(sourceGraph?.behavior_adapters?.animation_scroll?.counts?.unsupported_parallax_properties||0)
       },
       layout:{topology:layout?.topology||'unclassified',confidence:Number(layout?.confidence||0),viewport_policy:layout?.runtime?.viewport_policy||'canonical-content'},
       semantic:semanticDiagnostics
@@ -404,6 +412,7 @@
       try{embeddedData=decoder.summary(decoder.scanDocument(doc,{baseUrl:sourceUrl||sourceGraph?.source?.url||''}))}catch(err){embeddedData={version:1,resources:[],counts:{total:0,css:0,javascript:0,bytes:0},error:String(err?.message||err)}}
     }
     const semanticDiagnostics=clone(sourceGraph?.semantic_diagnostics||{version:1,warnings:[],counts:{},policy:{read_only:true,auto_fix:false}});
+    const behaviorAdapters=clone(sourceGraph?.behavior_adapters||{});
     const diagnostics=compileDiagnostics({components,repeaters,assets,behaviors,sourceGraph,nativeSchema,embeddedData,layout});
     return {
       format:'dini-universal-runtime-manifest',
@@ -436,6 +445,7 @@
       dependencies,
       embedded_data:embeddedData,
       semantic_diagnostics:semanticDiagnostics,
+      behavior_adapters:behaviorAdapters,
       capabilities:compileCapabilities(components,sourceGraph,repeaters,embeddedData,layout),
       editor_contract:{
         component_identity:'stable-instance-id',
@@ -459,6 +469,11 @@
         source_scroll_behavior_preserved:true,
         semantic_diagnostics_read_only:true,
         semantic_auto_fix:false,
+        animation_scroll_contract_version:Number(behaviorAdapters?.animation_scroll?.version||0),
+        responsive_animation_none_preserved:true,
+        exact_animation_delay_preserved:true,
+        bdt_scrollspy_semantic_adapter:true,
+        bdt_parallax_semantic_adapter:true,
         consumer_contract_version:0
       },
       runtime_policy:{
@@ -477,7 +492,9 @@
         fault_isolation_contract_version:1,
         behavior_failure_policy:'isolate-and-continue',
         runtime_fault_log_limit:80,
-        semantic_diagnostics_policy:'warn-never-normalize'
+        semantic_diagnostics_policy:'warn-never-normalize',
+        animation_scroll_execution:'semantic-adapter-first-generic-fallback',
+        explicit_responsive_none_authoritative:true
       },
       diagnostics
     };
@@ -533,6 +550,9 @@
       semantic_warnings:runtimeManifest.diagnostics?.counts?.semantic_warnings||0,
       date_conflicts:runtimeManifest.diagnostics?.counts?.date_conflicts||0,
       unbound_actions:runtimeManifest.diagnostics?.counts?.unbound_actions||0,
+      elementor_animation_adapters:runtimeManifest.diagnostics?.counts?.elementor_animation_adapters||0,
+      scrollspy_adapters:runtimeManifest.diagnostics?.counts?.scrollspy_adapters||0,
+      parallax_adapters:runtimeManifest.diagnostics?.counts?.parallax_adapters||0,
       warnings:safeArray(runtimeManifest.diagnostics?.warnings).length
     };
     return runtimeManifest;
@@ -576,5 +596,5 @@
     armLegacyStudioBridge
   };
   armLegacyStudioBridge();
-  console.info('[DINI SEMANTIC MANIFEST] V'+VERSION+' aktif — P0-A/P0-B/P0-D/P0-E + P0-F Diagnostics/Fault Isolation contract.');
+  console.info('[DINI SEMANTIC MANIFEST] V'+VERSION+' aktif — P0 Core + P1-A Animation/Scroll behavior contract.');
 })(window);
