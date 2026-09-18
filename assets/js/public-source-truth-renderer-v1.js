@@ -3,7 +3,7 @@
   if(window.__DINI_PUBLIC_SOURCE_TRUTH_RENDERER_V1__)return;
   window.__DINI_PUBLIC_SOURCE_TRUTH_RENDERER_V1__=true;
 
-  const VERSION='1.3.8';
+  const VERSION='1.3.9';
   const CFG=window.DINI_PUBLIC_ENTRY||{};
   const MODE=CFG.mode==='guest'?'guest':'public';
   const SB='https://jfvmcerrsxjvbiogfqes.supabase.co';
@@ -61,6 +61,53 @@
   };
   const safeJson=value=>JSON.stringify(value??{}).replace(/</g,'\\u003c').replace(/-->/g,'--\\>');
   const localAsset=path=>new URL(path,location.origin).href.replace(/"/g,'&quot;');
+
+  const imageLike=value=>{
+    const v=String(value||'').trim();
+    return !!v&&(/\.(?:avif|bmp|gif|jpe?g|png|svg|webp)(?:$|[?#])/i.test(v)||/\/wp-content\/uploads\//i.test(v)||/^https?:\/\//i.test(v));
+  };
+  const mediaReplacementMapFromSnapshot=snap=>{
+    const map=new Map();
+    const fields=Array.isArray(snap?.schema?.fields)?snap.schema.fields:[];
+    const values=snap?.values&&typeof snap.values==='object'?snap.values:{};
+    for(const f of fields){
+      if(f?.kind!=='image'||!f?.id)continue;
+      const old=String(f.value??f.source_value??f.original_value??f.baseline_value??'').trim();
+      const next=String(values[f.id]??'').trim();
+      if(!old||!next||old===next||!imageLike(old)||!imageLike(next))continue;
+      map.set(old,next);
+      try{
+        const absOld=new URL(old,location.href).href;
+        if(absOld!==old)map.set(absOld,next);
+      }catch{}
+    }
+    return map;
+  };
+  const reconcileSnapshotImageLinks=(html,snap)=>{
+    const map=mediaReplacementMapFromSnapshot(snap);
+    if(!map.size)return {html:String(html||''),count:0,mapSize:0};
+    const doc=new DOMParser().parseFromString(String(html||''),'text/html');
+    let count=0;
+    const replaceAttr=(el,name)=>{
+      const raw=String(el.getAttribute(name)||'');
+      if(!raw)return;
+      let next=raw;
+      for(const [old,to] of map){
+        if(next===old)next=to;
+        else if(next.includes(old))next=next.split(old).join(to);
+      }
+      if(next!==raw){el.setAttribute(name,next);count++}
+    };
+    for(const a of doc.querySelectorAll('a[href]')){
+      replaceAttr(a,'href');
+      for(const at of [...a.attributes]){
+        if(/^data-/i.test(at.name))replaceAttr(a,at.name);
+      }
+    }
+    doc.documentElement.setAttribute('data-dini-media-authority-prepatched',String(count));
+    doc.documentElement.setAttribute('data-dini-media-authority-map-size',String(map.size));
+    return {html:'<!doctype html>\n'+doc.documentElement.outerHTML,count,mapSize:map.size};
+  };
   const guestContractFromPackage=pkg=>{
     const m=pkg?.manifest||{},s=pkg?.snapshot||{};
     const candidates=[
@@ -155,6 +202,10 @@
 
   function prepareHtml(pkg,row,guest){
     let html=ensureBase(pkg.html,pkg.manifest,String(row.source_path||''));
+    const mediaPatch=reconcileSnapshotImageLinks(html,pkg.snapshot);
+    html=mediaPatch.html;
+    document.documentElement.dataset.publicMediaAuthorityPrepatched=String(mediaPatch.count||0);
+    document.documentElement.dataset.publicMediaAuthorityMapSize=String(mediaPatch.mapSize||0);
     const blocks=[];
     const runtimeManifest=runtimeManifestFromPackage(pkg);
     blocks.push('<script src="'+localAsset('/assets/js/live-stream-contract-v1.js?v=101')+'"></script>');
@@ -240,5 +291,5 @@
     }
   })();
 
-  window.DINI_PUBLIC_SOURCE_TRUTH_RENDERER={VERSION,sourceTruthVersion,isSourceTruth,guestContractFromPackage,runtimeManifestFromPackage,layoutContractFromPackage};
+  window.DINI_PUBLIC_SOURCE_TRUTH_RENDERER={VERSION,sourceTruthVersion,isSourceTruth,guestContractFromPackage,runtimeManifestFromPackage,layoutContractFromPackage,mediaReplacementMapFromSnapshot,reconcileSnapshotImageLinks};
 })();
