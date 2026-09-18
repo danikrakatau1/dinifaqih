@@ -799,7 +799,7 @@ document.querySelectorAll('[data-native-reveal]').forEach(el=>io.observe(el));
       data,
       native:{html:nativeHtml,schema:nativeSchema,source_url:sourceBaseUrl||''},
       motion:{locked:true,source_animations:analysis.animations,baseline:'source-defined animations + safe observer'},
-      report:{parity_score:analysis.parity,editable_coverage:100,unsupported_items:analysis.unsupported,detected:D,renderer:'source-native',live_stream_count:nativeSchema?.live_stream_contract?.count||0,source_live_players_removed:(livePrep?.sections||[]).reduce((n,x)=>n+Number(x.source_player_removed||0),0),cover_decor:lastCoverDecorAudit||null,source_graph_version:3,source_graph_audit:sourceGraphAudit(lastSourceGraph),layout_topology:lastSourceGraph?.layout||null,semantic_diagnostics:lastSourceGraph?.semantic_diagnostics||null,critical_css:lastCriticalCssAudit,embedded_data:analysis.embeddedAudit?.scan||null,flatten_visuals:false}
+      report:{parity_score:analysis.parity,editable_coverage:100,unsupported_items:analysis.unsupported,detected:D,renderer:'source-native',live_stream_count:nativeSchema?.live_stream_contract?.count||0,source_live_players_removed:Number(D.liveSourceFrames||0),cover_decor:lastCoverDecorAudit||null,source_graph_version:3,source_graph_audit:sourceGraphAudit(lastSourceGraph),layout_topology:lastSourceGraph?.layout||null,semantic_diagnostics:lastSourceGraph?.semantic_diagnostics||null,critical_css:lastCriticalCssAudit,embedded_data:analysis.embeddedAudit?.scan||null,flatten_visuals:false}
     };
     const snapshotRaw=JSON.stringify(rebuild);
     try{localStorage.setItem('diniAnifRebuildSnapshot',snapshotRaw)}catch(err){console.warn('localStorage snapshot quota',err)}
