@@ -3,7 +3,7 @@
   if(window.__DINI_FETCH_RUNTIME_CONTROL_V1__)return;
   window.__DINI_FETCH_RUNTIME_CONTROL_V1__=true;
 
-  const VERSION='1.0.2';
+  const VERSION='1.1.0';
   const E=window.DINI_FETCH_V2;
   const frame=document.getElementById('previewFrame');
   const toolbar=document.querySelector('.preview-toolbar');
@@ -12,6 +12,7 @@
   const h=E.handoffFromUrl();
   let mode='live';
   let sourceTruth=null;
+  let runtimeManifest=null;
 
   const style=document.createElement('style');
   style.textContent=`
@@ -120,12 +121,25 @@
     if(next==='replay')replay();else setMode(next);
   });
 
-  frame.addEventListener('load',()=>setTimeout(()=>applyModeToFrame(mode),0));
+  const bindConsumer=()=>{
+    try{
+      const api=window.DiniSourceConsumerContract;
+      const doc=frame.contentDocument;
+      if(api?.bindDocument&&doc?.documentElement&&runtimeManifest){
+        const report=api.bindDocument(doc,runtimeManifest,{mode:'editor'});
+        frame.dataset.diniConsumerContract=api.version||'';
+        frame.dataset.diniConsumerForms=String(report?.forms||0);
+      }
+    }catch(err){console.warn('[DINI FETCH] consumer bind gagal',err)}
+  };
+  frame.addEventListener('load',()=>setTimeout(()=>{applyModeToFrame(mode);bindConsumer()},0));
 
   async function loadTruth(){
     try{
       const session=await E.loadOrCreateSession(h);
       sourceTruth=session?.baseline?.manifest?.source_graph||null;
+      runtimeManifest=session?.baseline?.manifest?.runtime_manifest||null;
+      bindConsumer();
       const d=sourceTruth?.diagnostics||{};
       const v=sourceTruth?.source_truth_version;
       if(v){
@@ -153,6 +167,6 @@
   setMode('live',{silent:true});
   loadTruth();
   loadDiagnostics();
-  window.DINI_FETCH_RUNTIME_CONTROL={version:VERSION,get mode(){return mode},setMode,replay,get sourceTruth(){return sourceTruth}};
-  console.info('[DINI FETCH] Runtime Control V'+VERSION+' aktif — LIVE/PAUSE/EDIT/REPLAY non-destructive + diagnostics bootstrap.');
+  window.DINI_FETCH_RUNTIME_CONTROL={version:VERSION,get mode(){return mode},setMode,replay,get sourceTruth(){return sourceTruth},get runtimeManifest(){return runtimeManifest},bindConsumer};
+  console.info('[DINI FETCH] Runtime Control V'+VERSION+' aktif — LIVE/PAUSE/EDIT/REPLAY + semantic consumer bind.');
 })();
