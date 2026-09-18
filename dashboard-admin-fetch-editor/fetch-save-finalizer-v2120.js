@@ -208,7 +208,12 @@
     manifestBase.icon_contract=iconContract;
     manifestBase.source_graph=manifestBase.source_graph||{};
     manifestBase.source_graph.icon_contract=iconContract;
-    if(manifestBase.runtime_manifest){manifestBase.runtime_manifest.icon_contract=iconContract;manifestBase.runtime_manifest.capabilities=Array.isArray(manifestBase.runtime_manifest.capabilities)?manifestBase.runtime_manifest.capabilities:[];if(!manifestBase.runtime_manifest.capabilities.includes('icons'))manifestBase.runtime_manifest.capabilities.push('icons')}
+    const liveFields=(schema?.fields||[]).filter(f=>f?.kind==='live-enabled'||f?.kind==='live-url');
+    const liveStreamContract=schema?.live_stream_contract||manifestBase?.live_stream_contract||{version:1,contract:'dini-live-stream-v1',count:new Set(liveFields.map(f=>f.section_id).filter(Boolean)).size,section_ids:[...new Set(liveFields.map(f=>f.section_id).filter(Boolean))],enabled_field_ids:liveFields.filter(f=>f.kind==='live-enabled').map(f=>f.id),url_field_ids:liveFields.filter(f=>f.kind==='live-url').map(f=>f.id),source_player_policy:'removed',embed_policy:'youtube-url-only',external_url_policy:'button-only'};
+    schema.live_stream_contract=liveStreamContract;
+    manifestBase.live_stream_contract=liveStreamContract;
+    manifestBase.source_graph.live_stream_contract=liveStreamContract;
+    if(manifestBase.runtime_manifest){manifestBase.runtime_manifest.icon_contract=iconContract;manifestBase.runtime_manifest.live_stream_contract=liveStreamContract;manifestBase.runtime_manifest.capabilities=Array.isArray(manifestBase.runtime_manifest.capabilities)?manifestBase.runtime_manifest.capabilities:[];if(!manifestBase.runtime_manifest.capabilities.includes('icons'))manifestBase.runtime_manifest.capabilities.push('icons');if(!manifestBase.runtime_manifest.capabilities.includes('live-stream'))manifestBase.runtime_manifest.capabilities.push('live-stream')}
     const guestResult=normalizeGuestContract(html,manifestBase);
     html=guestResult.html;
     persistGuestContract(manifestBase,guestResult.contract);
@@ -235,6 +240,8 @@
       guest_personalization_roles:guestResult.contract?.roles||[],
       icon_contract_persisted:true,
       icon_contract_count:Number(iconContract?.count||0),
+      live_stream_contract_persisted:true,
+      live_stream_contract_count:Number(liveStreamContract?.count||0),
       consumer_contract_version:consumerContract?.version||1,
       consumer_chain_persisted:true,
       saved_at:E.now(),
@@ -252,6 +259,7 @@
       assets:cloudAssets,
       personalization_contract:guestResult.contract,
       icon_contract:iconContract,
+      live_stream_contract:liveStreamContract,
       runtime_manifest:manifest.runtime_manifest||null,
       consumer_contract:consumerContract,
       save_finalizer:{

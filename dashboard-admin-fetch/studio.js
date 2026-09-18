@@ -77,14 +77,16 @@
     const externalScripts=[...doc.scripts].filter(s=>/^https?:/i.test(s.src)).map(s=>s.src);
     const canvas=doc.querySelectorAll('canvas').length;
     const iframes=doc.querySelectorAll('iframe').length;
+    const liveSections=window.DINI_LIVE_STREAM_CONTRACT_V1?.findSections?.(doc)||[];
+    const liveSourceFrames=liveSections.reduce((n,sec)=>n+sec.querySelectorAll('iframe,embed,object').length,0);
     const elementor=!!doc.querySelector('.elementor,.elementor-section,[data-elementor-type]') || /elementor/i.test(html);
-    const detected={sections:sections.length,texts:allText.length,images:imgs.length,backgrounds:unique(bg).length,videos:videos.length,audios:audios.length,links:links.length,forms:forms.length,icons:icons.length,animations:unique(animations).length,canvas,iframes,customScripts,externalScripts:externalScripts.length,elementor,embeddedCss:embeddedAudit?.counts?.css||0,embeddedJs:embeddedAudit?.counts?.javascript||0,embeddedBytes:embeddedAudit?.counts?.bytes||0};
-    const unsupported=canvas+iframes+Math.min(customScripts,5);
+    const detected={sections:sections.length,texts:allText.length,images:imgs.length,backgrounds:unique(bg).length,videos:videos.length,audios:audios.length,links:links.length,forms:forms.length,icons:icons.length,liveStreams:liveSections.length,liveSourceFrames,animations:unique(animations).length,canvas,iframes,customScripts,externalScripts:externalScripts.length,elementor,embeddedCss:embeddedAudit?.counts?.css||0,embeddedJs:embeddedAudit?.counts?.javascript||0,embeddedBytes:embeddedAudit?.counts?.bytes||0};
+    const unsupported=canvas+Math.max(0,iframes-liveSourceFrames)+Math.min(customScripts,5);
     let parity=68;
     if(elementor) parity+=14;
     if(detected.images) parity+=4;if(detected.animations)parity+=4;if(detected.forms)parity+=3;if(detected.videos)parity+=3;
     parity=Math.max(25,Math.min(98,parity-unsupported*3));
-    return {doc,html,baseUrl:base,allText,imgs,backgrounds:unique(bg),videos,audios,links,animations:unique(animations),detected,unsupported,parity,embeddedAudit};
+    return {doc,html,baseUrl:base,allText,imgs,backgrounds:unique(bg),videos,audios,links,animations:unique(animations),liveSections,detected,unsupported,parity,embeddedAudit};
   }
 
 
@@ -753,13 +755,14 @@ document.querySelectorAll('[data-native-reveal]').forEach(el=>io.observe(el));
     if(a.audios[0])d.media.music=a.audios[0];
     const insta=a.links.find(u=>/instagram\.com/i.test(u));if(insta){d.couple.person1.instagram=insta;d.brand.instagram=insta}
     const maps=a.links.filter(u=>/maps|goo\.gl/i.test(u));if(maps[0])d.event.akad.maps_url=maps[0];if(maps[1])d.event.reception.maps_url=maps[1];
-    const live=a.links.find(u=>/youtube|youtu\.be|instagram.*live|tiktok/i.test(u));if(live)d.live.url=live;
+    // Source-owned live player/link is intentionally never inherited. The native Live Stream Contract starts OFF + empty URL.
+    if(d.live){d.live.url='';if(Object.prototype.hasOwnProperty.call(d.live,'enabled'))d.live.enabled=false;}
     return d;
   }
 
   function reportRows(a){
     const D=a.detected;
-    const rows=[['Framework',D.elementor?'Elementor / WordPress terdeteksi':'Generic HTML'],['Sections',D.sections],['Text nodes',D.texts],['Images',D.images],['Backgrounds',D.backgrounds],['Video',D.videos],['Music/Audio',D.audios],['Links',D.links],['Forms',D.forms],['Icons',D.icons||0],['Animations',D.animations],['Embedded CSS',D.embeddedCss||0],['Embedded JS (inert)',D.embeddedJs||0],['Canvas',D.canvas],['Iframes',D.iframes],['Custom scripts',D.customScripts]];
+    const rows=[['Framework',D.elementor?'Elementor / WordPress terdeteksi':'Generic HTML'],['Sections',D.sections],['Text nodes',D.texts],['Images',D.images],['Backgrounds',D.backgrounds],['Video',D.videos],['Music/Audio',D.audios],['Links',D.links],['Forms',D.forms],['Icons',D.icons||0],['Live Streaming',D.liveStreams||0],['Source Live Player (akan dibuang)',D.liveSourceFrames||0],['Animations',D.animations],['Embedded CSS',D.embeddedCss||0],['Embedded JS (inert)',D.embeddedJs||0],['Canvas',D.canvas],['Iframes',D.iframes],['Custom scripts',D.customScripts]];
     $('#detectList').classList.remove('empty');$('#detectList').innerHTML=rows.map(([k,v])=>`<div class="detect-row"><b>${k}</b><span>${v}</span></div>`).join('');
   }
   function setAnalysis(a){

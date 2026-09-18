@@ -100,7 +100,7 @@
     let stack=[];try{stack=doc.elementsFromPoint(x,y)||[]}catch{}
     stack.forEach((n,i)=>{add(n,i);let p=n.parentElement,c=0;while(p&&c++<6){add(p,i+c/10);p=p.parentElement}});
     if(target){let p=target,c=0;while(p&&c++<8){add(p,-10+c/10);p=p.parentElement}}
-    const rank=({f,depth})=>{let s=0;if(target?.matches?.('img')&&f.kind==='image')s+=500;if(f.kind==='icon'&&target?.closest?.(`[data-native-edit-id="${cssEsc(f.id)}"],[data-native-edit-ids~="${cssEsc(f.id)}"]`))s+=480;if(f.kind==='icon')s+=300;else if(f.kind==='text')s+=250;else if(f.kind==='image')s+=200;else if(f.kind==='background')s+=150;else s+=60;if(f.source_location==='external-css')s-=10;s-=Math.max(0,depth)*2;return s};
+    const rank=({f,depth})=>{let s=0;if(target?.matches?.('img')&&f.kind==='image')s+=500;if((f.kind==='live-enabled'||f.kind==='live-url')&&target?.closest?.(`[data-native-edit-id="${cssEsc(f.id)}"],[data-native-edit-ids~="${cssEsc(f.id)}"]`))s+=500;if(f.kind==='icon'&&target?.closest?.(`[data-native-edit-id="${cssEsc(f.id)}"],[data-native-edit-ids~="${cssEsc(f.id)}"]`))s+=480;if(f.kind==='live-enabled'||f.kind==='live-url')s+=320;else if(f.kind==='icon')s+=300;else if(f.kind==='text')s+=250;else if(f.kind==='image')s+=200;else if(f.kind==='background')s+=150;else s+=60;if(f.source_location==='external-css')s-=10;s-=Math.max(0,depth)*2;return s};
     return found.sort((a,b)=>rank(b)-rank(a)).map(x=>x.f);
   }
 
@@ -135,6 +135,10 @@
       }
     }else if(f.kind==='icon'){
       for(const n of nodes){if(window.DINI_ICON_CONTRACT_V1?.applyNode)window.DINI_ICON_CONTRACT_V1.applyNode(n,value,f);else if(value)n.setAttribute('class',String(value))}
+    }else if(f.kind==='live-enabled'){
+      for(const n of nodes){n.setAttribute('data-dini-live-enabled',window.DINI_LIVE_STREAM_CONTRACT_V1?.bool?.(value)?'1':'0');if(doc?.defaultView)window.DINI_LIVE_STREAM_CONTRACT_V1?.applySection?.(n)}
+    }else if(f.kind==='live-url'){
+      for(const n of nodes){n.setAttribute('data-dini-live-url',String(value||''));if(doc?.defaultView)window.DINI_LIVE_STREAM_CONTRACT_V1?.applySection?.(n)}
     }else if(f.kind==='url'){
       for(const n of nodes){const a=n.matches?.('a,[href]')?n:n.querySelector?.('a,[href]');if(a)a.setAttribute('href',value)}
     }else if(f.kind==='placeholder'){
@@ -204,6 +208,8 @@
     if(!f){inspector.className='inspector-empty';inspector.textContent='Klik elemen di preview atau pilih field dari panel kiri.';badge.textContent='Belum ada elemen';return}
     selectedId=f.id;badge.textContent=`${f.kind.toUpperCase()} · ${f.label||f.id}`;const v=valueOf(f);let control='';
     if(f.kind==='text')control=`<textarea id="v2val" rows="5" style="width:100%">${escHtml(v)}</textarea><button id="v2set">Terapkan Teks</button>`;
+    else if(f.kind==='live-enabled')control=`<label style="display:grid;gap:6px"><span>Live Streaming</span><select id="v2val" style="width:100%"><option value="0">Nonaktif — player source tetap dibuang</option><option value="1" ${String(v)==='1'?'selected':''}>Aktif</option></select></label><button id="v2set">Terapkan Status Live</button>`;
+    else if(f.kind==='live-url')control=`<label style="display:grid;gap:6px"><span>URL Live Streaming</span><input id="v2val" type="url" style="width:100%" placeholder="https://youtube.com/watch?v=..." value="${escHtml(v)}"></label><small style="opacity:.72">YouTube dirender sebagai player aman. URL lain tetap menjadi action JOIN LIVE.</small><button id="v2set">Terapkan URL Live</button>`;
     else if(f.kind==='icon')control=`<div style="font-size:12px;display:grid;gap:5px"><strong>${escHtml(f.icon_role||'custom')} · ${escHtml(f.icon_library||'icon-font')}</strong><small style="opacity:.72">Icon source-native. Class, posisi, warna dan link asal dipertahankan.</small></div><input id="v2val" type="text" style="width:100%" value="${escHtml(v)}"><button id="v2set">Terapkan Icon Class</button>`;
     else if(['image','background','video','audio'].includes(f.kind)){
       const t=transformOf(f)||{};const zoom=Number(t.zoom??t.scale??1);

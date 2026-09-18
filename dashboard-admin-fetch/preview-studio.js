@@ -83,7 +83,7 @@
         {name:'source-report.json',data:JSON.stringify(pack.report,null,2)},
         {name:'source-native.html',data:nativeHtml||''},
         {name:'native-schema.json',data:JSON.stringify(pack.native?.schema||{},null,2)},
-        {name:'visual-manifest.json',data:JSON.stringify(pack.manifest?.visual_manifest||{version:3,sources:[]},null,2)},{name:'icon-contract.json',data:JSON.stringify(pack.manifest?.icon_contract||pack.native?.schema?.icon_contract||{version:1,count:0,icons:[]},null,2)},{name:'source-graph.json',data:JSON.stringify(pack.manifest?.source_graph||{version:3,visuals:[],interactions:[]},null,2)},
+        {name:'visual-manifest.json',data:JSON.stringify(pack.manifest?.visual_manifest||{version:3,sources:[]},null,2)},{name:'icon-contract.json',data:JSON.stringify(pack.manifest?.icon_contract||pack.native?.schema?.icon_contract||{version:1,count:0,icons:[]},null,2)},{name:'live-stream-contract.json',data:JSON.stringify(pack.manifest?.live_stream_contract||pack.native?.schema?.live_stream_contract||{version:1,count:0,section_ids:[]},null,2)},{name:'source-graph.json',data:JSON.stringify(pack.manifest?.source_graph||{version:3,visuals:[],interactions:[]},null,2)},
         {name:'README.txt',data:'DINI ANIF REBUILD PACKAGE V2.23 — UNIVERSAL VISUAL RESOLVER\nPreview memakai source-native.html.\n'}
       ];
       const blob=await window.UNDANGAN_ZIP.buildZip(entries),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='dini-anif-source-native-rebuild.zip';a.click();setTimeout(()=>URL.revokeObjectURL(url),1500);
