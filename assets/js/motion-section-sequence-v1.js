@@ -2,7 +2,7 @@
   'use strict';
   if(window.DINI_MOTION_SECTION_SEQUENCE_V1?.version)return;
 
-  const VERSION='1.4.2';
+  const VERSION='1.4.3';
   const section=document.querySelector('.motionSection');
   const motionText=section?.querySelector('.motionText');
   const logo=motionText?.querySelector('.delay-image');
@@ -197,50 +197,44 @@
           const sourceAnim=authoredAnim==='fadeInUp'?'fadeInUp':'zoomIn';
           stripAnimation(el);
 
-          const keyframes=sourceAnim==='fadeInUp'
-            ?[
-              {opacity:0,transform:'none'},
-              {opacity:1,transform:'none'}
-            ]
-            :[
-              {opacity:0,transform:'scale3d(.3,.3,.3)'},
-              {offset:.5,opacity:1},
-              {opacity:1,transform:'scale3d(1,1,1)'}
-            ];
+          // Mobile-safe path: use plain CSS transitions instead of pausing a
+          // Web Animation at currentTime=0. Some Android/iOS iframe/browser
+          // combinations can leave that paused animation pinned at opacity 0.
+          el.style.setProperty('transition','none','important');
+          el.style.setProperty('opacity','0','important');
+          el.style.setProperty(
+            'transform',
+            sourceAnim==='fadeInUp'?'none':'scale3d(.3,.3,.3)',
+            'important'
+          );
 
-          if(typeof el.animate==='function'){
-            const animation=el.animate(keyframes,{
-              duration:1250,
-              easing:'ease',
-              fill:'both'
-            });
-            // Critical: pin the element at animation time zero BEFORE exposing
-            // it. This prevents the one-frame final-state flash that made the
-            // three-line names look like a rough/double animation.
-            animation.pause();
-            animation.currentTime=0;
-            el.classList.remove('elementor-invisible');
-            el.setAttribute('data-dini-motion-seq-released',tag);
-            requestAnimationFrame(()=>animation.play());
-            animation.finished.then(()=>{
-              el.style.opacity='1';
-              el.style.transform='none';
-              animation.cancel();
-            }).catch(()=>{});
-            return;
-          }
-
-          // CSS fallback for older engines.
-          el.style.opacity='0';
-          el.style.transform=sourceAnim==='fadeInUp'
-            ?'none'
-            :'scale3d(.3,.3,.3)';
           el.classList.remove('elementor-invisible');
-          void el.offsetWidth;
-          el.setAttribute('data-dini-motion-seq-play',sourceAnim);
-          el.style.removeProperty('opacity');
-          el.style.removeProperty('transform');
           el.setAttribute('data-dini-motion-seq-released',tag);
+
+          // Two paints guarantee the browser commits the start state before
+          // transitioning to the final state on both mobile and desktop.
+          requestAnimationFrame(()=>requestAnimationFrame(()=>{
+            if(!el?.isConnected)return;
+            el.style.setProperty(
+              'transition',
+              'opacity 1.25s ease, transform 1.25s ease',
+              'important'
+            );
+            el.style.setProperty('opacity','1','important');
+            el.style.setProperty('transform','none','important');
+          }));
+
+          const finalize=()=>{
+            if(!el?.isConnected)return;
+            el.style.removeProperty('transition');
+            el.style.setProperty('opacity','1','important');
+            el.style.setProperty('transform','none','important');
+            el.removeAttribute('data-dini-motion-seq-play');
+          };
+          el.addEventListener('transitionend',finalize,{once:true});
+          // Visibility watchdog: never leave overlays invisible if a mobile
+          // browser suppresses transitionend inside the rendered iframe.
+          setTimeout(finalize,1500);
         },wait);
       };
 
