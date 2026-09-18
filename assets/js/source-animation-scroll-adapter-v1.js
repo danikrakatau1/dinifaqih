@@ -23,6 +23,22 @@
     return String(el.tagName||'element').toLowerCase();
   };
   const parseSettings=el=>{const raw=decode(el?.getAttribute?.('data-settings')||'');try{return raw?JSON.parse(raw):{}}catch{return{__parse_error:true,__raw:raw}}};
+  function directiveRaw(el,attr){
+    let raw=String(el?.getAttribute?.(attr)||'');
+    const trim=s=>decode(String(s||'')).trim().replace(/^["']|["']$/g,'').trim();
+    const direct=trim(raw);
+    if(direct&&direct.includes(':')&&(direct.includes(';')||!/^["']/.test(raw)))return direct;
+    const attrs=[...(el?.attributes||[])];const at=attrs.findIndex(a=>String(a?.name||'').toLowerCase()===String(attr||'').toLowerCase());
+    if(at<0)return direct;
+    const parts=[raw];
+    for(let i=at+1;i<attrs.length&&i<=at+8;i++){
+      const a=attrs[i],name=String(a?.name||''),value=String(a?.value||'');
+      parts.push(name+(value?('='+value):''));
+      if(/(?:&quot;|&#34;|["'])/i.test(name+value))break;
+      if(/;$/.test(name)&&parts.join(' ').includes(':'))break;
+    }
+    return trim(parts.join(' ').replace(/\s*=\s*/g,': '));
+  }
 
   function animationViewport(cfg,viewport){
     const suffix=viewport==='desktop'?'':'_'+viewport;
@@ -92,7 +108,7 @@
     attrs.forEach(a=>doc.querySelectorAll('['+a+']').forEach(el=>nodes.add(el)));
     return [...nodes].map((el,index)=>{
       const attr=attrs.find(a=>el.hasAttribute?.(a))||'';
-      const raw=String(el.getAttribute?.(attr)||'');
+      const raw=directiveRaw(el,attr);
       const cfg=splitConfig(raw);
       return {
         id:'bdt-scrollspy-'+hash(selectorFor(el)+'|'+index),
@@ -191,6 +207,6 @@
     }
   };
 
-  g.DiniAnimationScrollAdapter={version:VERSION,contract_version:CONTRACT_VERSION,compile,compileElementor,compileScrollspy,compileParallax,splitConfig,parseRange};
+  g.DiniAnimationScrollAdapter={version:VERSION,contract_version:CONTRACT_VERSION,compile,compileElementor,compileScrollspy,compileParallax,splitConfig,parseRange,directiveRaw};
   console.info('[DINI ANIMATION/SCROLL] V'+VERSION+' aktif — Elementor responsive animation + BDT/UIkit Scrollspy/Parallax semantic plan.');
 })(window);
