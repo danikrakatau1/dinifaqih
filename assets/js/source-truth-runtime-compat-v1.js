@@ -3,7 +3,7 @@
   if(window.__DINI_SOURCE_TRUTH_RUNTIME_COMPAT_V1__)return;
   window.__DINI_SOURCE_TRUTH_RUNTIME_COMPAT_V1__=true;
 
-  const VERSION='1.2.2';
+  const VERSION='1.2.3';
   const MOBILE_MAX=767;
   const boundDocs=new WeakMap();
   const boundFrames=new WeakSet();
@@ -190,47 +190,96 @@
     return String(img?.getAttribute?.('src')||img?.getAttribute?.('data-src')||img?.currentSrc||'').trim();
   }
 
+  function cssUrl(value){
+    const s=String(value||'');
+    const m=s.match(/url\(\s*(["']?)(.*?)\1\s*\)/i);
+    return String(m?.[2]||'').trim();
+  }
+
+  function mediaUrl(node){
+    if(!node)return '';
+    if(node.matches?.('img'))return imageSrc(node);
+    const thumb=String(node.getAttribute?.('data-thumbnail')||node.getAttribute?.('data-src')||'').trim();
+    if(thumb)return thumb;
+    const inline=cssUrl(node.style?.getPropertyValue?.('background-image')||node.getAttribute?.('style')||'');
+    if(inline)return inline;
+    const bg=node.querySelector?.('[data-thumbnail],.e-gallery-image,[style*="background-image"]');
+    if(bg){
+      const nested=String(bg.getAttribute?.('data-thumbnail')||bg.getAttribute?.('data-src')||'').trim()||
+        cssUrl(bg.style?.getPropertyValue?.('background-image')||bg.getAttribute?.('style')||'');
+      if(nested)return nested;
+    }
+    const img=node.querySelector?.('img[src],img[data-src]');
+    return imageSrc(img);
+  }
+
+  function syncElementorActionHash(a,url){
+    const raw=String(a?.getAttribute?.('data-e-action-hash')||'').trim();
+    if(!raw||!url)return false;
+    try{
+      const decoded=decodeURIComponent(raw.replace(/^#/,''));
+      const prefix='elementor-action:';
+      if(!decoded.startsWith(prefix))return false;
+      const qs=new URLSearchParams(decoded.slice(prefix.length));
+      const b64=qs.get('settings');if(!b64)return false;
+      const cfg=JSON.parse(atob(b64));
+      if(!cfg||typeof cfg!=='object')return false;
+      const old=String(cfg.url||'');
+      if(old===url)return false;
+      cfg.url=url;
+      qs.set('settings',btoa(JSON.stringify(cfg)));
+      a.setAttribute('data-e-action-hash','#'+encodeURIComponent(prefix+qs.toString()));
+      a.setAttribute('data-dini-lightbox-action-authority','display-media');
+      return true;
+    }catch{return false}
+  }
+
   function authorityHost(a){
     return a?.closest?.('.elementor-widget-image,.elementor-widget-gallery,.elementor-image-gallery,.elementor-widget-image-carousel,.elementor-gallery-item,.gallery-item,.gallery,[data-widget_type*="image"],[data-widget_type*="gallery"],.elementor-widget-container')||a?.parentElement||null;
   }
 
-  function displayedImageForAnchor(a){
+  function displayedMediaForAnchor(a){
     if(!a)return null;
-    const direct=a.querySelector?.('img[src],img[data-src]');
-    if(direct&&imageSrc(direct))return direct;
+
+    // Elementor e-gallery uses a background-image DIV, not an IMG.
+    const own=a.querySelector?.('[data-thumbnail],.e-gallery-image,[style*="background-image"],img[src],img[data-src]');
+    if(own&&mediaUrl(own))return own;
 
     const host=authorityHost(a);
     if(host){
-      const imgs=[...host.querySelectorAll?.('img[src],img[data-src]')||[]].filter(x=>imageSrc(x));
-      if(imgs.length===1)return imgs[0];
+      const media=[...host.querySelectorAll?.('[data-thumbnail],.e-gallery-image,[style*="background-image"],img[src],img[data-src]')||[]]
+        .filter(x=>mediaUrl(x));
+      if(media.length===1)return media[0];
 
-      // Elementor galleries sometimes use a separate overlay anchor next to the visible image.
-      // Pair image-like anchors and visible images by authored order inside one gallery host.
+      // Separate overlay anchors are paired by authored order inside one gallery host.
       const anchors=[...host.querySelectorAll?.('a[href]')||[]].filter(isImageLightboxAnchor);
       const ai=anchors.indexOf(a);
-      if(ai>=0&&imgs[ai])return imgs[ai];
+      if(ai>=0&&media[ai])return media[ai];
     }
 
     const container=a.closest?.('.elementor-section,.elementor-column,.elementor-widget-wrap');
     if(container){
       const anchors=[...container.querySelectorAll?.('a[href]')||[]].filter(isImageLightboxAnchor);
-      const imgs=[...container.querySelectorAll?.('img[src],img[data-src]')||[]].filter(x=>imageSrc(x));
+      const media=[...container.querySelectorAll?.('[data-thumbnail],.e-gallery-image,[style*="background-image"],img[src],img[data-src]')||[]]
+        .filter(x=>mediaUrl(x));
       const ai=anchors.indexOf(a);
-      if(ai>=0&&anchors.length===imgs.length&&imgs[ai])return imgs[ai];
+      if(ai>=0&&anchors.length===media.length&&media[ai])return media[ai];
     }
     return null;
   }
 
   function syncImageAnchor(a){
     if(!a||!isImageLightboxAnchor(a))return false;
-    const img=displayedImageForAnchor(a);
-    const src=imageSrc(img);
+    const media=displayedMediaForAnchor(a);
+    const src=mediaUrl(media);
     if(!src)return false;
     const old=a.getAttribute('href')||'';
-    if(old!==src)a.setAttribute('href',src);
-    a.setAttribute('data-dini-image-authority','display-src');
-    a.setAttribute('data-dini-image-authority-from',old===src?'already-synced':'runtime-reconciled');
-    return old!==src;
+    const hrefChanged=old!==src;
+    if(hrefChanged)a.setAttribute('href',src);
+    const actionChanged=syncElementorActionHash(a,src);
+    a.setAttribute('data-dini-image-authority','display-media');
+    a.setAttribute('data-dini-image-authority-from',hrefChanged||actionChanged?'runtime-reconciled':'already-synced');
+    return hrefChanged||actionChanged;
   }
 
   function patchImageAuthority(doc){
@@ -290,14 +339,15 @@
         if(r.type==='childList'){needsFull=true;continue}
         const t=r.target;
         if(r.attributeName==='href'&&t?.matches?.('a[href]'))syncImageAnchor(t);
-        if((r.attributeName==='src'||r.attributeName==='data-src')&&t?.matches?.('img')){
+        if((r.attributeName==='src'||r.attributeName==='data-src'||r.attributeName==='data-thumbnail')&&
+           t?.matches?.('img,[data-thumbnail],.e-gallery-image')){
           const a=t.closest?.('a[href]')||authorityHost(t)?.querySelector?.('a[href]');
           if(a)syncImageAnchor(a);
         }
       }
       if(needsFull)schedule();
     });
-    try{observer.observe(doc.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['href','src','data-src']})}catch{}
+    try{observer.observe(doc.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['href','src','data-src','data-thumbnail','data-e-action-hash']})}catch{}
     boundDocs.set(doc,observer);
 
     // Short stabilization window only; no perpetual scroll-driven rescans.
