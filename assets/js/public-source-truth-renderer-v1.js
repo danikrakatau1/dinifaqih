@@ -175,7 +175,7 @@
       blocks.push('<script type="application/json" id="diniGuestRuntimeData">'+safeJson(guest)+'</script>');
       blocks.push('<script type="application/json" id="diniGuestPersonalizationContract">'+safeJson(contract)+'</script>');
       blocks.push('<script src="'+localAsset('/assets/js/guest-contract-core-v1.js?v=112')+'"></script>');
-      blocks.push('<script src="'+localAsset('/assets/js/guest-runtime-v1.js?v=211')+'"></script>');
+      blocks.push('<script src="'+localAsset('/assets/js/guest-runtime-v1.js?v=212')+'"></script>');
     }
     return appendRuntime(html,blocks);
   }
