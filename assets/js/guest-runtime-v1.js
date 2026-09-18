@@ -1,9 +1,9 @@
 (()=>{
   'use strict';
-  if(window.__DINI_UNIVERSAL_GUEST_RUNTIME_V211__)return;
-  window.__DINI_UNIVERSAL_GUEST_RUNTIME_V211__=true;
+  if(window.__DINI_UNIVERSAL_GUEST_RUNTIME_V212__)return;
+  window.__DINI_UNIVERSAL_GUEST_RUNTIME_V212__=true;
 
-  const VERSION='2.1.1';
+  const VERSION='2.1.2';
   const Core=window.DINI_GUEST_CONTRACT_CORE_V1;
   const cfgEl=document.getElementById('diniGuestRuntimeData');
   let cfg={};try{cfg=cfgEl?JSON.parse(cfgEl.textContent||'{}'):{} }catch{}
@@ -13,7 +13,7 @@
   const slug=String(cfg.slug||'').trim();
   if(!name)return;
 
-  document.documentElement.dataset.guestRuntime='v2.1.1';
+  document.documentElement.dataset.guestRuntime='v2.1.2';
   document.documentElement.dataset.guestMutation='role-aware';
   if(slug)document.documentElement.dataset.guestSlug=slug;
 
@@ -61,6 +61,26 @@
     const base=(Array.isArray(direct?.fields)&&direct.fields.length)?direct:((Array.isArray(source?.fields)&&source.fields.length)?source:(direct&&Object.keys(direct).length?direct:source||{}));
     if(Core?.scanDocument)return Core.scanDocument(document,base||{},{mark:true,allowSemanticSynthesis:true});
     return base||{};
+  }
+
+  const coverRootFor=node=>node?.closest?.('#cover,.elementor-top-section,section,.elementor-section')||null;
+  function pruneLegacyProbeCoverDuplicate(){
+    if(!Core?.coverCandidates)return 0;
+    let candidates=[];
+    try{candidates=Core.coverCandidates(document,{allowSemanticSynthesis:true})||[]}catch{}
+    const canonical=candidates.find(node=>node?.getAttribute?.('data-dini-guest-source-probe')!=='1')||candidates[0]||null;
+    const root=coverRootFor(canonical);
+    if(!canonical||!root)return 0;
+    let pruned=0;
+    for(const probe of queryAll('[data-dini-guest-source-probe="1"]')){
+      if(probe===canonical||probe.contains?.(canonical)||canonical.contains?.(probe))continue;
+      if(coverRootFor(probe)!==root)continue;
+      const owner=probe.closest?.('[data-dini-guest-source-probe-widget="1"]');
+      if(owner&&owner!==root&&!owner.contains?.(canonical)){owner.remove();pruned++}
+      else{probe.remove();pruned++}
+    }
+    document.documentElement.dataset.guestProbeDuplicatesPruned=String(pruned);
+    return pruned;
   }
 
   function structuralFallbackNodes(){
@@ -125,6 +145,7 @@
   }
 
   function apply(){
+    const pruned=pruneLegacyProbeCoverDuplicate();
     let changed=0,matched=0;const roles=new Set();
     for(const {node,field} of boundSlots()){
       matched++;roles.add(field?.role||'generic');
@@ -136,7 +157,7 @@
     document.documentElement.dataset.guestChanged=String(changed);
     document.documentElement.dataset.guestBinding=matched?'global-contract':'missing';
     document.documentElement.dataset.guestRoles=[...roles].join(',');
-    return {matched,changed,roles:[...roles]};
+    return {matched,changed,roles:[...roles],pruned};
   }
 
   let timer=0;
@@ -149,5 +170,5 @@
   try{observer.observe(document.documentElement,{subtree:true,childList:true})}catch{}
   setTimeout(()=>observer.disconnect(),15000);
 
-  window.DINI_GUEST_RUNTIME_V2={VERSION,apply,boundNodes,boundSlots,currentContract,sanitizeName};
+  window.DINI_GUEST_RUNTIME_V2={VERSION,apply,boundNodes,boundSlots,currentContract,sanitizeName,pruneLegacyProbeCoverDuplicate};
 })();
