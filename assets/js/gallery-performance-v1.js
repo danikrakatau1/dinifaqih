@@ -1,7 +1,7 @@
 (function(g){
   'use strict';
   if(g.DINI_GALLERY_PERFORMANCE_V1?.version)return;
-  const VERSION='1.3.0';
+  const VERSION='1.3.1';
   const doc=document;
   const items=[...doc.querySelectorAll('[data-dini-gallery-bg-deferred="1"]')];
 
@@ -67,14 +67,47 @@
         images.forEach(image=>image.classList.add('e-gallery-image-loaded'));
         return;
       }
+
       images.forEach(image=>image.classList.remove('e-gallery-image-loaded'));
-      // The source library reveals thumbnails when their lazy image becomes ready.
-      // Optimized thumbnails can all be cache-hot, so preserve that same visual
-      // ordering with a short stagger instead of letting all eight pop at once.
+
+      // Match the source video more closely: each optimized thumbnail becomes
+      // visible when its own decoded image is ready, with only a very small DOM
+      // order offset so cache-hot thumbnails do not all appear in one frame.
       images.forEach((image,index)=>{
-        setTimeout(()=>{
-          requestAnimationFrame(()=>image.classList.add('e-gallery-image-loaded'));
-        },70+(index*115));
+        const url=String(
+          image.getAttribute('data-dini-gallery-bg-runtime')||
+          image.getAttribute('data-dini-gallery-bg')||
+          image.getAttribute('data-thumbnail')||''
+        ).trim();
+
+        const show=()=>{
+          setTimeout(()=>{
+            requestAnimationFrame(()=>image.classList.add('e-gallery-image-loaded'));
+          },index*55);
+        };
+
+        if(!url){show();return;}
+
+        try{
+          const probe=new Image();
+          probe.decoding='async';
+          try{probe.fetchPriority='low'}catch{}
+          let finished=false;
+          const done=()=>{
+            if(finished)return;
+            finished=true;
+            try{
+              const decoded=probe.decode?.();
+              if(decoded?.then)decoded.then(show).catch(show);
+              else show();
+            }catch{show()}
+          };
+          probe.addEventListener('load',done,{once:true});
+          probe.addEventListener('error',show,{once:true});
+          probe.src=url;
+          if(probe.complete&&probe.naturalWidth>0)done();
+          setTimeout(show,650+(index*35));
+        }catch{show()}
       });
     }
 
