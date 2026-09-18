@@ -3,7 +3,7 @@
   if(window.__DINI_SOURCE_TRUTH_RUNTIME_COMPAT_V1__)return;
   window.__DINI_SOURCE_TRUTH_RUNTIME_COMPAT_V1__=true;
 
-  const VERSION='1.2.1';
+  const VERSION='1.2.2';
   const MOBILE_MAX=767;
   const boundDocs=new WeakMap();
   const boundFrames=new WeakSet();
@@ -186,17 +186,74 @@
     return imageLikeUrl(href)||a.hasAttribute('data-elementor-open-lightbox')||a.hasAttribute('data-elementor-lightbox-slideshow')||/elementor-(?:gallery|lightbox)|gallery-item|lightbox/i.test(String(a.className||''));
   }
 
+  function imageSrc(img){
+    return String(img?.getAttribute?.('src')||img?.getAttribute?.('data-src')||img?.currentSrc||'').trim();
+  }
+
+  function authorityHost(a){
+    return a?.closest?.('.elementor-widget-image,.elementor-widget-gallery,.elementor-image-gallery,.elementor-widget-image-carousel,.elementor-gallery-item,.gallery-item,.gallery,[data-widget_type*="image"],[data-widget_type*="gallery"],.elementor-widget-container')||a?.parentElement||null;
+  }
+
+  function displayedImageForAnchor(a){
+    if(!a)return null;
+    const direct=a.querySelector?.('img[src],img[data-src]');
+    if(direct&&imageSrc(direct))return direct;
+
+    const host=authorityHost(a);
+    if(host){
+      const imgs=[...host.querySelectorAll?.('img[src],img[data-src]')||[]].filter(x=>imageSrc(x));
+      if(imgs.length===1)return imgs[0];
+
+      // Elementor galleries sometimes use a separate overlay anchor next to the visible image.
+      // Pair image-like anchors and visible images by authored order inside one gallery host.
+      const anchors=[...host.querySelectorAll?.('a[href]')||[]].filter(isImageLightboxAnchor);
+      const ai=anchors.indexOf(a);
+      if(ai>=0&&imgs[ai])return imgs[ai];
+    }
+
+    const container=a.closest?.('.elementor-section,.elementor-column,.elementor-widget-wrap');
+    if(container){
+      const anchors=[...container.querySelectorAll?.('a[href]')||[]].filter(isImageLightboxAnchor);
+      const imgs=[...container.querySelectorAll?.('img[src],img[data-src]')||[]].filter(x=>imageSrc(x));
+      const ai=anchors.indexOf(a);
+      if(ai>=0&&anchors.length===imgs.length&&imgs[ai])return imgs[ai];
+    }
+    return null;
+  }
+
+  function syncImageAnchor(a){
+    if(!a||!isImageLightboxAnchor(a))return false;
+    const img=displayedImageForAnchor(a);
+    const src=imageSrc(img);
+    if(!src)return false;
+    const old=a.getAttribute('href')||'';
+    if(old!==src)a.setAttribute('href',src);
+    a.setAttribute('data-dini-image-authority','display-src');
+    a.setAttribute('data-dini-image-authority-from',old===src?'already-synced':'runtime-reconciled');
+    return old!==src;
+  }
+
   function patchImageAuthority(doc){
     if(!doc?.querySelectorAll)return 0;
     let patched=0;
-    for(const img of doc.querySelectorAll('a[href] img')){
-      const a=img.closest('a[href]');if(!a||!isImageLightboxAnchor(a))continue;
-      const src=img.getAttribute('src')||img.getAttribute('data-src')||img.currentSrc||'';
-      if(!src)continue;
-      if(a.getAttribute('href')!==src){a.setAttribute('href',src);patched++}
-      a.setAttribute('data-dini-image-authority','display-src');
+    for(const a of doc.querySelectorAll('a[href]')){
+      if(syncImageAnchor(a))patched++;
     }
     return patched;
+  }
+
+  function bindImageAuthorityEvents(doc){
+    if(!doc||doc.__diniImageAuthorityBound)return;
+    doc.__diniImageAuthorityBound=true;
+    const syncTarget=e=>{
+      const a=e.target?.closest?.('a[href]');
+      if(a)syncImageAnchor(a);
+    };
+    // mouseover updates desktop status-bar URL before click; pointer/touch covers mobile long-press.
+    doc.addEventListener('mouseover',syncTarget,true);
+    doc.addEventListener('pointerdown',syncTarget,true);
+    doc.addEventListener('touchstart',syncTarget,{capture:true,passive:true});
+    doc.addEventListener('click',syncTarget,true);
   }
 
   function applyDocument(doc){
@@ -205,6 +262,7 @@
     if(isMobileDoc(doc)){
       for(const host of doc.querySelectorAll('[data-native-animation-mobile],[data-settings]'))if(revealMobileNone(host,doc))revealed++;
     }
+    bindImageAuthorityEvents(doc);
     const icons=patchGeneralIcons(doc);
     const social=patchSocial(doc);
     const imageLinks=patchImageAuthority(doc);
@@ -220,12 +278,30 @@
     if(!doc?.documentElement||boundDocs.has(doc))return;
     let timer=0;
     const run=()=>applyDocument(doc);
-    const schedule=()=>{clearTimeout(timer);timer=setTimeout(run,24)};
+    const schedule=()=>{clearTimeout(timer);timer=setTimeout(run,50)};
     run();
-    const observer=new MutationObserver(schedule);
-    try{observer.observe(doc.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['class','style','data-settings','data-native-animation-mobile']})}catch{}
+
+    // PERFORMANCE: do not observe class/style globally.
+    // Elementor changes them during scroll/reveal and the old observer rescanned the whole DOM,
+    // causing gallery-area jank. Only process structural/media URL changes.
+    const observer=new MutationObserver(records=>{
+      let needsFull=false;
+      for(const r of records){
+        if(r.type==='childList'){needsFull=true;continue}
+        const t=r.target;
+        if(r.attributeName==='href'&&t?.matches?.('a[href]'))syncImageAnchor(t);
+        if((r.attributeName==='src'||r.attributeName==='data-src')&&t?.matches?.('img')){
+          const a=t.closest?.('a[href]')||authorityHost(t)?.querySelector?.('a[href]');
+          if(a)syncImageAnchor(a);
+        }
+      }
+      if(needsFull)schedule();
+    });
+    try{observer.observe(doc.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['href','src','data-src']})}catch{}
     boundDocs.set(doc,observer);
-    [60,180,500,1200,3000,6000].forEach(ms=>setTimeout(run,ms));
+
+    // Short stabilization window only; no perpetual scroll-driven rescans.
+    [60,180,500,1200,3000].forEach(ms=>setTimeout(run,ms));
   }
 
   function bindFrame(frame){
@@ -247,5 +323,5 @@
   [100,300,800,1800,4000,8000].forEach(ms=>setTimeout(discoverFrames,ms));
   setTimeout(()=>rootObserver.disconnect(),15000);
 
-  window.DINI_SOURCE_TRUTH_RUNTIME_COMPAT_V1={VERSION,applyDocument,revealMobileNone,patchSocial,patchGeneralIcons,patchImageAuthority,isMobileDoc};
+  window.DINI_SOURCE_TRUTH_RUNTIME_COMPAT_V1={VERSION,applyDocument,revealMobileNone,patchSocial,patchGeneralIcons,patchImageAuthority,syncImageAnchor,isMobileDoc};
 })();
