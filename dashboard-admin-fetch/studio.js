@@ -233,6 +233,18 @@
       const f={id,section_index:si,section_id:sec?.id||`section-${si+1}`,kind,label,value:value??'',attribute:attr||null,node_id:node.getAttribute('data-native-node-id'),...extra};
       nativeFields.push(f); if(sec)sec.field_ids.push(id); return f;
     };
+    // Live Stream Contract V1 — strip source-owned players, preserve the section,
+    // and expose only our own enabled + URL controls. Source video/embed URLs are not persisted.
+    const livePrep=window.DINI_LIVE_STREAM_CONTRACT_V1?.prepareDocument(doc)||{version:1,count:0,sections:[]};
+    for(const row of livePrep.sections||[]){
+      const sec=row.section;if(!sec)continue;
+      addField(sec,'live-enabled','Live Streaming Aktif','0','data-dini-live-enabled',{
+        live_contract_version:1,live_role:'enabled',source_player_removed:true
+      });
+      addField(sec,'live-url','URL Live Streaming','','data-dini-live-url',{
+        live_contract_version:1,live_role:'url',source_player_removed:true,accepted_provider:'youtube-or-external'
+      });
+    }
     // Text fields: use meaningful leaf text nodes only.
     [...doc.querySelectorAll('h1,h2,h3,h4,p,label,.elementor-button-text')].forEach(node=>{
       const v=cleanText(node.textContent); if(v&&v.length<900)addField(node,'text',short(v)||'Teks',v);
@@ -710,8 +722,9 @@ document.querySelectorAll('[data-native-reveal]').forEach(el=>io.observe(el));
     doc.body.appendChild(safe);
     window.DiniVisualResolver?.sanitizeIdentity(doc,{title:'Dini Anif — '+(doc.querySelector('h1,h2')?.textContent?.trim()||'Template'),favicon:'/assets/favicon.svg'});
     const iconManifest=window.DINI_ICON_CONTRACT_V1?.manifestFromFields(nativeFields)||{version:1,contract:'dini-universal-icon-v1',count:0,roles:[],libraries:[],icons:[]};
-    if(lastSourceGraph&&typeof lastSourceGraph==='object')lastSourceGraph.icon_contract=iconManifest;
-    lastNativeSchema={version:6,mode:'source-native-dynamic',resolver:'dini-source-graph-v3',icon_contract:iconManifest,section_count:nativeSections.length,field_count:nativeFields.length,sections:nativeSections,fields:nativeFields};
+    const liveStreamManifest=window.DINI_LIVE_STREAM_CONTRACT_V1?.manifestFromFields(nativeFields)||{version:1,contract:'dini-live-stream-v1',count:0,section_ids:[],enabled_field_ids:[],url_field_ids:[],source_player_policy:'removed',embed_policy:'youtube-url-only',external_url_policy:'button-only'};
+    if(lastSourceGraph&&typeof lastSourceGraph==='object'){lastSourceGraph.icon_contract=iconManifest;lastSourceGraph.live_stream_contract=liveStreamManifest}
+    lastNativeSchema={version:7,mode:'source-native-dynamic',resolver:'dini-source-graph-v3',icon_contract:iconManifest,live_stream_contract:liveStreamManifest,section_count:nativeSections.length,field_count:nativeFields.length,sections:nativeSections,fields:nativeFields};
     return '<!doctype html>\n'+doc.documentElement.outerHTML;
   }
 
@@ -725,7 +738,7 @@ document.querySelectorAll('[data-native-reveal]').forEach(el=>io.observe(el));
     const external=v.filter(x=>x.source_location==='external-css');
     return {version:3,visuals:v.length,external_css_layers:external.length,responsive_layers:external.filter(x=>x.media_query).length,pseudo_layers:v.filter(x=>x.pseudo).length,overlay_layers:v.filter(x=>x.type==='overlay'||x.semantic_role==='cover-decoration').length,source_bound:external.filter(x=>x.source_key&&x.css_selector&&x.owner_selector).length,ambiguous_targets:external.filter(x=>Number(x.target_count||0)>1).length,policy:graph?.policy||{}};
   }
-  function sourceNativeSchema(a){ return lastNativeSchema || {version:6,mode:'source-native-dynamic',icon_contract:{version:1,contract:'dini-universal-icon-v1',count:0,roles:[],libraries:[],icons:[]},section_count:0,sections:[],fields:[]}; }
+  function sourceNativeSchema(a){ return lastNativeSchema || {version:7,mode:'source-native-dynamic',icon_contract:{version:1,contract:'dini-universal-icon-v1',count:0,roles:[],libraries:[],icons:[]},live_stream_contract:{version:1,contract:'dini-live-stream-v1',count:0,section_ids:[],enabled_field_ids:[],url_field_ids:[],source_player_policy:'removed'},section_count:0,sections:[],fields:[]}; }
 
 
   function mapToBlueprint(a){
@@ -781,12 +794,12 @@ document.querySelectorAll('[data-native-reveal]').forEach(el=>io.observe(el));
     lastCoverDecorAudit={version:'2.26',embedded:false,preserved:!!lastCriticalCssAudit?.preserved,bytes:lastCriticalCssAudit?.bytes||0,stylesheets:lastCriticalCssAudit?.stylesheets||0,rules:lastCriticalCssAudit?.rules||0,reason:lastCriticalCssAudit?.preserved?'source-graph-v3-css-cascade-preserved':'source-graph-no-flatten'};
     const nativeSchema=sourceNativeSchema(analysis);
     rebuild={
-      manifest:{format:'dini-anif-rebuild-package',version:3,engine:'source-native-rebuild-v2.26-smart-source-ownership',created_at:new Date().toISOString(),invitation_id:(globalThis.crypto?.randomUUID?.()||('inv-'+Date.now()+'-'+Math.random().toString(36).slice(2))),template:'source-native',source_url:sourceBaseUrl||'',visual_manifest:lastVisualManifest,source_graph:lastSourceGraph,icon_contract:nativeSchema?.icon_contract||null,layout_topology:lastSourceGraph?.layout||null,semantic_diagnostics:lastSourceGraph?.semantic_diagnostics||null,embedded_data:analysis.embeddedAudit?.scan||null,identity_sanitized:true},
+      manifest:{format:'dini-anif-rebuild-package',version:3,engine:'source-native-rebuild-v2.26-smart-source-ownership',created_at:new Date().toISOString(),invitation_id:(globalThis.crypto?.randomUUID?.()||('inv-'+Date.now()+'-'+Math.random().toString(36).slice(2))),template:'source-native',source_url:sourceBaseUrl||'',visual_manifest:lastVisualManifest,source_graph:lastSourceGraph,icon_contract:nativeSchema?.icon_contract||null,live_stream_contract:nativeSchema?.live_stream_contract||null,layout_topology:lastSourceGraph?.layout||null,semantic_diagnostics:lastSourceGraph?.semantic_diagnostics||null,embedded_data:analysis.embeddedAudit?.scan||null,identity_sanitized:true},
       schema:{editable_coverage:100,mode:'source-native',native:nativeSchema,legacy_groups:['cover','motionHero','couple','saveDate','event','live','gallery','story','gift','rsvp','wishes','closing','brand','media','backgrounds']},
       data,
       native:{html:nativeHtml,schema:nativeSchema,source_url:sourceBaseUrl||''},
       motion:{locked:true,source_animations:analysis.animations,baseline:'source-defined animations + safe observer'},
-      report:{parity_score:analysis.parity,editable_coverage:100,unsupported_items:analysis.unsupported,detected:D,renderer:'source-native',cover_decor:lastCoverDecorAudit||null,source_graph_version:3,source_graph_audit:sourceGraphAudit(lastSourceGraph),layout_topology:lastSourceGraph?.layout||null,semantic_diagnostics:lastSourceGraph?.semantic_diagnostics||null,critical_css:lastCriticalCssAudit,embedded_data:analysis.embeddedAudit?.scan||null,flatten_visuals:false}
+      report:{parity_score:analysis.parity,editable_coverage:100,unsupported_items:analysis.unsupported,detected:D,renderer:'source-native',live_stream_count:nativeSchema?.live_stream_contract?.count||0,source_live_players_removed:(livePrep?.sections||[]).reduce((n,x)=>n+Number(x.source_player_removed||0),0),cover_decor:lastCoverDecorAudit||null,source_graph_version:3,source_graph_audit:sourceGraphAudit(lastSourceGraph),layout_topology:lastSourceGraph?.layout||null,semantic_diagnostics:lastSourceGraph?.semantic_diagnostics||null,critical_css:lastCriticalCssAudit,embedded_data:analysis.embeddedAudit?.scan||null,flatten_visuals:false}
     };
     const snapshotRaw=JSON.stringify(rebuild);
     try{localStorage.setItem('diniAnifRebuildSnapshot',snapshotRaw)}catch(err){console.warn('localStorage snapshot quota',err)}
@@ -808,7 +821,8 @@ document.querySelectorAll('[data-native-reveal]').forEach(el=>io.observe(el));
       const videoCount=sectionFields.filter(f=>f.kind==='video').length;
       const textCount=sectionFields.filter(f=>f.kind==='text').length;
       const iconCount=sectionFields.filter(f=>f.kind==='icon').length;
-      return `<div class="mapping-group"><strong>✓ ${label}</strong><small>${textCount} text · ${imageCount} image · ${bgCount} bg · ${videoCount} video · ${iconCount} icon</small></div>`;
+      const liveCount=sectionFields.filter(f=>f.kind==='live-enabled'||f.kind==='live-url').length;
+      return `<div class="mapping-group"><strong>✓ ${label}</strong><small>${textCount} text · ${imageCount} image · ${bgCount} bg · ${videoCount} video · ${iconCount} icon${liveCount?' · live editable':''}</small></div>`;
     }).join('');
     $('#mappingTree').innerHTML=rows+(safeSections.length>18?`<div class="mapping-group"><strong>+ ${safeSections.length-18} section lainnya</strong><small>source-native mapping</small></div>`:'');
     previewBtn.classList.remove('disabled');downloadBtn.disabled=false;$('#studioMessage').textContent='Source-Native Rebuild siap ✓ · Source Graph V3 · Engine V2.26 · Runtime V1.4.6. Struktur dan visual berasal dari source yang sedang di-Fetch.';
@@ -824,7 +838,7 @@ document.querySelectorAll('[data-native-reveal]').forEach(el=>io.observe(el));
       {name:'source-report.json',data:JSON.stringify(p.report,null,2)},
       {name:'source-native.html',data:p.native?.html||''},
       {name:'native-schema.json',data:JSON.stringify(p.native?.schema||{},null,2)},
-      {name:'visual-manifest.json',data:JSON.stringify(p.manifest?.visual_manifest||{version:2,sources:[]},null,2)},{name:'icon-contract.json',data:JSON.stringify(p.manifest?.icon_contract||p.native?.schema?.icon_contract||{version:1,count:0,icons:[]},null,2)},{name:'source-graph.json',data:JSON.stringify(p.manifest?.source_graph||{version:2,visuals:[],interactions:[]},null,2)},{name:'layout-topology.json',data:JSON.stringify(p.manifest?.layout_topology||p.manifest?.source_graph?.layout||{version:1,topology:'unclassified'},null,2)},{name:'behavior-adapters.json',data:JSON.stringify(p.manifest?.runtime_manifest?.behavior_adapters||p.manifest?.source_graph?.behavior_adapters||{},null,2)},{name:'semantic-components.json',data:JSON.stringify(p.manifest?.runtime_manifest?.semantic_components||p.manifest?.source_graph?.semantic_components||{},null,2)},{name:'semantic-repeaters.json',data:JSON.stringify(p.manifest?.runtime_manifest?.semantic_components?.repeaters_v1||p.manifest?.source_graph?.semantic_components?.repeaters_v1||{version:1,events:[],countdown_displays:[],repeaters:[]},null,2)},{name:'native-form-components.json',data:JSON.stringify(p.manifest?.runtime_manifest?.semantic_components?.native_forms_v1||p.manifest?.source_graph?.semantic_components?.native_forms_v1||{version:1,forms:[],copy_actions:[],gift_accounts:[],guestbook_surfaces:[]},null,2)},{name:'semantic-diagnostics.json',data:JSON.stringify(p.manifest?.semantic_diagnostics||p.manifest?.source_graph?.semantic_diagnostics||{version:1,warnings:[],counts:{}},null,2)},{name:'embedded-data.json',data:JSON.stringify(p.manifest?.embedded_data||{version:1,resources:[],counts:{}},null,2)},
+      {name:'visual-manifest.json',data:JSON.stringify(p.manifest?.visual_manifest||{version:2,sources:[]},null,2)},{name:'icon-contract.json',data:JSON.stringify(p.manifest?.icon_contract||p.native?.schema?.icon_contract||{version:1,count:0,icons:[]},null,2)},{name:'live-stream-contract.json',data:JSON.stringify(p.manifest?.live_stream_contract||p.native?.schema?.live_stream_contract||{version:1,count:0,section_ids:[]},null,2)},{name:'source-graph.json',data:JSON.stringify(p.manifest?.source_graph||{version:2,visuals:[],interactions:[]},null,2)},{name:'layout-topology.json',data:JSON.stringify(p.manifest?.layout_topology||p.manifest?.source_graph?.layout||{version:1,topology:'unclassified'},null,2)},{name:'behavior-adapters.json',data:JSON.stringify(p.manifest?.runtime_manifest?.behavior_adapters||p.manifest?.source_graph?.behavior_adapters||{},null,2)},{name:'semantic-components.json',data:JSON.stringify(p.manifest?.runtime_manifest?.semantic_components||p.manifest?.source_graph?.semantic_components||{},null,2)},{name:'semantic-repeaters.json',data:JSON.stringify(p.manifest?.runtime_manifest?.semantic_components?.repeaters_v1||p.manifest?.source_graph?.semantic_components?.repeaters_v1||{version:1,events:[],countdown_displays:[],repeaters:[]},null,2)},{name:'native-form-components.json',data:JSON.stringify(p.manifest?.runtime_manifest?.semantic_components?.native_forms_v1||p.manifest?.source_graph?.semantic_components?.native_forms_v1||{version:1,forms:[],copy_actions:[],gift_accounts:[],guestbook_surfaces:[]},null,2)},{name:'semantic-diagnostics.json',data:JSON.stringify(p.manifest?.semantic_diagnostics||p.manifest?.source_graph?.semantic_diagnostics||{version:1,warnings:[],counts:{}},null,2)},{name:'embedded-data.json',data:JSON.stringify(p.manifest?.embedded_data||{version:1,resources:[],counts:{}},null,2)},
       {name:'README.txt',data:'DINI ANIF REBUILD PACKAGE V2.26 — SMART SOURCE OWNERSHIP\n\nBuka /dashboard-admin-edit untuk melanjutkan edit, atau import ZIP hasil Fetch secara manual.\nLayout/motion blueprint terkunci; konten dapat diedit setelah import.\n'}
     ];
     return window.UNDANGAN_ZIP.buildZip(entries);
