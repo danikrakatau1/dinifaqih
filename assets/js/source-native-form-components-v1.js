@@ -2,7 +2,7 @@
   'use strict';
   if(g.DiniNativeFormComponents?.version)return;
 
-  const VERSION='1.0.0';
+  const VERSION='1.0.1';
   const CONTRACT_VERSION=1;
   const VR=g.DiniVisualResolver;
   if(!VR?.makeSourceGraph){
@@ -17,6 +17,8 @@
   const elementId=el=>el?.getAttribute?.('data-id')||((String(el?.className||'').match(/elementor-element-([A-Za-z0-9_-]+)/)||[])[1])||el?.id||'';
   const selectorFor=el=>{
     if(!el)return'';
+    const formId=el.getAttribute?.('data-dini-native-form-id');if(formId)return '[data-dini-native-form-id="'+String(formId).replace(/"/g,'\\\"')+'"]';
+    const fieldId=el.getAttribute?.('data-dini-native-field-id');if(fieldId)return '[data-dini-native-field-id="'+String(fieldId).replace(/"/g,'\\\"')+'"]';
     if(el.id)return '#'+el.id;
     const id=elementId(el);if(id)return '[data-id="'+id+'"]';
     const name=el.getAttribute?.('name');if(name)return String(el.tagName||'input').toLowerCase()+'[name="'+String(name).replace(/"/g,'\\"')+'"]';
