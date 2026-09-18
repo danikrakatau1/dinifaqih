@@ -1,7 +1,7 @@
 (function(g){
   'use strict';
   if(g.DINI_GALLERY_PERFORMANCE_V1?.version)return;
-  const VERSION='1.2.1';
+  const VERSION='1.3.0';
   const doc=document;
   const items=[...doc.querySelectorAll('[data-dini-gallery-bg-deferred="1"]')];
 
@@ -21,27 +21,75 @@
     return value;
   }
 
-  // Restore the source-authored Elementor gallery entrance exactly:
-  // the gallery widget itself starts elementor-invisible, then receives
-  // "animated fadeInUp" when it enters the viewport. We trigger only those
-  // source classes; image loading/lightbox/performance optimization stays separate.
+  // Source-native gallery behavior has two layers:
+  // 1) the Gallery widget entrance is Elementor fadeInUp;
+  // 2) each E-Gallery image is lazy-revealed individually as it becomes loaded.
+  // The renderer already points backgrounds to optimized Supabase transforms, so
+  // we only restore the visual loading choreography here without reintroducing
+  // the original multi-megabyte images.
   const galleryWidgets=[...doc.querySelectorAll('.elementor-widget-gallery')];
   if(galleryWidgets.length){
     const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let revealStyle=doc.getElementById('diniGallerySourceItemRevealStyle');
+    if(!revealStyle){
+      revealStyle=doc.createElement('style');
+      revealStyle.id='diniGallerySourceItemRevealStyle';
+      revealStyle.textContent=`
+        .elementor-widget-gallery[data-dini-gallery-source-items="1"] .e-gallery-image{
+          transform-origin:center top!important;
+          transition:opacity .3s ease,transform .3s ease!important;
+          backface-visibility:hidden;
+          -webkit-backface-visibility:hidden;
+        }
+        .elementor-widget-gallery[data-dini-gallery-source-items="1"] .e-gallery-image:not(.e-gallery-image-loaded){
+          opacity:0!important;
+          transform:scale(.5)!important;
+        }
+        .elementor-widget-gallery[data-dini-gallery-source-items="1"] .e-gallery-image.e-gallery-image-loaded{
+          opacity:1!important;
+          transform:scale(1)!important;
+        }
+        @media (prefers-reduced-motion:reduce){
+          .elementor-widget-gallery[data-dini-gallery-source-items="1"] .e-gallery-image{
+            opacity:1!important;
+            transform:none!important;
+            transition:none!important;
+          }
+        }
+      `;
+      (doc.head||doc.documentElement).appendChild(revealStyle);
+    }
+
+    function revealImagesOneByOne(widget){
+      const images=[...widget.querySelectorAll('.e-gallery-image')];
+      if(!images.length)return;
+      if(reduced){
+        images.forEach(image=>image.classList.add('e-gallery-image-loaded'));
+        return;
+      }
+      images.forEach(image=>image.classList.remove('e-gallery-image-loaded'));
+      // The source library reveals thumbnails when their lazy image becomes ready.
+      // Optimized thumbnails can all be cache-hot, so preserve that same visual
+      // ordering with a short stagger instead of letting all eight pop at once.
+      images.forEach((image,index)=>{
+        setTimeout(()=>{
+          requestAnimationFrame(()=>image.classList.add('e-gallery-image-loaded'));
+        },70+(index*115));
+      });
+    }
 
     const reveal=widget=>{
       if(!widget||widget.getAttribute('data-dini-gallery-reveal')==='done')return;
       widget.setAttribute('data-dini-gallery-reveal','running');
       widget.classList.remove('elementor-invisible');
       widget.classList.add('animated','fadeInUp');
+      revealImagesOneByOne(widget);
 
       const finish=()=>{
         widget.setAttribute('data-dini-gallery-reveal','done');
         widget.removeEventListener('animationend',finish);
       };
       widget.addEventListener('animationend',finish,{once:true});
-      // Fallback only; source Elementor normal entrance duration is handled by
-      // its own loaded animation CSS.
       setTimeout(finish,1800);
     };
 
@@ -51,11 +99,15 @@
       widget.style.removeProperty('transform');
       widget.style.removeProperty('animation');
       widget.classList.remove('animated','fadeInUp');
+      widget.setAttribute('data-dini-gallery-source-items','1');
 
+      const images=[...widget.querySelectorAll('.e-gallery-image')];
       if(reduced){
+        images.forEach(image=>image.classList.add('e-gallery-image-loaded'));
         widget.classList.remove('elementor-invisible');
         widget.setAttribute('data-dini-gallery-reveal','done');
       }else{
+        images.forEach(image=>image.classList.remove('e-gallery-image-loaded'));
         widget.classList.add('elementor-invisible');
         widget.setAttribute('data-dini-gallery-reveal','pending');
       }
@@ -75,7 +127,7 @@
       galleryWidgets.forEach(reveal);
     }
 
-    doc.documentElement.setAttribute('data-dini-gallery-source-reveal','fadeInUp');
+    doc.documentElement.setAttribute('data-dini-gallery-source-reveal','fadeInUp+item-lazy');
   }
 
   if(items.length){
