@@ -159,6 +159,7 @@
     const owner=ownerFor(node),targetKind=isInput(node)?'value':'text',id=fieldIdFor(owner,node,role);
     if(mark)markNode(node,role,id,targetKind);
     const synthetic=node.getAttribute?.('data-dini-guest-synthetic')==='semantic-cover-slot';
+    const sourceProbe=node.hasAttribute?.('data-dini-guest-source-probe')||node.getAttribute?.('data-dini-guest-source')==='source-probe-marker';
     return {
       id,
       type:'guest_name',
@@ -171,7 +172,7 @@
       element_id:elementId(owner),
       node_path:pathWithinOwner(owner,node),
       fallback_text:isInput(node)?String(node.value||node.getAttribute('value')||node.getAttribute('placeholder')||''):clean(node.textContent),
-      source:synthetic?'cover-semantic-synthesis':source,
+      source:synthetic?'cover-semantic-synthesis':(sourceProbe?'source-probe-marker':source),
       confidence:synthetic?1:confidence,
       url_parameter:'to',
       sanitize:'text-only',
@@ -234,8 +235,9 @@
       });
     };
     const retainedExisting=existing.filter(f=>!isStaleLegacyCover(f));
+    const retainedFresh=fields.filter(f=>!isStaleLegacyCover(f));
     const merged=[];const mergedIds=new Set();
-    for(const f of [...retainedExisting,...fields]){
+    for(const f of [...retainedExisting,...retainedFresh]){
       const id=String(f?.id||'');
       const key=id||hash(JSON.stringify(f));
       if(mergedIds.has(key))continue;mergedIds.add(key);merged.push(f);
