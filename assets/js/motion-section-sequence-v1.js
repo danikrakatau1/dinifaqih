@@ -2,7 +2,7 @@
   'use strict';
   if(window.DINI_MOTION_SECTION_SEQUENCE_V1?.version)return;
 
-  const VERSION='1.3.3';
+  const VERSION='1.3.4';
   const section=document.querySelector('.motionSection');
   const motionText=section?.querySelector('.motionText');
   const logo=motionText?.querySelector('.delay-image');
@@ -147,7 +147,7 @@
     if(/JAWA-COKLAT-3-1\.mp4/i.test(sourceSettings)){
       // Compared frame-by-frame with the supplied source recording:
       // 5.2s = red frame starts forming; 5.4s = logo + all text are entering.
-      return 5.80;
+      return 6.20;
     }
     const d=Number(video?.duration);
     if(Number.isFinite(d)&&d>4)return Math.min(Math.max(3,d*.52),d-1);
