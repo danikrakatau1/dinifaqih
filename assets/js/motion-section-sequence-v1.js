@@ -2,7 +2,7 @@
   'use strict';
   if(window.DINI_MOTION_SECTION_SEQUENCE_V1?.version)return;
 
-  const VERSION='1.3.7';
+  const VERSION='1.3.8';
   const section=document.querySelector('.motionSection');
   const motionText=section?.querySelector('.motionText');
   const logo=motionText?.querySelector('.delay-image');
@@ -25,6 +25,22 @@
   const style=document.createElement('style');
   style.id='diniMotionSectionSequenceStyle';
   style.textContent=`
+    @keyframes diniSourceFadeInUp{
+      from{opacity:0;transform:translate3d(0,100%,0)}
+      to{opacity:1;transform:translate3d(0,0,0)}
+    }
+    @-webkit-keyframes diniSourceFadeInUp{
+      from{opacity:0;-webkit-transform:translate3d(0,100%,0);transform:translate3d(0,100%,0)}
+      to{opacity:1;-webkit-transform:translate3d(0,0,0);transform:translate3d(0,0,0)}
+    }
+    @keyframes diniSourceZoomIn{
+      from{opacity:0;transform:scale3d(.3,.3,.3)}
+      50%{opacity:1}
+    }
+    @-webkit-keyframes diniSourceZoomIn{
+      from{opacity:0;-webkit-transform:scale3d(.3,.3,.3);transform:scale3d(.3,.3,.3)}
+      50%{opacity:1}
+    }
     .motionText[data-dini-motion-seq-hold="1"]{
       opacity:0!important;
       visibility:hidden!important;
@@ -36,6 +52,14 @@
       visibility:hidden!important;
       animation:none!important;
       -webkit-animation:none!important;
+    }
+    .motionText [data-dini-motion-seq-play="fadeInUp"]{
+      -webkit-animation:diniSourceFadeInUp 1.25s ease both!important;
+      animation:diniSourceFadeInUp 1.25s ease both!important;
+    }
+    .motionText [data-dini-motion-seq-play="zoomIn"]{
+      -webkit-animation:diniSourceZoomIn 1.25s ease both!important;
+      animation:diniSourceZoomIn 1.25s ease both!important;
     }
   `;
   (document.head||document.documentElement).appendChild(style);
@@ -58,10 +82,13 @@
 
   function stripAnimation(el){
     if(!el)return;
+    el.removeAttribute('data-dini-motion-seq-play');
     el.classList.remove(
       'animated','fadeInUp','fadeInDown','fadeInLeft','fadeInRight',
       'zoomIn','zoomOut','bounceIn'
     );
+    el.style.removeProperty('animation');
+    el.style.removeProperty('-webkit-animation');
     el.style.removeProperty('animation-delay');
     el.style.removeProperty('-webkit-animation-delay');
     el.style.removeProperty('animation-duration');
@@ -159,10 +186,12 @@
       const launch=(el,fallback,wait,tag)=>{
         setTimeout(()=>{
           if(!el?.isConnected)return;
+          const authoredAnim=animationFor(el,fallback);
+          const sourceAnim=authoredAnim==='fadeInUp'?'fadeInUp':'zoomIn';
           stripAnimation(el);
           void el.offsetWidth;
           el.classList.remove('elementor-invisible');
-          el.classList.add('animated',animationFor(el,fallback));
+          el.setAttribute('data-dini-motion-seq-play',sourceAnim);
           el.setAttribute('data-dini-motion-seq-released',tag);
         },wait);
       };
