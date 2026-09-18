@@ -2,7 +2,7 @@
   'use strict';
   if(g.DiniSemanticManifest?.version)return;
 
-  const VERSION='1.9.0';
+  const VERSION='2.0.0';
   const MANIFEST_VERSION=1;
   const REPEATER_CONTRACT_VERSION=1;
   const COMPONENT_IDENTITY_VERSION=1;
@@ -373,6 +373,12 @@
     if(Number(media?.counts?.provider_videos||0)>0)set.add('provider-video-runtime');
     if(Number(media?.counts?.youtube||0)>0)set.add('youtube-video');
     if(Number(media?.counts?.vimeo||0)>0)set.add('vimeo-video');
+    const ts=sourceGraph?.behavior_adapters?.timeline_story;
+    if(Number(ts?.counts?.timelines||0)>0)set.add('weddingpress-timeline');
+    if(Number(ts?.counts?.timeline_items||0)>0)set.add('timeline-scroll-progress');
+    if(Number(ts?.counts?.story_static||0)>0)set.add('love-story-static');
+    if(Number(ts?.counts?.story_timeline||0)>0)set.add('love-story-timeline');
+    if(Number(ts?.counts?.story_carousel||0)>0)set.add('love-story-carousel');
     return [...set].sort();
   }
 
@@ -438,7 +444,12 @@
         audio_controls:Number(sourceGraph?.behavior_adapters?.media_lifecycle?.counts?.audio_controls||0),
         provider_videos:Number(sourceGraph?.behavior_adapters?.media_lifecycle?.counts?.provider_videos||0),
         provider_youtube:Number(sourceGraph?.behavior_adapters?.media_lifecycle?.counts?.youtube||0),
-        provider_vimeo:Number(sourceGraph?.behavior_adapters?.media_lifecycle?.counts?.vimeo||0)
+        provider_vimeo:Number(sourceGraph?.behavior_adapters?.media_lifecycle?.counts?.vimeo||0),
+        timeline_adapters:Number(sourceGraph?.behavior_adapters?.timeline_story?.counts?.timelines||0),
+        timeline_items:Number(sourceGraph?.behavior_adapters?.timeline_story?.counts?.timeline_items||0),
+        story_static:Number(sourceGraph?.behavior_adapters?.timeline_story?.counts?.story_static||0),
+        story_timeline:Number(sourceGraph?.behavior_adapters?.timeline_story?.counts?.story_timeline||0),
+        story_carousel:Number(sourceGraph?.behavior_adapters?.timeline_story?.counts?.story_carousel||0)
       },
       layout:{topology:layout?.topology||'unclassified',confidence:Number(layout?.confidence||0),viewport_policy:layout?.runtime?.viewport_policy||'canonical-content'},
       semantic:semanticDiagnostics
@@ -546,6 +557,11 @@
         intro_video_ended_pause_unlock_preserved:true,
         audio_toggle_state_preserved:true,
         provider_video_semantics_preserved:true,
+        timeline_story_contract_version:Number(behaviorAdapters?.timeline_story?.version||0),
+        timeline_dom_order_preserved:true,
+        timeline_source_side_preserved:true,
+        timeline_reverse_scroll_state:true,
+        love_story_mode_separation:true,
         consumer_contract_version:0
       },
       runtime_policy:{
@@ -576,7 +592,11 @@
         background_cross_instance_mutation:false,
         media_execution:'semantic-intro-audio-provider-lifecycle',
         media_source_timing_normalization:false,
-        provider_reconstruction_only_when_missing:true
+        provider_reconstruction_only_when_missing:true,
+        timeline_execution:'source-geometry-progress-and-reverse-state',
+        story_static_execution:'source-css-only',
+        story_carousel_execution:'delegated-to-carousel-adapter',
+        story_timeline_execution:'delegated-to-timeline-adapter'
       },
       diagnostics
     };
@@ -657,6 +677,11 @@
       provider_videos:runtimeManifest.diagnostics?.counts?.provider_videos||0,
       provider_youtube:runtimeManifest.diagnostics?.counts?.provider_youtube||0,
       provider_vimeo:runtimeManifest.diagnostics?.counts?.provider_vimeo||0,
+      timeline_adapters:runtimeManifest.diagnostics?.counts?.timeline_adapters||0,
+      timeline_items:runtimeManifest.diagnostics?.counts?.timeline_items||0,
+      story_static:runtimeManifest.diagnostics?.counts?.story_static||0,
+      story_timeline:runtimeManifest.diagnostics?.counts?.story_timeline||0,
+      story_carousel:runtimeManifest.diagnostics?.counts?.story_carousel||0,
       warnings:safeArray(runtimeManifest.diagnostics?.warnings).length
     };
     return runtimeManifest;
@@ -700,5 +725,5 @@
     armLegacyStudioBridge
   };
   armLegacyStudioBridge();
-  console.info('[DINI SEMANTIC MANIFEST] V'+VERSION+' aktif — P0 Core + P1-A/B/C/D + P1-E Media Lifecycle contract.');
+  console.info('[DINI SEMANTIC MANIFEST] V'+VERSION+' aktif — P0 Core + P1-A/B/C/D/E + P1-F Timeline/Love Story contract.');
 })(window);
