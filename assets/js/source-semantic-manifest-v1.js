@@ -2,7 +2,7 @@
   'use strict';
   if(g.DiniSemanticManifest?.version)return;
 
-  const VERSION='2.2.0';
+  const VERSION='2.3.0';
   const MANIFEST_VERSION=1;
   const REPEATER_CONTRACT_VERSION=1;
   const COMPONENT_IDENTITY_VERSION=1;
@@ -391,6 +391,12 @@
     if(Number(sc?.counts?.social_groups||0)>0)set.add('social-links-semantic');
     if(Number(sc?.counts?.live_ctas||0)>0)set.add('live-cta');
     if(Number(sc?.counts?.actions||0)>0)set.add('action-state-contract');
+    const sr=sourceGraph?.semantic_components?.repeaters_v1;
+    if(Number(sr?.counts?.events||0)>0)set.add('semantic-event-repeater');
+    if(Number(sr?.counts?.countdown_displays||0)>0)set.add('countdown-display-semantics');
+    if(Number(sr?.counts?.repeaters||0)>0)set.add('semantic-repeater-contract');
+    if(Number(sr?.counts?.icon_list_repeaters||0)>0)set.add('semantic-icon-list-repeater');
+    if(Number(sr?.counts?.social_repeaters||0)>0)set.add('semantic-social-repeater');
     return [...set].sort();
   }
 
@@ -476,7 +482,15 @@
         action_contract_total:Number(sourceGraph?.semantic_components?.actions_v1?.counts?.actions||0),
         action_contract_bound:Number(sourceGraph?.semantic_components?.actions_v1?.counts?.bound||0),
         action_contract_unbound:Number(sourceGraph?.semantic_components?.actions_v1?.counts?.unbound||0),
-        action_contract_disabled:Number(sourceGraph?.semantic_components?.actions_v1?.counts?.disabled||0)
+        action_contract_disabled:Number(sourceGraph?.semantic_components?.actions_v1?.counts?.disabled||0),
+        event_components:Number(sourceGraph?.semantic_components?.repeaters_v1?.counts?.events||0),
+        event_groups:Number(sourceGraph?.semantic_components?.repeaters_v1?.counts?.event_groups||0),
+        countdown_displays:Number(sourceGraph?.semantic_components?.repeaters_v1?.counts?.countdown_displays||0),
+        semantic_repeaters:Number(sourceGraph?.semantic_components?.repeaters_v1?.counts?.repeaters||0),
+        semantic_repeater_items:Number(sourceGraph?.semantic_components?.repeaters_v1?.counts?.repeater_items||0),
+        semantic_icon_list_repeaters:Number(sourceGraph?.semantic_components?.repeaters_v1?.counts?.icon_list_repeaters||0),
+        semantic_social_repeaters:Number(sourceGraph?.semantic_components?.repeaters_v1?.counts?.social_repeaters||0),
+        semantic_event_repeaters:Number(sourceGraph?.semantic_components?.repeaters_v1?.counts?.event_repeaters||0)
       },
       layout:{topology:layout?.topology||'unclassified',confidence:Number(layout?.confidence||0),viewport_policy:layout?.runtime?.viewport_policy||'canonical-content'},
       semantic:semanticDiagnostics
@@ -605,6 +619,13 @@
         icon_list_item_actions:true,
         social_link_provider_semantics:true,
         live_cta_unbound_state_preserved:true,
+        semantic_repeater_contract_version:Number(semanticComponents?.repeaters_v1?.version||0),
+        arbitrary_event_count:true,
+        semantic_event_fields:['title','date','time','venue','address','maps'],
+        semantic_repeater_stable_item_identity:true,
+        semantic_repeater_source_order_preserved:true,
+        semantic_repeater_component_scoped_mutations:true,
+        semantic_countdown_labels_preserved:true,
         consumer_contract_version:0
       },
       runtime_policy:{
@@ -647,7 +668,10 @@
         semantic_action_execution:'native-source-action-only',
         synthesize_missing_href:false,
         unbound_action_policy:'preserve-unbound',
-        disabled_action_policy:'preserve-disabled'
+        disabled_action_policy:'preserve-disabled',
+        event_repeater_execution:'semantic-contract-only-until-consumer-integration',
+        semantic_repeater_execution:'contract-only-until-consumer-integration',
+        countdown_display_execution:'preserve-source-labels-and-runtime-slots'
       },
       diagnostics
     };
@@ -748,6 +772,14 @@
       action_contract_bound:runtimeManifest.diagnostics?.counts?.action_contract_bound||0,
       action_contract_unbound:runtimeManifest.diagnostics?.counts?.action_contract_unbound||0,
       action_contract_disabled:runtimeManifest.diagnostics?.counts?.action_contract_disabled||0,
+      event_components:runtimeManifest.diagnostics?.counts?.event_components||0,
+      event_groups:runtimeManifest.diagnostics?.counts?.event_groups||0,
+      countdown_displays:runtimeManifest.diagnostics?.counts?.countdown_displays||0,
+      semantic_repeaters:runtimeManifest.diagnostics?.counts?.semantic_repeaters||0,
+      semantic_repeater_items:runtimeManifest.diagnostics?.counts?.semantic_repeater_items||0,
+      semantic_icon_list_repeaters:runtimeManifest.diagnostics?.counts?.semantic_icon_list_repeaters||0,
+      semantic_social_repeaters:runtimeManifest.diagnostics?.counts?.semantic_social_repeaters||0,
+      semantic_event_repeaters:runtimeManifest.diagnostics?.counts?.semantic_event_repeaters||0,
       warnings:safeArray(runtimeManifest.diagnostics?.warnings).length
     };
     return runtimeManifest;
@@ -791,5 +823,5 @@
     armLegacyStudioBridge
   };
   armLegacyStudioBridge();
-  console.info('[DINI SEMANTIC MANIFEST] V'+VERSION+' aktif — P0/P1 + P2-A Semantic CTA/Action contract.');
+  console.info('[DINI SEMANTIC MANIFEST] V'+VERSION+' aktif — P0/P1 + P2-A CTA/Action + P2-B Event/Repeater contract.');
 })(window);
