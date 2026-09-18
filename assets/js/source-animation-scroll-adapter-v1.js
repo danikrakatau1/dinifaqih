@@ -37,6 +37,9 @@
     const rawDuration=pick('animation_duration');
     return {
       defined:rawName!==undefined||rawDelay!==undefined||rawDuration!==undefined,
+      name_defined:rawName!==undefined,
+      delay_defined:rawDelay!==undefined,
+      duration_defined:rawDuration!==undefined,
       name:rawName===undefined?'':String(rawName),
       delay_ms:num(rawDelay),
       duration:rawDuration===undefined?null:rawDuration,
