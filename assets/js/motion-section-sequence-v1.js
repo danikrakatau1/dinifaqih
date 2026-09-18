@@ -2,7 +2,7 @@
   'use strict';
   if(window.DINI_MOTION_SECTION_SEQUENCE_V1?.version)return;
 
-  const VERSION='1.3.6';
+  const VERSION='1.3.7';
   const section=document.querySelector('.motionSection');
   const motionText=section?.querySelector('.motionText');
   const logo=motionText?.querySelector('.delay-image');
@@ -95,6 +95,27 @@
     document.documentElement.setAttribute('data-dini-motion-sequence',VERSION);
   }
 
+  function formatMotionNames(){
+    const host=headings[1];
+    if(!host)return false;
+    const title=host.querySelector('.elementor-heading-title')||host;
+    const raw=String(title.textContent||'').replace(/\s+/g,' ').trim();
+    const match=raw.match(/^(.+?)\s*&\s*(.+)$/);
+    if(!match)return false;
+
+    const left=match[1].trim();
+    const right=match[2].trim();
+    if(!left||!right)return false;
+
+    const frag=document.createDocumentFragment();
+    frag.append(document.createTextNode(left),document.createElement('br'));
+    frag.append(document.createTextNode('&'),document.createElement('br'));
+    frag.append(document.createTextNode(right));
+    title.replaceChildren(frag);
+    host.setAttribute('data-dini-motion-name-format','stacked-source');
+    return true;
+  }
+
   function cleanupWatch(){
     if(pollTimer){clearInterval(pollTimer);pollTimer=0}
     if(video){
@@ -113,6 +134,11 @@
     cleanupWatch();
 
     if(getComputedStyle(motionText).display==='none')motionText.style.display='flex';
+
+    // Source layout uses the couple names as three centered lines:
+    // NAME / & / NAME. Re-apply at release in case upstream text substitution
+    // normalized the heading into a single line.
+    formatMotionNames();
 
     // Keep every overlay hidden until the exact release paint.
     for(const el of [logo,...headings]){
@@ -193,6 +219,9 @@
     lockMotion();
     armVideoWatch();
   }
+
+  // Match the authored source composition before animations are armed.
+  formatMotionNames();
 
   // Lock before the generic source animation runtime initializes.
   lockMotion();
