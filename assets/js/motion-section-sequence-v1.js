@@ -2,7 +2,7 @@
   'use strict';
   if(window.DINI_MOTION_SECTION_SEQUENCE_V1?.version)return;
 
-  const VERSION='1.3.9';
+  const VERSION='1.4.0';
   const section=document.querySelector('.motionSection');
   const motionText=section?.querySelector('.motionText');
   const logo=motionText?.querySelector('.delay-image');
@@ -26,11 +26,11 @@
   style.id='diniMotionSectionSequenceStyle';
   style.textContent=`
     @keyframes diniSourceFadeInUp{
-      from{opacity:0;transform:translate3d(0,100%,0)}
+      from{opacity:0;transform:translate3d(0,18px,0)}
       to{opacity:1;transform:translate3d(0,0,0)}
     }
     @-webkit-keyframes diniSourceFadeInUp{
-      from{opacity:0;-webkit-transform:translate3d(0,100%,0);transform:translate3d(0,100%,0)}
+      from{opacity:0;-webkit-transform:translate3d(0,18px,0);transform:translate3d(0,18px,0)}
       to{opacity:1;-webkit-transform:translate3d(0,0,0);transform:translate3d(0,0,0)}
     }
     @keyframes diniSourceZoomIn{
@@ -197,7 +197,7 @@
 
           const keyframes=sourceAnim==='fadeInUp'
             ?[
-              {opacity:0,transform:'translate3d(0,100%,0)'},
+              {opacity:0,transform:'translate3d(0,18px,0)'},
               {opacity:1,transform:'translate3d(0,0,0)'}
             ]
             :[
@@ -231,7 +231,7 @@
           // CSS fallback for older engines.
           el.style.opacity='0';
           el.style.transform=sourceAnim==='fadeInUp'
-            ?'translate3d(0,100%,0)'
+            ?'translate3d(0,18px,0)'
             :'scale3d(.3,.3,.3)';
           el.classList.remove('elementor-invisible');
           void el.offsetWidth;
