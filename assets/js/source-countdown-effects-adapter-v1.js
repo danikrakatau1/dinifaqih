@@ -45,10 +45,13 @@
     const out=[];
     [...doc.querySelectorAll('.elementor-counter-number')].forEach((el,index)=>{
       const host=el.closest?.('[data-widget_type="counter.default"],.elementor-widget-counter')||el;
-      const from=num(el.getAttribute('data-from-value'),0);
-      const to=num(el.getAttribute('data-to-value'),num(clean(el.textContent),0));
+      const fromRaw=String(el.getAttribute('data-from-value')??'0');
+      const toRaw=String(el.getAttribute('data-to-value')??clean(el.textContent)??'0');
+      const from=num(fromRaw,0);
+      const to=num(toRaw,num(clean(el.textContent),0));
       const duration=Math.max(0,num(el.getAttribute('data-duration'),2000));
       const delimiter=String(el.getAttribute('data-delimiter')||'');
+      const precision=Math.max((fromRaw.split('.')[1]||'').length,(toRaw.split('.')[1]||'').length);
       const prefix=clean(host.querySelector?.('.elementor-counter-number-prefix')?.textContent||'');
       const suffix=clean(host.querySelector?.('.elementor-counter-number-suffix')?.textContent||'');
       out.push({
@@ -57,6 +60,9 @@
         number_selector:'.elementor-counter-number',
         from,
         to,
+        from_raw:fromRaw,
+        to_raw:toRaw,
+        precision,
         duration_ms:duration,
         delimiter,
         prefix,
