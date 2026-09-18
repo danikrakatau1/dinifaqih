@@ -3,7 +3,7 @@
   if(window.__DINI_PUBLIC_SOURCE_TRUTH_RENDERER_V1__)return;
   window.__DINI_PUBLIC_SOURCE_TRUTH_RENDERER_V1__=true;
 
-  const VERSION='1.3.12';
+  const VERSION='1.3.13';
   const CFG=window.DINI_PUBLIC_ENTRY||{};
   const MODE=CFG.mode==='guest'?'guest':'public';
   const SB='https://jfvmcerrsxjvbiogfqes.supabase.co';
@@ -109,21 +109,55 @@
     return {html:'<!doctype html>\n'+doc.documentElement.outerHTML,count,mapSize:map.size};
   };
 
+  const galleryThumbUrl=(raw,width=720,quality=68)=>{
+    const value=String(raw||'').trim();
+    if(!value)return '';
+    try{
+      const u=new URL(value,location.href);
+      if(u.hostname.endsWith('.supabase.co')&&u.pathname.includes('/storage/v1/object/public/')){
+        u.pathname=u.pathname.replace('/storage/v1/object/public/','/storage/v1/render/image/public/');
+        u.searchParams.set('width',String(width));
+        u.searchParams.set('quality',String(quality));
+        u.searchParams.set('resize','contain');
+        return u.href;
+      }
+    }catch{}
+    return value;
+  };
+
   const deferHeavyGalleryBackgrounds=html=>{
     const doc=new DOMParser().parseFromString(String(html||''),'text/html');
     let count=0;
+    const preloads=[];
     for(const el of doc.querySelectorAll('.e-gallery-image[data-thumbnail],[data-native-gallery-image][data-thumbnail]')){
-      const url=String(el.getAttribute('data-thumbnail')||'').trim();
-      if(!url)continue;
-      const inline=String(el.style.getPropertyValue('background-image')||'').trim();
-      if(!inline&&!el.getAttribute('style'))continue;
-      el.setAttribute('data-dini-gallery-bg',url);
-      el.setAttribute('data-dini-gallery-bg-deferred','1');
-      el.style.removeProperty('background-image');
+      const original=String(el.getAttribute('data-thumbnail')||'').trim();
+      if(!original)continue;
+      const runtime=galleryThumbUrl(original,720,68);
+      if(!runtime)continue;
+      el.setAttribute('data-dini-gallery-bg',original);
+      el.setAttribute('data-dini-gallery-bg-runtime',runtime);
+      el.setAttribute('data-dini-gallery-bg-loaded','1');
+      el.removeAttribute('data-dini-gallery-bg-deferred');
+      el.style.setProperty('background-image','url("'+String(runtime).replaceAll('"','%22')+'")','important');
+      if(preloads.length<4)preloads.push(runtime);
       count++;
     }
-    if(count)doc.documentElement.setAttribute('data-dini-gallery-deferred-count',String(count));
-    return {html:'<!doctype html>\n'+doc.documentElement.outerHTML,count};
+    if(preloads.length&&doc.head){
+      for(const href of preloads){
+        const link=doc.createElement('link');
+        link.rel='preload';
+        link.as='image';
+        link.href=href;
+        link.setAttribute('fetchpriority','high');
+        link.setAttribute('data-dini-gallery-preload','1');
+        doc.head.appendChild(link);
+      }
+    }
+    if(count){
+      doc.documentElement.setAttribute('data-dini-gallery-optimized-count',String(count));
+      doc.documentElement.setAttribute('data-dini-gallery-preload-count',String(preloads.length));
+    }
+    return {html:'<!doctype html>\n'+doc.documentElement.outerHTML,count,preloadCount:preloads.length};
   };
   const guestContractFromPackage=pkg=>{
     const m=pkg?.manifest||{},s=pkg?.snapshot||{};
@@ -225,7 +259,7 @@
     html=galleryPerf.html;
     document.documentElement.dataset.publicMediaAuthorityPrepatched=String(mediaPatch.count||0);
     document.documentElement.dataset.publicMediaAuthorityMapSize=String(mediaPatch.mapSize||0);
-    document.documentElement.dataset.publicGalleryDeferred=String(galleryPerf.count||0);
+    document.documentElement.dataset.publicGalleryOptimized=String(galleryPerf.count||0);
     const blocks=[];
     const runtimeManifest=runtimeManifestFromPackage(pkg);
     blocks.push('<script src="'+localAsset('/assets/js/live-stream-contract-v1.js?v=101')+'"></script>');
