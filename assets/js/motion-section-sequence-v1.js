@@ -2,7 +2,7 @@
   'use strict';
   if(window.DINI_MOTION_SECTION_SEQUENCE_V1?.version)return;
 
-  const VERSION='1.3.5';
+  const VERSION='1.3.6';
   const section=document.querySelector('.motionSection');
   const motionText=section?.querySelector('.motionText');
   const logo=motionText?.querySelector('.delay-image');
@@ -125,18 +125,26 @@
 
     motionText.removeAttribute('data-dini-motion-seq-hold');
 
-    // Source reference: once the red frame begins closing into place, the gold
-    // logo + THE WEDDING OF + names + date enter together, not in two passes.
+    // Source recording is not perfectly simultaneous: the gold gunungan
+    // starts first, then the three headings follow about a tenth of a second
+    // later. Among headings, the name's authored 4120ms delay leads the
+    // title/date 4150ms delays by ~30ms. Preserve that subtle choreography.
     requestAnimationFrame(()=>requestAnimationFrame(()=>{
-      const overlays=[logo,...headings];
-      overlays.forEach((el,index)=>{
-        const fallback=index===0?'zoomIn':(index===2?'fadeInUp':'zoomIn');
-        stripAnimation(el);
-        void el.offsetWidth;
-        el.classList.remove('elementor-invisible');
-        el.classList.add('animated',animationFor(el,fallback));
-        el.setAttribute('data-dini-motion-seq-released','source-sync');
-      });
+      const launch=(el,fallback,wait,tag)=>{
+        setTimeout(()=>{
+          if(!el?.isConnected)return;
+          stripAnimation(el);
+          void el.offsetWidth;
+          el.classList.remove('elementor-invisible');
+          el.classList.add('animated',animationFor(el,fallback));
+          el.setAttribute('data-dini-motion-seq-released',tag);
+        },wait);
+      };
+
+      launch(logo,'zoomIn',0,'source-sync-logo');
+      launch(headings[1]||headings[0],'fadeInUp',100,'source-sync-name');
+      launch(headings[0],'zoomIn',130,'source-sync-title');
+      launch(headings[2]||headings[0],'zoomIn',130,'source-sync-date');
     }));
 
     document.documentElement.setAttribute('data-dini-motion-sequence-released',reason);
