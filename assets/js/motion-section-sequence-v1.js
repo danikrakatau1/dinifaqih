@@ -2,7 +2,7 @@
   'use strict';
   if(window.DINI_MOTION_SECTION_SEQUENCE_V1?.version)return;
 
-  const VERSION='1.1.0';
+  const VERSION='1.2.0';
   const section=document.querySelector('.motionSection');
   const motionText=section?.querySelector('.motionText');
   const frame=motionText?.querySelector('.delay-image');
@@ -112,17 +112,19 @@
     }
     motionText.removeAttribute('data-dini-motion-seq-hold');
 
-    // Source video shows the decorative/logo layer first, then the three text
-    // lines a fraction later. Preserve that order without the premature pass.
+    // The source recording shows the gold logo and all three text lines
+    // entering together immediately after the red ornamental frame has formed.
+    // Start every overlay animation on the same paint; keep only each element's
+    // authored animation type (zoomIn/fadeInUp), not its old absolute delay.
     requestAnimationFrame(()=>requestAnimationFrame(()=>{
-      restart(frame,animationFor(frame,'zoomIn'),0);
-
-      const delays=headings.map(delayFor);
-      const nonZero=delays.filter(n=>n>0);
-      const base=nonZero.length?Math.min(...nonZero):0;
-      headings.forEach((el,index)=>{
-        const relative=Math.max(0,(delays[index]||base)-base);
-        restart(el,animationFor(el,index===1?'fadeInUp':'zoomIn'),300+relative);
+      const overlays=[frame,...headings];
+      overlays.forEach((el,index)=>{
+        const fallback=index===0?'zoomIn':(index===2?'fadeInUp':'zoomIn');
+        stripAnimation(el);
+        void el.offsetWidth;
+        el.classList.remove('elementor-invisible');
+        el.classList.add('animated',animationFor(el,fallback));
+        el.setAttribute('data-dini-motion-seq-released','source-sync');
       });
     }));
 
@@ -131,12 +133,20 @@
 
   function thresholdForVideo(){
     const d=Number(video?.duration);
+    const sourceSettings=String(section.getAttribute('data-settings')||'');
+    const isJawaCoklat3=/JAWA-COKLAT-3-1\.mp4/i.test(sourceSettings);
+
+    // Measured against the user's source recording: the red ornamental frame is
+    // essentially complete at ~10.1s of the hosted motion video, and the gold
+    // logo + THE WEDDING OF + names + date begin together immediately after it.
+    if(isJawaCoklat3)return 10.1;
+
     if(Number.isFinite(d)&&d>4){
-      // In the source motion, the white ornamental frame is already formed when
-      // the overlay starts. Enter the overlay only in the final ~1.25 seconds.
-      return Math.max(3,d-1.25);
+      // Generic fallback for other motion sections: enter slightly before the
+      // end, after their framing motion has normally settled.
+      return Math.max(3,d-2.0);
     }
-    return 10.2;
+    return 10.1;
   }
 
   function checkVideoProgress(){
