@@ -2,7 +2,7 @@
   'use strict';
   if(g.DiniSemanticManifest?.version)return;
 
-  const VERSION='1.6.0';
+  const VERSION='1.7.0';
   const MANIFEST_VERSION=1;
   const REPEATER_CONTRACT_VERSION=1;
   const COMPONENT_IDENTITY_VERSION=1;
@@ -354,6 +354,11 @@
     if(Number(car?.counts?.progressbar||0)>0)set.add('carousel-progressbar');
     if(Number(car?.source_swiper_major||0)===5)set.add('swiper-legacy-v5');
     if(Number(car?.source_swiper_major||0)>=8)set.add('swiper-modern-v8plus');
+    const gal=sourceGraph?.behavior_adapters?.gallery;
+    if(Number(gal?.counts?.total||0)>0)set.add('universal-gallery-runtime');
+    if(Number(gal?.counts?.masonry||0)>0)set.add('gallery-masonry');
+    if(Number(gal?.counts?.justified||0)>0)set.add('gallery-justified');
+    if(Number(gal?.counts?.lightbox||0)>0)set.add('gallery-lightbox');
     return [...set].sort();
   }
 
@@ -401,7 +406,12 @@
         carousel_adapters:Number(sourceGraph?.behavior_adapters?.carousel?.counts?.total||0),
         carousel_slides:Number(sourceGraph?.behavior_adapters?.carousel?.counts?.slides||0),
         carousel_coverflow:Number(sourceGraph?.behavior_adapters?.carousel?.counts?.coverflow||0),
-        carousel_progressbar:Number(sourceGraph?.behavior_adapters?.carousel?.counts?.progressbar||0)
+        carousel_progressbar:Number(sourceGraph?.behavior_adapters?.carousel?.counts?.progressbar||0),
+        gallery_adapters:Number(sourceGraph?.behavior_adapters?.gallery?.counts?.total||0),
+        gallery_items:Number(sourceGraph?.behavior_adapters?.gallery?.counts?.items||0),
+        gallery_masonry:Number(sourceGraph?.behavior_adapters?.gallery?.counts?.masonry||0),
+        gallery_justified:Number(sourceGraph?.behavior_adapters?.gallery?.counts?.justified||0),
+        gallery_lightbox:Number(sourceGraph?.behavior_adapters?.gallery?.counts?.lightbox||0)
       },
       layout:{topology:layout?.topology||'unclassified',confidence:Number(layout?.confidence||0),viewport_policy:layout?.runtime?.viewport_policy||'canonical-content'},
       semantic:semanticDiagnostics
@@ -494,6 +504,10 @@
         carousel_item_count_independent_from_viewport:true,
         carousel_source_speed_preserved:true,
         carousel_source_autoplay_delay_preserved:true,
+        gallery_contract_version:Number(behaviorAdapters?.gallery?.version||0),
+        gallery_source_order_preserved:true,
+        gallery_lightbox_group_isolation:true,
+        gallery_source_urls_preserved:true,
         consumer_contract_version:0
       },
       runtime_policy:{
@@ -516,7 +530,9 @@
         animation_scroll_execution:'semantic-adapter-first-generic-fallback',
         explicit_responsive_none_authoritative:true,
         carousel_execution:'semantic-swiper-bridge-no-source-api-dependency',
-        carousel_cross_instance_mutation:false
+        carousel_cross_instance_mutation:false,
+        gallery_execution:'semantic-layout-and-lightbox-adapter',
+        gallery_cross_instance_mutation:false
       },
       diagnostics
     };
@@ -579,6 +595,11 @@
       carousel_slides:runtimeManifest.diagnostics?.counts?.carousel_slides||0,
       carousel_coverflow:runtimeManifest.diagnostics?.counts?.carousel_coverflow||0,
       carousel_progressbar:runtimeManifest.diagnostics?.counts?.carousel_progressbar||0,
+      gallery_adapters:runtimeManifest.diagnostics?.counts?.gallery_adapters||0,
+      gallery_items:runtimeManifest.diagnostics?.counts?.gallery_items||0,
+      gallery_masonry:runtimeManifest.diagnostics?.counts?.gallery_masonry||0,
+      gallery_justified:runtimeManifest.diagnostics?.counts?.gallery_justified||0,
+      gallery_lightbox:runtimeManifest.diagnostics?.counts?.gallery_lightbox||0,
       warnings:safeArray(runtimeManifest.diagnostics?.warnings).length
     };
     return runtimeManifest;
@@ -622,5 +643,5 @@
     armLegacyStudioBridge
   };
   armLegacyStudioBridge();
-  console.info('[DINI SEMANTIC MANIFEST] V'+VERSION+' aktif — P0 Core + P1-A Animation/Scroll + P1-B Carousel contract.');
+  console.info('[DINI SEMANTIC MANIFEST] V'+VERSION+' aktif — P0 Core + P1-A/P1-B + P1-C Gallery/Lightbox contract.');
 })(window);
