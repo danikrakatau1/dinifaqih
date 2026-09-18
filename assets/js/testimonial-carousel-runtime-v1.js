@@ -2,7 +2,7 @@
   'use strict';
   if(window.DINI_TESTIMONIAL_CAROUSEL_V1?.version)return;
 
-  const VERSION='1.0.1';
+  const VERSION='1.0.2';
   const clamp=(n,min,max)=>Math.min(max,Math.max(min,n));
   const parseSettings=el=>{
     try{return JSON.parse(el.getAttribute('data-settings')||'{}')||{}}catch{return{}}
@@ -37,6 +37,64 @@
     let logical=0;
     let direction=1;
 
+    // Keep every Love Story slide at one stable height so text-length differences
+    // never make the glass card jump between slides.
+    let stabilizedHeight=0;
+    function stabilizeHeight(){
+      const prev=slides.map(slide=>({
+        display:slide.style.getPropertyValue('display'),
+        displayPriority:slide.style.getPropertyPriority('display'),
+        position:slide.style.getPropertyValue('position'),
+        visibility:slide.style.getPropertyValue('visibility'),
+        width:slide.style.getPropertyValue('width'),
+        minHeight:slide.style.getPropertyValue('min-height')
+      }));
+
+      slides.forEach(slide=>{
+        slide.style.setProperty('display','block','important');
+        slide.style.setProperty('position','absolute');
+        slide.style.setProperty('visibility','hidden','important');
+        slide.style.setProperty('width','100%');
+        slide.style.removeProperty('min-height');
+      });
+
+      let maxH=0;
+      for(const slide of slides){
+        const testimonial=slide.querySelector('.elementor-testimonial')||slide;
+        maxH=Math.max(maxH,Math.ceil(testimonial.getBoundingClientRect().height||slide.scrollHeight||0));
+      }
+
+      slides.forEach((slide,i)=>{
+        const p=prev[i];
+        if(p.display)slide.style.setProperty('display',p.display,p.displayPriority||'');
+        else slide.style.removeProperty('display');
+        if(p.position)slide.style.setProperty('position',p.position); else slide.style.removeProperty('position');
+        if(p.visibility)slide.style.setProperty('visibility',p.visibility); else slide.style.removeProperty('visibility');
+        if(p.width)slide.style.setProperty('width',p.width); else slide.style.removeProperty('width');
+        if(p.minHeight)slide.style.setProperty('min-height',p.minHeight); else slide.style.removeProperty('min-height');
+      });
+
+      if(maxH>0){
+        stabilizedHeight=maxH;
+        wrapper.style.setProperty('min-height',maxH+'px');
+        viewport.style.setProperty('min-height',maxH+'px');
+        slides.forEach(slide=>{
+          slide.style.setProperty('min-height',maxH+'px');
+          const testimonial=slide.querySelector('.elementor-testimonial');
+          if(testimonial){
+            testimonial.style.setProperty('min-height',maxH+'px');
+            testimonial.style.setProperty('display','flex');
+            testimonial.style.setProperty('flex-direction','column');
+            const content=testimonial.querySelector('.elementor-testimonial__content');
+            const footer=testimonial.querySelector('.elementor-testimonial__footer');
+            if(content)content.style.setProperty('flex','1 1 auto');
+            if(footer)footer.style.setProperty('margin-top','auto');
+          }
+        });
+        widget.dataset.diniCarouselStableHeight=String(maxH);
+      }
+    }
+
     const pagination=widget.querySelector('.swiper-pagination');
     let progressFill=null;
     if(pagination&&String(settings.pagination||'').toLowerCase()==='progressbar'){
@@ -50,6 +108,7 @@
     }
 
     function render(animate=true){
+      if(!stabilizedHeight)stabilizeHeight();
       slides.forEach((slide,i)=>{
         const active=i===logical;
         slide.classList.toggle('swiper-slide-active',active);
@@ -169,10 +228,28 @@
 
     document.addEventListener('visibilitychange',()=>{if(document.hidden)stopAuto();else schedule()});
 
+    stabilizeHeight();
+    if(document.fonts?.ready){
+      document.fonts.ready.then(()=>requestAnimationFrame(()=>{
+        stabilizedHeight=0;
+        stabilizeHeight();
+        render(false);
+      })).catch(()=>{});
+    }
+    let resizeTimer=0;
+    window.addEventListener('resize',()=>{
+      clearTimeout(resizeTimer);
+      resizeTimer=setTimeout(()=>{
+        stabilizedHeight=0;
+        stabilizeHeight();
+        render(false);
+      },160);
+    },{passive:true});
+
     render(false);
     schedule();
 
-    return {widget,count,next,prev,get index(){return logical}};
+    return {widget,count,next,prev,get index(){return logical},get stableHeight(){return stabilizedHeight}};
   }
 
   const instances=[...document.querySelectorAll('.elementor-widget-testimonial-carousel')].map(initWidget).filter(Boolean);
