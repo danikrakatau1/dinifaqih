@@ -2,7 +2,7 @@
   'use strict';
   if(g.DINI_GUEST_CONTRACT_CORE_V1?.version)return;
 
-  const VERSION='1.1.0';
+  const VERSION='1.1.1';
   const CONTRACT_VERSION=1;
   const clean=s=>String(s??'').replace(/\s+/g,' ').trim();
   const norm=s=>clean(s).toLowerCase();
@@ -209,8 +209,33 @@
     for(const {node,role} of formCandidates(doc))add(node,role,{source:'form-semantic',confidence:.99});
 
     const existing=Array.isArray(baseContract?.fields)?baseContract.fields:[];
+    // Old probe contracts could point to a temporary "Nama Tamu" node outside the proven
+    // salutation → recipient → "Di Tempat" block. Once a strong semantic cover slot exists,
+    // that stale probe must not remain a second visible cover binding.
+    const semanticCover=fields.find(f=>f?.role==='cover'&&f?.semantic_synthesis===true)||null;
+    const semanticCoverNodes=new Set(semanticCover?resolveFieldNodes(doc,semanticCover):[]);
+    const coverRootFor=node=>node?.closest?.('#cover,.elementor-top-section,section,.elementor-section')||null;
+    const semanticRoot=coverRootFor([...semanticCoverNodes][0]);
+    const isStaleLegacyCover=f=>{
+      if(!semanticCover||!f)return false;
+      const role=String(f.role||'generic');
+      if(!['cover','generic'].includes(role))return false;
+      if(String(f.target_kind||'text')==='value')return false;
+      const source=String(f.source||'');
+      const fallback=clean(f.fallback_text||'');
+      const probeLike=source==='source-probe-marker'||GUEST_PLACEHOLDER_RE.test(fallback);
+      if(!probeLike)return false;
+      const nodes=resolveFieldNodes(doc,f);
+      if(!nodes.length)return false;
+      return nodes.some(node=>{
+        if(semanticCoverNodes.has(node))return false;
+        const root=coverRootFor(node);
+        return !!root&&(!semanticRoot||root===semanticRoot);
+      });
+    };
+    const retainedExisting=existing.filter(f=>!isStaleLegacyCover(f));
     const merged=[];const mergedIds=new Set();
-    for(const f of [...existing,...fields]){
+    for(const f of [...retainedExisting,...fields]){
       const id=String(f?.id||'');
       const key=id||hash(JSON.stringify(f));
       if(mergedIds.has(key))continue;mergedIds.add(key);merged.push(f);
