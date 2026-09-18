@@ -1,7 +1,7 @@
 (function(g){
   'use strict';
   if(g.DINI_GALLERY_PERFORMANCE_V1?.version)return;
-  const VERSION='1.1.0';
+  const VERSION='1.2.0';
   const doc=document;
   const items=[...doc.querySelectorAll('[data-dini-gallery-bg-deferred="1"]')];
 
@@ -21,16 +21,81 @@
     return value;
   }
 
-  // The authored gallery widget fades/transforms the whole 8-image surface at once.
-  // Keep its final appearance, but remove only that expensive entrance animation.
-  for(const widget of doc.querySelectorAll('.elementor-widget-gallery')){
-    widget.classList.remove('elementor-invisible','animated','fadeInUp');
-    widget.removeAttribute('data-native-reveal');
-    widget.removeAttribute('data-native-animation');
-    widget.setAttribute('data-dini-gallery-performance-static','1');
-    widget.style.setProperty('opacity','1','important');
-    widget.style.setProperty('transform','none','important');
-    widget.style.setProperty('animation','none','important');
+  // Keep the source's authored fadeInUp entrance, but run a lightweight
+  // compositor-only equivalent instead of Elementor animating the full heavy surface.
+  // Image loading/transform URLs stay untouched.
+  const galleryWidgets=[...doc.querySelectorAll('.elementor-widget-gallery')];
+  if(galleryWidgets.length){
+    const style=doc.createElement('style');
+    style.id='diniGalleryRevealPerformanceStyle';
+    style.textContent=`
+      @keyframes diniGalleryFadeInUp{
+        from{opacity:0;transform:translate3d(0,28px,0)}
+        to{opacity:1;transform:translate3d(0,0,0)}
+      }
+      .elementor-widget-gallery[data-dini-gallery-reveal="pending"]{
+        opacity:0!important;
+        transform:translate3d(0,28px,0)!important;
+        animation:none!important;
+        backface-visibility:hidden;
+        -webkit-backface-visibility:hidden;
+      }
+      .elementor-widget-gallery[data-dini-gallery-reveal="running"]{
+        animation:diniGalleryFadeInUp 760ms cubic-bezier(.215,.61,.355,1) both!important;
+        backface-visibility:hidden;
+        -webkit-backface-visibility:hidden;
+      }
+      .elementor-widget-gallery[data-dini-gallery-reveal="done"]{
+        opacity:1!important;
+        transform:none!important;
+        animation:none!important;
+      }
+      @media (prefers-reduced-motion:reduce){
+        .elementor-widget-gallery[data-dini-gallery-reveal]{
+          opacity:1!important;
+          transform:none!important;
+          animation:none!important;
+        }
+      }
+    `;
+    (doc.head||doc.documentElement).appendChild(style);
+
+    const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const reveal=widget=>{
+      if(!widget||widget.getAttribute('data-dini-gallery-reveal')==='done')return;
+      widget.setAttribute('data-dini-gallery-reveal','running');
+      widget.style.willChange='opacity, transform';
+      setTimeout(()=>{
+        widget.setAttribute('data-dini-gallery-reveal','done');
+        widget.style.removeProperty('will-change');
+      },820);
+    };
+
+    for(const widget of galleryWidgets){
+      // Neutralize Elementor's heavy runtime path only; preserve the same fadeInUp look.
+      widget.classList.remove('elementor-invisible','animated','fadeInUp');
+      widget.removeAttribute('data-native-reveal');
+      widget.removeAttribute('data-native-animation');
+      widget.removeAttribute('data-dini-gallery-performance-static');
+      widget.style.removeProperty('opacity');
+      widget.style.removeProperty('transform');
+      widget.style.removeProperty('animation');
+      widget.setAttribute('data-dini-gallery-reveal',reduced?'done':'pending');
+    }
+
+    if(!reduced&&'IntersectionObserver' in g){
+      const revealIo=new IntersectionObserver(entries=>{
+        for(const e of entries){
+          if(!e.isIntersecting)continue;
+          revealIo.unobserve(e.target);
+          requestAnimationFrame(()=>requestAnimationFrame(()=>reveal(e.target)));
+        }
+      },{root:null,rootMargin:'120px 0px -4% 0px',threshold:0.04});
+      galleryWidgets.forEach(widget=>revealIo.observe(widget));
+      g.addEventListener('pagehide',()=>revealIo.disconnect(),{once:true});
+    }else{
+      galleryWidgets.forEach(reveal);
+    }
   }
 
   if(items.length){
