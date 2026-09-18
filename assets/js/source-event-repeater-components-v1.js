@@ -172,8 +172,8 @@
         for(const sel of labelSelectors){const x=root.querySelector(sel);if(x){label=clean(x.textContent);break}}
         if(!label){
           const candidates=[...root.querySelectorAll('span,small,p,div')].map(x=>clean(x.textContent)).filter(t=>t&&t.length<40);
-          label=candidates.find(t=>{const normalized=t.replace(/^\\d+\\s*/,'').toLowerCase();return aliases.some(a=>normalized===String(a).toLowerCase())})||'';
-          if(label)label=label.replace(/^\\d+\\s*/,'');
+          label=candidates.find(t=>{const normalized=t.replace(/^\d+\s*/,'').toLowerCase();return aliases.some(a=>normalized===String(a).toLowerCase())})||'';
+          if(label)label=label.replace(/^\d+\s*/,'');
         }
         return {value_selector:el?'[data-'+name+']':'',label,source_authority:true};
       };
