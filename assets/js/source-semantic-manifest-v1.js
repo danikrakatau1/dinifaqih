@@ -2,7 +2,7 @@
   'use strict';
   if(g.DiniSemanticManifest?.version)return;
 
-  const VERSION='1.8.0';
+  const VERSION='1.9.0';
   const MANIFEST_VERSION=1;
   const REPEATER_CONTRACT_VERSION=1;
   const COMPONENT_IDENTITY_VERSION=1;
@@ -366,6 +366,13 @@
     if(Number(bg?.counts?.slide_right||0)>0)set.add('background-slideshow-slide-right');
     if(Number(bg?.counts?.ken_burns||0)>0)set.add('background-ken-burns');
     if(bg?.lazy_background?.enabled)set.add('elementor-lazy-background');
+    const media=sourceGraph?.behavior_adapters?.media_lifecycle;
+    if(media?.intro_video)set.add('intro-video-lifecycle');
+    if(Number(media?.counts?.audio_tracks||0)>0)set.add('audio-lifecycle');
+    if(Number(media?.counts?.audio_controls||0)>0)set.add('audio-toggle');
+    if(Number(media?.counts?.provider_videos||0)>0)set.add('provider-video-runtime');
+    if(Number(media?.counts?.youtube||0)>0)set.add('youtube-video');
+    if(Number(media?.counts?.vimeo||0)>0)set.add('vimeo-video');
     return [...set].sort();
   }
 
@@ -425,7 +432,13 @@
         background_slide_left:Number(sourceGraph?.behavior_adapters?.background_lifecycle?.counts?.slide_left||0),
         background_slide_right:Number(sourceGraph?.behavior_adapters?.background_lifecycle?.counts?.slide_right||0),
         background_ken_burns:Number(sourceGraph?.behavior_adapters?.background_lifecycle?.counts?.ken_burns||0),
-        lazy_background_contract:sourceGraph?.behavior_adapters?.background_lifecycle?.lazy_background?.enabled?1:0
+        lazy_background_contract:sourceGraph?.behavior_adapters?.background_lifecycle?.lazy_background?.enabled?1:0,
+        intro_video_contract:sourceGraph?.behavior_adapters?.media_lifecycle?.intro_video?1:0,
+        audio_tracks:Number(sourceGraph?.behavior_adapters?.media_lifecycle?.counts?.audio_tracks||0),
+        audio_controls:Number(sourceGraph?.behavior_adapters?.media_lifecycle?.counts?.audio_controls||0),
+        provider_videos:Number(sourceGraph?.behavior_adapters?.media_lifecycle?.counts?.provider_videos||0),
+        provider_youtube:Number(sourceGraph?.behavior_adapters?.media_lifecycle?.counts?.youtube||0),
+        provider_vimeo:Number(sourceGraph?.behavior_adapters?.media_lifecycle?.counts?.vimeo||0)
       },
       layout:{topology:layout?.topology||'unclassified',confidence:Number(layout?.confidence||0),viewport_policy:layout?.runtime?.viewport_policy||'canonical-content'},
       semantic:semanticDiagnostics
@@ -528,6 +541,11 @@
         background_transition_mode_preserved:true,
         background_ken_burns_preserved:true,
         elementor_lazy_background_lifecycle:true,
+        media_lifecycle_contract_version:Number(behaviorAdapters?.media_lifecycle?.version||0),
+        intro_video_source_timing_preserved:true,
+        intro_video_ended_pause_unlock_preserved:true,
+        audio_toggle_state_preserved:true,
+        provider_video_semantics_preserved:true,
         consumer_contract_version:0
       },
       runtime_policy:{
@@ -555,7 +573,10 @@
         gallery_cross_instance_mutation:false,
         background_execution:'semantic-slideshow-and-lazy-lifecycle',
         background_duration_normalization:false,
-        background_cross_instance_mutation:false
+        background_cross_instance_mutation:false,
+        media_execution:'semantic-intro-audio-provider-lifecycle',
+        media_source_timing_normalization:false,
+        provider_reconstruction_only_when_missing:true
       },
       diagnostics
     };
@@ -630,6 +651,12 @@
       background_slide_right:runtimeManifest.diagnostics?.counts?.background_slide_right||0,
       background_ken_burns:runtimeManifest.diagnostics?.counts?.background_ken_burns||0,
       lazy_background_contract:runtimeManifest.diagnostics?.counts?.lazy_background_contract||0,
+      intro_video_contract:runtimeManifest.diagnostics?.counts?.intro_video_contract||0,
+      audio_tracks:runtimeManifest.diagnostics?.counts?.audio_tracks||0,
+      audio_controls:runtimeManifest.diagnostics?.counts?.audio_controls||0,
+      provider_videos:runtimeManifest.diagnostics?.counts?.provider_videos||0,
+      provider_youtube:runtimeManifest.diagnostics?.counts?.provider_youtube||0,
+      provider_vimeo:runtimeManifest.diagnostics?.counts?.provider_vimeo||0,
       warnings:safeArray(runtimeManifest.diagnostics?.warnings).length
     };
     return runtimeManifest;
@@ -673,5 +700,5 @@
     armLegacyStudioBridge
   };
   armLegacyStudioBridge();
-  console.info('[DINI SEMANTIC MANIFEST] V'+VERSION+' aktif — P0 Core + P1-A/B/C + P1-D Background/Lazy contract.');
+  console.info('[DINI SEMANTIC MANIFEST] V'+VERSION+' aktif — P0 Core + P1-A/B/C/D + P1-E Media Lifecycle contract.');
 })(window);
