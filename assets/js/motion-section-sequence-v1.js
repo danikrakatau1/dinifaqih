@@ -2,18 +2,25 @@
   'use strict';
   if(window.DINI_MOTION_SECTION_SEQUENCE_V1?.version)return;
 
-  const VERSION='1.2.0';
+  const VERSION='1.3.0';
   const section=document.querySelector('.motionSection');
   const motionText=section?.querySelector('.motionText');
-  const frame=motionText?.querySelector('.delay-image');
+  const logo=motionText?.querySelector('.delay-image');
   const headings=[...motionText?.querySelectorAll?.('.elementor-widget-heading')||[]].slice(0,3);
   const video=section?.querySelector('.elementor-background-video-container video');
   const opener=document.querySelector('#tombolbuka,.tombolbuka');
 
-  if(!section||!motionText||!frame||!headings.length){
+  if(!section||!motionText||!logo||!headings.length){
     window.DINI_MOTION_SECTION_SEQUENCE_V1={version:VERSION,active:false};
     return;
   }
+
+  const authored=new WeakMap();
+  const parseSettings=el=>{
+    try{return JSON.parse(el.getAttribute('data-settings')||'{}')||{}}
+    catch{return{}}
+  };
+  for(const el of [logo,...headings])authored.set(el,parseSettings(el));
 
   const style=document.createElement('style');
   style.id='diniMotionSectionSequenceStyle';
@@ -25,6 +32,8 @@
     }
     .motionText[data-dini-motion-seq-hold="1"] .delay-image,
     .motionText[data-dini-motion-seq-hold="1"] .elementor-widget-heading{
+      opacity:0!important;
+      visibility:hidden!important;
       animation:none!important;
       -webkit-animation:none!important;
     }
@@ -36,23 +45,15 @@
   let fallbackTimer=0;
   let pollTimer=0;
 
-  const settings=el=>{
-    try{return JSON.parse(el.getAttribute('data-settings')||'{}')||{}}
-    catch{return{}}
-  };
   const isMobile=()=>{
     try{return matchMedia('(max-width:767px)').matches}catch{return innerWidth<=767}
   };
   const animationFor=(el,fallback='fadeInUp')=>{
-    const s=settings(el);
+    const s=authored.get(el)||{};
     const mobile=String(s._animation_mobile||'').trim();
     const desktop=String(s._animation||'').trim();
     const selected=(isMobile()&&mobile&&mobile!=='none')?mobile:desktop;
     return selected&&selected!=='none'?selected:fallback;
-  };
-  const delayFor=el=>{
-    const n=Number(settings(el)._animation_delay);
-    return Number.isFinite(n)?n:0;
   };
 
   function stripAnimation(el){
@@ -61,26 +62,37 @@
       'animated','fadeInUp','fadeInDown','fadeInLeft','fadeInRight',
       'zoomIn','zoomOut','bounceIn'
     );
+    el.style.removeProperty('animation-delay');
+    el.style.removeProperty('-webkit-animation-delay');
+    el.style.removeProperty('animation-duration');
+    el.style.removeProperty('-webkit-animation-duration');
+  }
+
+  function neutralizeGenericReveal(el){
+    if(!el)return;
+    // This runtime owns these four motion-overlay elements. Prevent the generic
+    // source animation runtime from scheduling a second/delayed pass.
+    el.removeAttribute('data-native-reveal');
+    el.removeAttribute('data-native-animation');
+    el.removeAttribute('data-native-animation-mobile');
+    el.removeAttribute('data-native-animation-delay');
+
+    const s={...(authored.get(el)||{})};
+    if('_animation' in s)s._animation='none';
+    if('_animation_mobile' in s)s._animation_mobile='none';
+    if('_animation_delay' in s)s._animation_delay=0;
+    el.setAttribute('data-settings',JSON.stringify(s));
+    el.setAttribute('data-dini-motion-seq-owned',VERSION);
   }
 
   function lockMotion(){
     motionText.setAttribute('data-dini-motion-seq-hold','1');
-    for(const el of [frame,...headings]){
+    for(const el of [logo,...headings]){
+      neutralizeGenericReveal(el);
       stripAnimation(el);
       el.classList.add('elementor-invisible');
     }
     document.documentElement.setAttribute('data-dini-motion-sequence',VERSION);
-  }
-
-  function restart(el,anim,wait=0){
-    setTimeout(()=>{
-      if(!el?.isConnected)return;
-      stripAnimation(el);
-      void el.offsetWidth;
-      el.classList.remove('elementor-invisible');
-      el.classList.add('animated',anim);
-      el.setAttribute('data-dini-motion-seq-released',anim);
-    },Math.max(0,wait));
   }
 
   function cleanupWatch(){
@@ -94,30 +106,29 @@
     }
   }
 
-  function releaseMotion(reason='video-final-phase'){
+  function showOverlayTogether(reason='source-sync'){
     if(released)return;
     released=true;
     if(fallbackTimer)clearTimeout(fallbackTimer);
     cleanupWatch();
 
-    // Prepare the elements while still fully hidden so no final-state flash can
-    // occur between the motion video and the source entrance animations.
-    for(const el of [frame,...headings]){
+    if(getComputedStyle(motionText).display==='none')motionText.style.display='flex';
+
+    // Keep every overlay hidden until the exact release paint.
+    for(const el of [logo,...headings]){
       stripAnimation(el);
       el.classList.add('elementor-invisible');
+      el.style.removeProperty('opacity');
+      el.style.removeProperty('visibility');
+      el.style.removeProperty('transform');
     }
 
-    if(getComputedStyle(motionText).display==='none'){
-      motionText.style.display='flex';
-    }
     motionText.removeAttribute('data-dini-motion-seq-hold');
 
-    // The source recording shows the gold logo and all three text lines
-    // entering together immediately after the red ornamental frame has formed.
-    // Start every overlay animation on the same paint; keep only each element's
-    // authored animation type (zoomIn/fadeInUp), not its old absolute delay.
+    // Source reference: once the red frame begins closing into place, the gold
+    // logo + THE WEDDING OF + names + date enter together, not in two passes.
     requestAnimationFrame(()=>requestAnimationFrame(()=>{
-      const overlays=[frame,...headings];
+      const overlays=[logo,...headings];
       overlays.forEach((el,index)=>{
         const fallback=index===0?'zoomIn':(index===2?'fadeInUp':'zoomIn');
         stripAnimation(el);
@@ -132,36 +143,30 @@
   }
 
   function thresholdForVideo(){
-    const d=Number(video?.duration);
     const sourceSettings=String(section.getAttribute('data-settings')||'');
-    const isJawaCoklat3=/JAWA-COKLAT-3-1\.mp4/i.test(sourceSettings);
-
-    // Measured against the user's source recording: the red ornamental frame is
-    // essentially complete at ~10.1s of the hosted motion video, and the gold
-    // logo + THE WEDDING OF + names + date begin together immediately after it.
-    if(isJawaCoklat3)return 10.1;
-
-    if(Number.isFinite(d)&&d>4){
-      // Generic fallback for other motion sections: enter slightly before the
-      // end, after their framing motion has normally settled.
-      return Math.max(3,d-2.0);
+    if(/JAWA-COKLAT-3-1\.mp4/i.test(sourceSettings)){
+      // Compared frame-by-frame with the supplied source recording:
+      // 5.2s = red frame starts forming; 5.4s = logo + all text are entering.
+      return 5.35;
     }
-    return 10.1;
+    const d=Number(video?.duration);
+    if(Number.isFinite(d)&&d>4)return Math.min(Math.max(3,d*.52),d-1);
+    return 5.35;
   }
 
   function checkVideoProgress(){
     if(!clicked||released||!video)return;
     const t=Number(video.currentTime)||0;
-    if(t>=thresholdForVideo())releaseMotion('video-final-phase');
+    if(t>=thresholdForVideo())showOverlayTogether('video-source-sync');
   }
 
   function onVideoEnded(){
-    if(clicked&&!released)releaseMotion('video-ended');
+    if(clicked&&!released)showOverlayTogether('video-ended');
   }
 
   function armVideoWatch(){
     if(!video){
-      fallbackTimer=setTimeout(()=>releaseMotion('no-video-fallback'),10500);
+      fallbackTimer=setTimeout(()=>showOverlayTogether('no-video-fallback'),5400);
       return;
     }
     video.addEventListener('timeupdate',checkVideoProgress);
@@ -169,10 +174,8 @@
     video.addEventListener('durationchange',checkVideoProgress);
     video.addEventListener('playing',checkVideoProgress);
     video.addEventListener('ended',onVideoEnded,{once:true});
-    pollTimer=setInterval(checkVideoProgress,120);
-    // Safety only. Never let the text stay hidden if a browser reports no
-    // duration/timeupdate event for the hosted background video.
-    fallbackTimer=setTimeout(()=>releaseMotion('video-safety-timeout'),12000);
+    pollTimer=setInterval(checkVideoProgress,60);
+    fallbackTimer=setTimeout(()=>showOverlayTogether('video-safety-timeout'),7000);
     checkVideoProgress();
   }
 
@@ -183,8 +186,7 @@
     armVideoWatch();
   }
 
-  // Lock immediately. This removes the first premature motionText animation
-  // while leaving the authored background motion/video untouched.
+  // Lock before the generic source animation runtime initializes.
   lockMotion();
   if(opener)opener.addEventListener('click',onOpen,{capture:true,once:true});
   else onOpen();
@@ -192,7 +194,7 @@
   window.DINI_MOTION_SECTION_SEQUENCE_V1={
     version:VERSION,
     active:true,
-    release:releaseMotion,
+    release:showOverlayTogether,
     get released(){return released},
     get clicked(){return clicked},
     get videoTime(){return Number(video?.currentTime)||0},
