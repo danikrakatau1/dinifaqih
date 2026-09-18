@@ -3,7 +3,7 @@
   if(window.__DINI_PUBLIC_SOURCE_TRUTH_RENDERER_V1__)return;
   window.__DINI_PUBLIC_SOURCE_TRUTH_RENDERER_V1__=true;
 
-  const VERSION='1.3.3';
+  const VERSION='1.3.4';
   const CFG=window.DINI_PUBLIC_ENTRY||{};
   const MODE=CFG.mode==='guest'?'guest':'public';
   const SB='https://jfvmcerrsxjvbiogfqes.supabase.co';
@@ -175,7 +175,7 @@
       blocks.push('<script type="application/json" id="diniGuestRuntimeData">'+safeJson(guest)+'</script>');
       blocks.push('<script type="application/json" id="diniGuestPersonalizationContract">'+safeJson(contract)+'</script>');
       blocks.push('<script src="'+localAsset('/assets/js/guest-contract-core-v1.js?v=112')+'"></script>');
-      blocks.push('<script src="'+localAsset('/assets/js/guest-runtime-v1.js?v=212')+'"></script>');
+      blocks.push('<script src="'+localAsset('/assets/js/guest-runtime-v1.js?v=213')+'"></script>');
     }
     return appendRuntime(html,blocks);
   }

@@ -1,9 +1,9 @@
 (()=>{
   'use strict';
-  if(window.__DINI_UNIVERSAL_GUEST_RUNTIME_V212__)return;
-  window.__DINI_UNIVERSAL_GUEST_RUNTIME_V212__=true;
+  if(window.__DINI_UNIVERSAL_GUEST_RUNTIME_V213__)return;
+  window.__DINI_UNIVERSAL_GUEST_RUNTIME_V213__=true;
 
-  const VERSION='2.1.2';
+  const VERSION='2.1.3';
   const Core=window.DINI_GUEST_CONTRACT_CORE_V1;
   const cfgEl=document.getElementById('diniGuestRuntimeData');
   let cfg={};try{cfg=cfgEl?JSON.parse(cfgEl.textContent||'{}'):{} }catch{}
@@ -13,7 +13,7 @@
   const slug=String(cfg.slug||'').trim();
   if(!name)return;
 
-  document.documentElement.dataset.guestRuntime='v2.1.2';
+  document.documentElement.dataset.guestRuntime='v2.1.3';
   document.documentElement.dataset.guestMutation='role-aware';
   if(slug)document.documentElement.dataset.guestSlug=slug;
 
@@ -136,7 +136,20 @@
     if(slug)node.setAttribute?.('data-dini-guest-slug',slug);
     return true;
   }
+  function safeTextTarget(node){
+    if(!node||node.nodeType!==1)return false;
+    if(node.matches?.('input,textarea,select'))return true;
+    // Guest personalization must never collapse a structural/container node.
+    // A textContent write on a wrapper with element children would destroy the
+    // template subtree (for example headings/images that share the same column).
+    if((node.children?.length||0)>0){
+      node.setAttribute?.('data-dini-guest-unsafe-container','1');
+      return false;
+    }
+    return true;
+  }
   function applyText(node){
+    if(!safeTextTarget(node))return false;
     if(clean(node.textContent)===name)return false;
     node.textContent=name;
     node.setAttribute?.('data-dini-guest-name','1');
@@ -146,18 +159,20 @@
 
   function apply(){
     const pruned=pruneLegacyProbeCoverDuplicate();
-    let changed=0,matched=0;const roles=new Set();
+    let changed=0,matched=0,unsafeSkipped=0;const roles=new Set();
     for(const {node,field} of boundSlots()){
       matched++;roles.add(field?.role||'generic');
       const target=field?.target_kind||(node.matches?.('input,textarea,select')?'value':'text');
       if(target==='value'||node.matches?.('input,textarea,select')){if(applyValue(node,field))changed++}
+      else if(!safeTextTarget(node)){unsafeSkipped++}
       else if(applyText(node))changed++;
     }
     document.documentElement.dataset.guestBoundMatches=String(matched);
     document.documentElement.dataset.guestChanged=String(changed);
+    document.documentElement.dataset.guestUnsafeContainersSkipped=String(unsafeSkipped);
     document.documentElement.dataset.guestBinding=matched?'global-contract':'missing';
     document.documentElement.dataset.guestRoles=[...roles].join(',');
-    return {matched,changed,roles:[...roles],pruned};
+    return {matched,changed,unsafeSkipped,roles:[...roles],pruned};
   }
 
   let timer=0;
