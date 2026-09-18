@@ -2,7 +2,7 @@
   'use strict';
   if(window.DINI_MOTION_SECTION_SEQUENCE_V1?.version)return;
 
-  const VERSION='1.3.8';
+  const VERSION='1.3.9';
   const section=document.querySelector('.motionSection');
   const motionText=section?.querySelector('.motionText');
   const logo=motionText?.querySelector('.delay-image');
@@ -82,6 +82,9 @@
 
   function stripAnimation(el){
     if(!el)return;
+    try{
+      for(const animation of el.getAnimations?.()||[])animation.cancel();
+    }catch{}
     el.removeAttribute('data-dini-motion-seq-play');
     el.classList.remove(
       'animated','fadeInUp','fadeInDown','fadeInLeft','fadeInRight',
@@ -93,6 +96,8 @@
     el.style.removeProperty('-webkit-animation-delay');
     el.style.removeProperty('animation-duration');
     el.style.removeProperty('-webkit-animation-duration');
+    el.style.removeProperty('opacity');
+    el.style.removeProperty('transform');
   }
 
   function neutralizeGenericReveal(el){
@@ -189,9 +194,50 @@
           const authoredAnim=animationFor(el,fallback);
           const sourceAnim=authoredAnim==='fadeInUp'?'fadeInUp':'zoomIn';
           stripAnimation(el);
-          void el.offsetWidth;
+
+          const keyframes=sourceAnim==='fadeInUp'
+            ?[
+              {opacity:0,transform:'translate3d(0,100%,0)'},
+              {opacity:1,transform:'translate3d(0,0,0)'}
+            ]
+            :[
+              {opacity:0,transform:'scale3d(.3,.3,.3)'},
+              {offset:.5,opacity:1},
+              {opacity:1,transform:'scale3d(1,1,1)'}
+            ];
+
+          if(typeof el.animate==='function'){
+            const animation=el.animate(keyframes,{
+              duration:1250,
+              easing:'ease',
+              fill:'both'
+            });
+            // Critical: pin the element at animation time zero BEFORE exposing
+            // it. This prevents the one-frame final-state flash that made the
+            // three-line names look like a rough/double animation.
+            animation.pause();
+            animation.currentTime=0;
+            el.classList.remove('elementor-invisible');
+            el.setAttribute('data-dini-motion-seq-released',tag);
+            requestAnimationFrame(()=>animation.play());
+            animation.finished.then(()=>{
+              el.style.opacity='1';
+              el.style.transform='none';
+              animation.cancel();
+            }).catch(()=>{});
+            return;
+          }
+
+          // CSS fallback for older engines.
+          el.style.opacity='0';
+          el.style.transform=sourceAnim==='fadeInUp'
+            ?'translate3d(0,100%,0)'
+            :'scale3d(.3,.3,.3)';
           el.classList.remove('elementor-invisible');
+          void el.offsetWidth;
           el.setAttribute('data-dini-motion-seq-play',sourceAnim);
+          el.style.removeProperty('opacity');
+          el.style.removeProperty('transform');
           el.setAttribute('data-dini-motion-seq-released',tag);
         },wait);
       };
