@@ -3,7 +3,7 @@
   if(window.__DINI_TEMPLATE_SAVE_V2001__)return;
   window.__DINI_TEMPLATE_SAVE_V2001__=true;
 
-  const VERSION='2.0.1';
+  const VERSION='2.0.2-p2d';
   const SUPABASE_URL='https://jfvmcerrsxjvbiogfqes.supabase.co';
   const SUPABASE_KEY='sb_publishable_3IqSDxkpxCGiDpxAEwdsXQ_AsJpsC4W';
   const BUCKET='template-packages';
@@ -102,6 +102,14 @@
       const finalHtml=replaceAllDeep(String(raw.html||raw.baseHtml||''),replacements);
       const schema=rebaseSchema(replaceAllDeep(deep(raw.schema||{}),replacements),values);
       const manifestBase=replaceAllDeep(deep(raw.manifest||{}),replacements);
+      if(!manifestBase.runtime_manifest&&current.manifest_json?.runtime_manifest)manifestBase.runtime_manifest=replaceAllDeep(deep(current.manifest_json.runtime_manifest),replacements);
+      if(!manifestBase.consumer_contract&&current.manifest_json?.consumer_contract)manifestBase.consumer_contract=replaceAllDeep(deep(current.manifest_json.consumer_contract),replacements);
+      if(manifestBase.runtime_manifest){
+        manifestBase.consumer_contract_version=1;
+        manifestBase.consumer_contract=manifestBase.consumer_contract||{version:1,runtime_manifest_path:'manifest.runtime_manifest',runtime_manifest_compiler:manifestBase.runtime_manifest.compiler||'',semantic_components_path:'manifest.runtime_manifest.semantic_components',personalization_path:'manifest.runtime_manifest.personalization',chain:['fetch','preview','editor','apply','save','supabase','renderer','guest-route','reload'],backend_owner:'dini-faqih',source_dom_authoritative:true,arbitrary_source_js:false};
+        manifestBase.runtime_manifest.consumer_contract_version=1;
+        manifestBase.runtime_manifest.editor_contract={...(manifestBase.runtime_manifest.editor_contract||{}),consumer_contract_version:1,consumer_chain_persistent:true};
+      }
       for(const a of uploadedFields){
         if(String(values[a.id]??'')!==a.url)throw new Error(`Exact field persistence gagal sebelum upload: ${a.id}`);
       }
@@ -111,20 +119,21 @@
       const currentEntry=current.manifest_json?.editor_snapshot_url?{revision:current.manifest_json.revision||'previous',source_path:current.source_path,editor_snapshot_url:current.manifest_json.editor_snapshot_url,saved_at:current.manifest_json.saved_at||current.updated_at||null}:null;
       const history=[...(currentEntry?[currentEntry]:[]),...(current.manifest_json?.revision_history||[])].filter((x,i,a)=>x?.editor_snapshot_url&&a.findIndex(y=>y.editor_snapshot_url===x.editor_snapshot_url)===i).slice(0,10);
       const assetBase=canonicalAssetBase(finalHtml,{...manifestBase,source_url:sourceUrl});
-      const manifest={...manifestBase,editor_version:'template-edit-v2.0.1',renderer_version:'template-edit-v2-exact-persistence',revision,revision_id:revision,template_id:recordId,record_id:recordId,editor_snapshot_url:snapshotUrl,source_url:sourceUrl,source_of_truth:'template-edit-v2-exact-applied',asset_base:assetBase,saved_at:new Date().toISOString(),artifact_prefix:base,revision_history:history,exact_persistence:true,explicit_saved_fields:uploadedFields.map(x=>x.id)};
-      const cloud={...deep(raw),version:'template-edit-v2.0.1',template_id:recordId,record_id:recordId,snapshot_scope:recordId,snapshot_scope_version:'template-v2-exact',revision,html:finalHtml,baseHtml:finalHtml,values,schema,transforms,manifest,assets:[],saved_at:new Date().toISOString(),template_edit_v2:{...(raw.template_edit_v2||{}),version:'2.0.1',same_uuid:true,exact_persistence:true,explicit_saved_fields:uploadedFields.map(x=>x.id),saved_revision:revision,saved_at:new Date().toISOString()}};
+      const manifest={...manifestBase,editor_version:'template-edit-v2.0.2-p2d',renderer_version:'template-edit-v2-exact-persistence',revision,revision_id:revision,template_id:recordId,record_id:recordId,editor_snapshot_url:snapshotUrl,source_url:sourceUrl,source_of_truth:'template-edit-v2-exact-applied',asset_base:assetBase,saved_at:new Date().toISOString(),artifact_prefix:base,revision_history:history,exact_persistence:true,explicit_saved_fields:uploadedFields.map(x=>x.id),consumer_contract_version:manifestBase.consumer_contract_version||0,consumer_chain_persisted:!!manifestBase.runtime_manifest};
+      const cloud={...deep(raw),version:'template-edit-v2.0.2-p2d',template_id:recordId,record_id:recordId,snapshot_scope:recordId,snapshot_scope_version:'template-v2-exact',revision,html:finalHtml,baseHtml:finalHtml,values,schema,transforms,manifest,runtime_manifest:manifest.runtime_manifest||null,consumer_contract:manifest.consumer_contract||null,assets:[],saved_at:new Date().toISOString(),template_edit_v2:{...(raw.template_edit_v2||{}),version:'2.0.2-p2d',same_uuid:true,exact_persistence:true,consumer_contract_persisted:!!manifest.runtime_manifest,explicit_saved_fields:uploadedFields.map(x=>x.id),saved_revision:revision,saved_at:new Date().toISOString()}};
 
       if(progress?.querySelector?.('small'))progress.querySelector('small').textContent='Upload exact revision…';
       await Promise.all([
         uploadText(indexPath,finalHtml,'text/html; charset=utf-8'),
         uploadText(snapshotPath,JSON.stringify(cloud,null,2)),
         uploadText(schemaPath,JSON.stringify(schema,null,2)),
-        uploadText(dataPath,JSON.stringify({values,transforms,template_edit_v2:cloud.template_edit_v2},null,2)),
+        uploadText(dataPath,JSON.stringify({values,transforms,runtime_manifest:manifest.runtime_manifest||null,consumer_contract:manifest.consumer_contract||null,template_edit_v2:cloud.template_edit_v2},null,2)),
         uploadText(manifestPath,JSON.stringify(manifest,null,2))
       ]);
 
       const verifyCloud=await fetchJson(snapshotUrl,'Verifikasi snapshot V2');
       if(String(verifyCloud.template_id)!==recordId||verifyCloud.revision!==revision)throw new Error('Cloud snapshot UUID/revision mismatch.');
+      if(manifest.runtime_manifest?.compiler&&verifyCloud.manifest?.runtime_manifest?.compiler!==manifest.runtime_manifest.compiler)throw new Error('Consumer Runtime Manifest hilang/berubah saat save.');
       for(const a of uploadedFields){if(String(verifyCloud.values?.[a.id]??'')!==a.url)throw new Error(`Cloud snapshot tidak mempertahankan field ${a.id}`)}
 
       const payload={name:current.name,slug:current.slug,source_path:sourceUrl,status:current.status||(current.is_active?'active':'draft'),is_active:!!current.is_active,package_path:`supabase://${BUCKET}/${snapshotPath}`,manifest_json:manifest,updated_at:new Date().toISOString()};
@@ -134,7 +143,7 @@
 
       await writeSnap(scopedKey(recordId),cloud);
       await writeSnap(GLOBAL_KEY,cloud);
-      document.documentElement.dataset.templateSave='v2.0.1-exact';
+      document.documentElement.dataset.templateSave='v2.0.2-p2d-exact';
       if(typeof window.finishEditorToast==='function')window.finishEditorToast(progress,`${current.name} tersimpan ✓ · ${uploadedFields.length} field media exact · UUID tetap ${recordId.slice(0,8)}.`,'success','Template V2 Saved');
       else toast(`${current.name} tersimpan. UUID tetap sama.`,'success','Template V2 Saved');
       setTimeout(()=>{location.href='/dashboard-admin-template?refresh='+Date.now()},850);
@@ -148,5 +157,5 @@
 
   document.addEventListener('click',e=>{const b=e.target?.closest?.('#saveDraftBtn');if(!b)return;e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();save()},true);
   window.DINI_TEMPLATE_SAVE_V2001={VERSION,save};
-  document.documentElement.dataset.templateSave='v2.0.1';
+  document.documentElement.dataset.templateSave='v2.0.2-p2d';
 })();
