@@ -2,38 +2,76 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "rewrites": [
-    { "source": "/dashboard-admin", "destination": "/dashboard-admin/index.html" },
-    { "source": "/dashboard-admin-template", "destination": "/dashboard-admin-template/index.html" },
-    { "source": "/dashboard-admin-fetch", "destination": "/dashboard-admin-fetch/index.html" },
-    { "source": "/dashboard-admin-edit", "destination": "/dashboard-admin-edit/index.html" },
-    { "source": "/dashboard-admin-fetch-editor", "destination": "/dashboard-admin-fetch-editor/index.html" },
-    { "source": "/buat-tamu", "destination": "/buat%20tamu.html" },
-    { "source": "/:guestSlug([a-z0-9-]+)", "destination": "/guest-entry-v18.html?guest_slug=:guestSlug" }
+    {
+      "source": "/dashboard-admin",
+      "destination": "/dashboard-admin/index.html"
+    },
+    {
+      "source": "/dashboard-admin-template",
+      "destination": "/dashboard-admin-template/index.html"
+    },
+    {
+      "source": "/dashboard-admin-fetch",
+      "destination": "/dashboard-admin-fetch/index.html"
+    },
+    {
+      "source": "/dashboard-admin-edit",
+      "destination": "/dashboard-admin-edit/index.html"
+    },
+    {
+      "source": "/dashboard-admin-fetch-editor",
+      "destination": "/dashboard-admin-fetch-editor/index.html"
+    },
+    {
+      "source": "/buat-tamu",
+      "destination": "/buat%20tamu.html"
+    },
+    {
+      "source": "/:guestSlug([a-z0-9-]+)",
+      "destination": "/guest-entry-v18.html?guest_slug=:guestSlug"
+    }
   ],
   "headers": [
     {
       "source": "/api/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "no-store" }
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
       ]
     },
     {
       "source": "/index.html",
       "headers": [
-        { "key": "Cache-Control", "value": "no-store" }
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
       ]
     },
     {
       "source": "/guest-entry-v18.html",
       "headers": [
-        { "key": "Cache-Control", "value": "no-store" }
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
       ]
     },
     {
       "source": "/assets/js/public-canonical-renderer-v18.js",
       "headers": [
-        { "key": "Cache-Control", "value": "no-store" }
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
       ]
     }
-  ]
+  ],
+  "git": {
+    "deploymentEnabled": {
+      "test-final": false
+    }
+  }
 }
