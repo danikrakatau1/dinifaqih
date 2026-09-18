@@ -2,7 +2,7 @@
   'use strict';
   if(g.DiniSemanticManifest?.version)return;
 
-  const VERSION='2.4.0';
+  const VERSION='2.5.0';
   const MANIFEST_VERSION=1;
   const REPEATER_CONTRACT_VERSION=1;
   const COMPONENT_IDENTITY_VERSION=1;
@@ -655,7 +655,11 @@
         gift_proof_bucket:'gift-proofs',
         guestbook_backend_owner:'dini-faqih',
         copy_action_value_synthesis:false,
-        consumer_contract_version:0
+        consumer_contract_version:1,
+        consumer_bridge:'source-consumer-contract-v1',
+        consumer_chain:['fetch','preview','editor','apply','save','supabase','renderer','guest-route','reload'],
+        consumer_runtime_manifest_persistent:true,
+        consumer_backend_owner:'dini-faqih'
       },
       runtime_policy:{
         execute_arbitrary_source_js:false,
@@ -706,7 +710,9 @@
         native_form_execute_admin_ajax:false,
         native_form_execute_wp_nonce:false,
         native_copy_execution:'existing-DiniFaqihPublicActions-copy',
-        guestbook_execution:'existing-guestbook-runtime-plus-P2-D-consumer-contract'
+        guestbook_execution:'invitation-scoped-dini-faqih-consumer-contract',
+        consumer_execution:'manifest-driven-source-dom-preserving',
+        consumer_reload_persistent:true
       },
       diagnostics
     };
@@ -866,5 +872,5 @@
     armLegacyStudioBridge
   };
   armLegacyStudioBridge();
-  console.info('[DINI SEMANTIC MANIFEST] V'+VERSION+' aktif — P0/P1 + P2-A/B + P2-C Native RSVP/Gift/Guestbook form contract.');
+  console.info('[DINI SEMANTIC MANIFEST] V'+VERSION+' aktif — P0/P1 + P2-A/B/C + P2-D Full Consumer Integration contract.');
 })(window);
