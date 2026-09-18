@@ -2,7 +2,7 @@
   'use strict';
   if(g.DINI_GUEST_CONTRACT_CORE_V1?.version)return;
 
-  const VERSION='1.1.1';
+  const VERSION='1.1.2';
   const CONTRACT_VERSION=1;
   const clean=s=>String(s??'').replace(/\s+/g,' ').trim();
   const norm=s=>clean(s).toLowerCase();
