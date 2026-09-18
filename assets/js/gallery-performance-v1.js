@@ -1,7 +1,7 @@
 (function(g){
   'use strict';
   if(g.DINI_GALLERY_PERFORMANCE_V1?.version)return;
-  const VERSION='1.2.0';
+  const VERSION='1.2.1';
   const doc=document;
   const items=[...doc.querySelectorAll('[data-dini-gallery-bg-deferred="1"]')];
 
@@ -21,66 +21,44 @@
     return value;
   }
 
-  // Keep the source's authored fadeInUp entrance, but run a lightweight
-  // compositor-only equivalent instead of Elementor animating the full heavy surface.
-  // Image loading/transform URLs stay untouched.
+  // Restore the source-authored Elementor gallery entrance exactly:
+  // the gallery widget itself starts elementor-invisible, then receives
+  // "animated fadeInUp" when it enters the viewport. We trigger only those
+  // source classes; image loading/lightbox/performance optimization stays separate.
   const galleryWidgets=[...doc.querySelectorAll('.elementor-widget-gallery')];
   if(galleryWidgets.length){
-    const style=doc.createElement('style');
-    style.id='diniGalleryRevealPerformanceStyle';
-    style.textContent=`
-      @keyframes diniGalleryFadeInUp{
-        from{opacity:0;transform:translate3d(0,28px,0)}
-        to{opacity:1;transform:translate3d(0,0,0)}
-      }
-      .elementor-widget-gallery[data-dini-gallery-reveal="pending"]{
-        opacity:0!important;
-        transform:translate3d(0,28px,0)!important;
-        animation:none!important;
-        backface-visibility:hidden;
-        -webkit-backface-visibility:hidden;
-      }
-      .elementor-widget-gallery[data-dini-gallery-reveal="running"]{
-        animation:diniGalleryFadeInUp 760ms cubic-bezier(.215,.61,.355,1) both!important;
-        backface-visibility:hidden;
-        -webkit-backface-visibility:hidden;
-      }
-      .elementor-widget-gallery[data-dini-gallery-reveal="done"]{
-        opacity:1!important;
-        transform:none!important;
-        animation:none!important;
-      }
-      @media (prefers-reduced-motion:reduce){
-        .elementor-widget-gallery[data-dini-gallery-reveal]{
-          opacity:1!important;
-          transform:none!important;
-          animation:none!important;
-        }
-      }
-    `;
-    (doc.head||doc.documentElement).appendChild(style);
-
     const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+
     const reveal=widget=>{
       if(!widget||widget.getAttribute('data-dini-gallery-reveal')==='done')return;
       widget.setAttribute('data-dini-gallery-reveal','running');
-      widget.style.willChange='opacity, transform';
-      setTimeout(()=>{
+      widget.classList.remove('elementor-invisible');
+      widget.classList.add('animated','fadeInUp');
+
+      const finish=()=>{
         widget.setAttribute('data-dini-gallery-reveal','done');
-        widget.style.removeProperty('will-change');
-      },820);
+        widget.removeEventListener('animationend',finish);
+      };
+      widget.addEventListener('animationend',finish,{once:true});
+      // Fallback only; source Elementor normal entrance duration is handled by
+      // its own loaded animation CSS.
+      setTimeout(finish,1800);
     };
 
     for(const widget of galleryWidgets){
-      // Neutralize Elementor's heavy runtime path only; preserve the same fadeInUp look.
-      widget.classList.remove('elementor-invisible','animated','fadeInUp');
-      widget.removeAttribute('data-native-reveal');
-      widget.removeAttribute('data-native-animation');
       widget.removeAttribute('data-dini-gallery-performance-static');
       widget.style.removeProperty('opacity');
       widget.style.removeProperty('transform');
       widget.style.removeProperty('animation');
-      widget.setAttribute('data-dini-gallery-reveal',reduced?'done':'pending');
+      widget.classList.remove('animated','fadeInUp');
+
+      if(reduced){
+        widget.classList.remove('elementor-invisible');
+        widget.setAttribute('data-dini-gallery-reveal','done');
+      }else{
+        widget.classList.add('elementor-invisible');
+        widget.setAttribute('data-dini-gallery-reveal','pending');
+      }
     }
 
     if(!reduced&&'IntersectionObserver' in g){
@@ -90,12 +68,14 @@
           revealIo.unobserve(e.target);
           requestAnimationFrame(()=>requestAnimationFrame(()=>reveal(e.target)));
         }
-      },{root:null,rootMargin:'120px 0px -4% 0px',threshold:0.04});
+      },{root:null,rootMargin:'0px 0px -2% 0px',threshold:0.01});
       galleryWidgets.forEach(widget=>revealIo.observe(widget));
       g.addEventListener('pagehide',()=>revealIo.disconnect(),{once:true});
-    }else{
+    }else if(!reduced){
       galleryWidgets.forEach(reveal);
     }
+
+    doc.documentElement.setAttribute('data-dini-gallery-source-reveal','fadeInUp');
   }
 
   if(items.length){
