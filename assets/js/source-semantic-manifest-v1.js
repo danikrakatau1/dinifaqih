@@ -2,7 +2,7 @@
   'use strict';
   if(g.DiniSemanticManifest?.version)return;
 
-  const VERSION='2.0.0';
+  const VERSION='2.1.0';
   const MANIFEST_VERSION=1;
   const REPEATER_CONTRACT_VERSION=1;
   const COMPONENT_IDENTITY_VERSION=1;
@@ -379,6 +379,12 @@
     if(Number(ts?.counts?.story_static||0)>0)set.add('love-story-static');
     if(Number(ts?.counts?.story_timeline||0)>0)set.add('love-story-timeline');
     if(Number(ts?.counts?.story_carousel||0)>0)set.add('love-story-carousel');
+    const ce=sourceGraph?.behavior_adapters?.countdown_effects;
+    if(Number(ce?.counts?.countdowns||0)>0)set.add('weddingpress-countdown-runtime');
+    if(Number(ce?.counts?.counters||0)>0)set.add('elementor-counter-runtime');
+    if(Number(ce?.counts?.effects||0)>0)set.add('powerpack-background-effects');
+    if(Number(ce?.counts?.snow||0)>0)set.add('powerpack-snow');
+    if(Number(ce?.counts?.particles||0)>0)set.add('powerpack-particles');
     return [...set].sort();
   }
 
@@ -449,7 +455,12 @@
         timeline_items:Number(sourceGraph?.behavior_adapters?.timeline_story?.counts?.timeline_items||0),
         story_static:Number(sourceGraph?.behavior_adapters?.timeline_story?.counts?.story_static||0),
         story_timeline:Number(sourceGraph?.behavior_adapters?.timeline_story?.counts?.story_timeline||0),
-        story_carousel:Number(sourceGraph?.behavior_adapters?.timeline_story?.counts?.story_carousel||0)
+        story_carousel:Number(sourceGraph?.behavior_adapters?.timeline_story?.counts?.story_carousel||0),
+        countdown_adapters:Number(sourceGraph?.behavior_adapters?.countdown_effects?.counts?.countdowns||0),
+        counter_adapters:Number(sourceGraph?.behavior_adapters?.countdown_effects?.counts?.counters||0),
+        powerpack_effects:Number(sourceGraph?.behavior_adapters?.countdown_effects?.counts?.effects||0),
+        powerpack_snow:Number(sourceGraph?.behavior_adapters?.countdown_effects?.counts?.snow||0),
+        powerpack_particles:Number(sourceGraph?.behavior_adapters?.countdown_effects?.counts?.particles||0)
       },
       layout:{topology:layout?.topology||'unclassified',confidence:Number(layout?.confidence||0),viewport_policy:layout?.runtime?.viewport_policy||'canonical-content'},
       semantic:semanticDiagnostics
@@ -562,6 +573,11 @@
         timeline_source_side_preserved:true,
         timeline_reverse_scroll_state:true,
         love_story_mode_separation:true,
+        countdown_effects_contract_version:Number(behaviorAdapters?.countdown_effects?.version||0),
+        countdown_labels_preserved:true,
+        countdown_source_date_preserved:true,
+        elementor_counter_source_values_preserved:true,
+        powerpack_effect_settings_preserved:true,
         consumer_contract_version:0
       },
       runtime_policy:{
@@ -596,7 +612,11 @@
         timeline_execution:'source-geometry-progress-and-reverse-state',
         story_static_execution:'source-css-only',
         story_carousel_execution:'delegated-to-carousel-adapter',
-        story_timeline_execution:'delegated-to-timeline-adapter'
+        story_timeline_execution:'delegated-to-timeline-adapter',
+        countdown_execution:'semantic-countdown-zero-stop',
+        counter_execution:'intersection-once-source-duration',
+        powerpack_execution:'internal-canvas-source-settings',
+        powerpack_external_runtime_dependency:false
       },
       diagnostics
     };
@@ -682,6 +702,11 @@
       story_static:runtimeManifest.diagnostics?.counts?.story_static||0,
       story_timeline:runtimeManifest.diagnostics?.counts?.story_timeline||0,
       story_carousel:runtimeManifest.diagnostics?.counts?.story_carousel||0,
+      countdown_adapters:runtimeManifest.diagnostics?.counts?.countdown_adapters||0,
+      counter_adapters:runtimeManifest.diagnostics?.counts?.counter_adapters||0,
+      powerpack_effects:runtimeManifest.diagnostics?.counts?.powerpack_effects||0,
+      powerpack_snow:runtimeManifest.diagnostics?.counts?.powerpack_snow||0,
+      powerpack_particles:runtimeManifest.diagnostics?.counts?.powerpack_particles||0,
       warnings:safeArray(runtimeManifest.diagnostics?.warnings).length
     };
     return runtimeManifest;
@@ -725,5 +750,5 @@
     armLegacyStudioBridge
   };
   armLegacyStudioBridge();
-  console.info('[DINI SEMANTIC MANIFEST] V'+VERSION+' aktif — P0 Core + P1-A/B/C/D/E + P1-F Timeline/Love Story contract.');
+  console.info('[DINI SEMANTIC MANIFEST] V'+VERSION+' aktif — P0 Core + P1-A/B/C/D/E/F + P1-G Countdown/Counter/PowerPack contract.');
 })(window);
