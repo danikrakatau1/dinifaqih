@@ -478,20 +478,37 @@ html,body{margin:0;min-height:100%;}
 @media(max-width:560px){[data-native-gallery-root]{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:8px!important}}
 `;
     doc.head.appendChild(style);
-    // Mark source-defined animations using their Elementor data-settings, without executing source scripts.
+    // Mark source-defined animations using exact responsive ownership, including explicit "none".
+    // Runtime V1.4+ consumes the semantic adapter plan; these attributes are deterministic fallback metadata.
     doc.querySelectorAll('[data-settings]').forEach(el=>{
       const raw=decodeSettings(el.getAttribute('data-settings')||'');
       let cfg={}; try{cfg=raw?JSON.parse(raw):{}}catch{}
-      const desktop=String(cfg._animation||cfg.animation||'');
-      const mobile=String(cfg._animation_mobile||cfg.animation_mobile||'');
-      const chosen=(desktop&&desktop!=='none')?desktop:((mobile&&mobile!=='none')?mobile:'');
-      if(!chosen)return;
-      el.setAttribute('data-native-reveal',chosen);
-      if(desktop)el.setAttribute('data-native-animation',desktop);
-      if(mobile)el.setAttribute('data-native-animation-mobile',mobile);
-      const delay=Number(cfg._animation_delay??cfg.animation_delay??0);
-      if(Number.isFinite(delay)&&delay>0)el.setAttribute('data-native-animation-delay',String(delay));
-      // Structural wrappers keep source geometry; only their children animate.
+      const has=(k)=>Object.prototype.hasOwnProperty.call(cfg,k);
+      const pick=(a,b)=>has(a)?cfg[a]:(has(b)?cfg[b]:undefined);
+      const desktop=pick('_animation','animation');
+      const tablet=pick('_animation_tablet','animation_tablet');
+      const mobile=pick('_animation_mobile','animation_mobile');
+      const delayDesktop=pick('_animation_delay','animation_delay');
+      const delayTablet=pick('_animation_delay_tablet','animation_delay_tablet');
+      const delayMobile=pick('_animation_delay_mobile','animation_delay_mobile');
+      const durationDesktop=pick('_animation_duration','animation_duration');
+      const durationTablet=pick('_animation_duration_tablet','animation_duration_tablet');
+      const durationMobile=pick('_animation_duration_mobile','animation_duration_mobile');
+      const anyDefined=[desktop,tablet,mobile,delayDesktop,delayTablet,delayMobile,durationDesktop,durationTablet,durationMobile].some(v=>v!==undefined);
+      if(!anyDefined)return;
+      const fallback=[desktop,tablet,mobile].find(v=>v!==undefined&&String(v)!=='none'&&String(v)!=='')||'source-responsive';
+      el.setAttribute('data-native-reveal',String(fallback));
+      const set=(name,v)=>{if(v!==undefined)el.setAttribute(name,String(v))};
+      set('data-native-animation',desktop);
+      set('data-native-animation-tablet',tablet);
+      set('data-native-animation-mobile',mobile);
+      set('data-native-animation-delay',delayDesktop);
+      set('data-native-animation-delay-tablet',delayTablet);
+      set('data-native-animation-delay-mobile',delayMobile);
+      set('data-native-animation-duration',durationDesktop);
+      set('data-native-animation-duration-tablet',durationTablet);
+      set('data-native-animation-duration-mobile',durationMobile);
+      // Structural wrappers keep source geometry; only their authored animation state changes.
       if(el.matches('.elementor-top-section,.elementor-section,.elementor-container,.elementor-column,[class*="wdp-sticky-section"]'))
         el.setAttribute('data-native-preserve-layout','1');
     });
