@@ -12,7 +12,7 @@
   const originalMakeSourceGraph=VR.makeSourceGraph.bind(VR);
   const clean=s=>String(s??'').replace(/\s+/g,' ').trim();
   const hash=s=>{let h=2166136261;for(const c of String(s??'')){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return(h>>>0).toString(16).padStart(8,'0')};
-  const num=(v,f=null)=>Number.isFinite(Number(v))?Number(v):f;
+  const num=(v,f=null)=>v===''||v==null?f:(Number.isFinite(Number(v))?Number(v):f);
   const yes=v=>/^(?:yes|true|1|on|label_on)$/i.test(clean(v));
   const elementId=el=>el?.getAttribute?.('data-id')||el?.getAttribute?.('data-section-id')||((String(el?.className||'').match(/elementor-element-([A-Za-z0-9_-]+)/)||[])[1])||el?.id||'';
   const selectorFor=el=>{
