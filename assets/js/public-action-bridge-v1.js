@@ -227,6 +227,11 @@
   function collectForm(form) {
     const out = {};
     const isNativeForm = String(form?.tagName || '').toUpperCase() === 'FORM';
+    const captureRole = (el, value) => {
+      const role = norm(el?.getAttribute?.('data-dini-native-field-role') || '');
+      if (!role || value == null || value === '') return;
+      if (!Object.prototype.hasOwnProperty.call(out, role)) out[role] = value;
+    };
 
     if (isNativeForm) {
       const FormDataCtor = form.ownerDocument?.defaultView?.FormData || FormData;
@@ -235,7 +240,9 @@
         if (typeof v === 'string') out[k] = v;
       }
       form.querySelectorAll('input,select,textarea').forEach((el) => {
+        if ((el.type === 'radio' || el.type === 'checkbox') && !el.checked) return;
         if (!el.name && el.id && typeof el.value === 'string') out[el.id] = el.value;
+        if (typeof el.value === 'string') captureRole(el, el.value);
       });
       return out;
     }
@@ -245,6 +252,7 @@
       if (!key || typeof el.value !== 'string') return;
       if ((el.type === 'radio' || el.type === 'checkbox') && !el.checked) return;
       out[key] = el.value;
+      captureRole(el, el.value);
     });
     return out;
   }
@@ -305,6 +313,9 @@
   }
 
   function classifyForm(form) {
+    const semanticKind = norm(form?.getAttribute?.('data-dini-native-form-kind') || '');
+    if (semanticKind === 'rsvp' || semanticKind === 'gift') return semanticKind;
+    if (semanticKind === 'guestbook') return '';
     const hay = norm(`${form.id} ${form.className} ${form.getAttribute('action') || ''} ${form.textContent}`);
     const giftByText = /gift|hadiah|konfirmasi hadiah|transfer|bukti\s*tf/.test(hay);
     const giftByFields = /nama\s*bank/.test(hay) && /nominal/.test(hay);
