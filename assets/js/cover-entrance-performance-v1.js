@@ -2,9 +2,12 @@
   'use strict';
   if(window.DINI_COVER_ENTRANCE_PERFORMANCE_V1?.version)return;
 
-  const VERSION='1.0.1';
+  const VERSION='1.0.2';
   const root=document.documentElement;
   let released=false;
+  let prepared=false;
+  let preparing=null;
+  let revealHintCleanup=()=>{};
   root.classList.add('dini-cover-staging','dini-cover-perf-active');
 
   const sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -63,30 +66,82 @@
     await Promise.race([Promise.allSettled(jobs),sleep(360)]);
   }
 
+  function primeRevealLayers(){
+    const cover=document.getElementById('cover');
+    if(!cover)return ()=>{};
+    const targets=[...cover.querySelectorAll('[data-native-reveal]')].slice(0,6);
+    const prev=targets.map(el=>el.style.willChange||'');
+    for(const el of targets)el.style.willChange='opacity, transform';
+    return ()=>{
+      targets.forEach((el,i)=>{
+        if(prev[i])el.style.willChange=prev[i];
+        else el.style.removeProperty('will-change');
+      });
+    };
+  }
+
+  async function prepare(){
+    if(prepared)return true;
+    if(preparing)return preparing;
+    preparing=(async()=>{
+      await warmCover();
+      revealHintCleanup=primeRevealLayers();
+      await nextPaint();
+      prepared=true;
+      root.classList.add('dini-cover-entrance-ready');
+      root.setAttribute('data-dini-cover-entrance-ready',VERSION);
+      try{
+        if(window.parent&&window.parent!==window){
+          window.parent.postMessage({type:'dini-cover-entrance-ready',version:VERSION},'*');
+        }
+      }catch{}
+      return true;
+    })();
+    return preparing;
+  }
+
   async function release(){
-    if(released)return;
+    if(released)return true;
+    await prepare();
+    if(released)return true;
     released=true;
-    await warmCover();
     await nextPaint();
-    root.classList.remove('dini-cover-staging');
+    root.classList.remove('dini-cover-staging','dini-cover-entrance-ready');
     root.classList.add('dini-cover-entrance-running');
+    root.removeAttribute('data-dini-cover-entrance-ready');
     root.setAttribute('data-dini-cover-entrance-performance',VERSION);
 
-    // Drop compositor hints after authored entrance animations finish.
+    // Drop temporary compositor hints after authored entrance animations finish.
     setTimeout(()=>{
+      try{revealHintCleanup()}catch{}
       root.classList.remove('dini-cover-perf-active','dini-cover-entrance-running');
       root.classList.add('dini-cover-entrance-settled');
     },2200);
+    return true;
   }
+
+  const insideCanonicalFrame=(()=>{
+    try{return window.frameElement?.id==='diniPublicCanonicalFrame'}catch{return false}
+  })();
+  const startPrepare=()=>prepare().then(()=>{if(!insideCanonicalFrame)return release()}).catch(()=>release());
 
   if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',release,{once:true});
+    document.addEventListener('DOMContentLoaded',startPrepare,{once:true});
   }else{
-    release();
+    startPrepare();
   }
 
-  // Safety release if DOMContentLoaded is unusually delayed.
-  setTimeout(release,420);
+  // Start warming even if DOMContentLoaded is unusually delayed, but let the
+  // outer public renderer decide the exact visible handoff when we are framed.
+  setTimeout(startPrepare,420);
+  // Deadlock guard: never leave authored cover animation paused forever.
+  setTimeout(()=>{if(!released)release()},2200);
 
-  window.DINI_COVER_ENTRANCE_PERFORMANCE_V1={version:VERSION,release};
+  window.DINI_COVER_ENTRANCE_PERFORMANCE_V1={
+    version:VERSION,
+    prepare,
+    release,
+    get ready(){return prepared},
+    get released(){return released}
+  };
 })();
