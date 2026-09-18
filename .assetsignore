@@ -2,12 +2,14 @@
 .github/
 api/
 scripts/
+cloudflare/
 *.sql
 *.md
 *.txt
 README*
 vercel.json
 wrangler.jsonc
+wrangler.toml
 cloudflare-preview-worker.js
 .gitignore
 .assetsignore
