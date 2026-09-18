@@ -123,7 +123,7 @@ html,body{margin:0;width:100%;height:100%;min-height:100%;overflow:hidden;backgr
     if(sourceTruthExact){
       const blocks=['<script>document.documentElement.dataset.diniSourceTruthPreview="1";document.documentElement.dataset.diniPreviewCompatibility="source-truth-exact-plus-runtime-compat";<\/script>'];
       if(!/icon-contract-v1\.js/i.test(html))blocks.push('<script src="/assets/js/icon-contract-v1.js?v=100"><\/script>');
-      if(!/live-stream-contract-v1\.js/i.test(html))blocks.push('<script src="/assets/js/live-stream-contract-v1.js?v=100"><\/script>');
+      if(!/live-stream-contract-v1\.js/i.test(html))blocks.push('<script src="/assets/js/live-stream-contract-v1.js?v=101"><\/script>');
       if(!/source-truth-runtime-compat-v1\.js/i.test(html))blocks.push('<script src="/assets/js/source-truth-runtime-compat-v1.js?v=120"><\/script>');
       html=appendRuntime(html,blocks);
       document.documentElement.dataset.previewPackagePolicy='exact-source-truth-snapshot';

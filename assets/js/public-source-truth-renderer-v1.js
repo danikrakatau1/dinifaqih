@@ -157,7 +157,7 @@
     let html=ensureBase(pkg.html,pkg.manifest,String(row.source_path||''));
     const blocks=[];
     const runtimeManifest=runtimeManifestFromPackage(pkg);
-    blocks.push('<script src="'+localAsset('/assets/js/live-stream-contract-v1.js?v=100')+'"></script>');
+    blocks.push('<script src="'+localAsset('/assets/js/live-stream-contract-v1.js?v=101')+'"></script>');
     if(runtimeManifest&&Object.keys(runtimeManifest).length){
       blocks.push('<script type="application/json" id="diniSemanticRuntimeManifest">'+safeJson(runtimeManifest)+'</script>');
     }

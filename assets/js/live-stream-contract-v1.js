@@ -2,7 +2,7 @@
   'use strict';
   if(g.DINI_LIVE_STREAM_CONTRACT_V1?.version)return;
 
-  const VERSION='1.0.0';
+  const VERSION='1.0.1';
   const clean=v=>String(v??'').replace(/\s+/g,' ').trim();
   const bool=v=>/^(?:1|true|yes|on|enabled)$/i.test(clean(v));
   const safeUrl=v=>{
@@ -42,9 +42,14 @@
   const providerUrl=/youtube\.com|youtu\.be|instagram\.com|tiktok\.com|vimeo\.com/i;
 
   function sectionRoots(doc){
-    return [...new Set([
-      ...doc.querySelectorAll?.('.elementor-top-section,body > section,section')||[]
-    ])];
+    if(!doc?.querySelectorAll)return[];
+    // One Live Stream Contract per authored top-level section.
+    // Elementor pages often contain nested <section> wrappers inside the same top section;
+    // treating every nested section as independent creates duplicate live-enabled/live-url fields.
+    const primary=[...doc.querySelectorAll('.elementor-top-section,body > section')];
+    if(primary.length)return [...new Set(primary)];
+    const all=[...doc.querySelectorAll('section')];
+    return all.filter(sec=>!all.some(other=>other!==sec&&other.contains(sec)));
   }
   function isLiveSection(sec){
     const txt=clean(sec?.textContent||'');
