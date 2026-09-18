@@ -115,13 +115,17 @@
   }
   function setBg(n,value){if(!n)return;const css=value?`url("${String(value).replaceAll('"','%22')}")`:'none';n.style.setProperty('background-image',css,'important');if(n.hasAttribute?.('data-thumbnail'))n.setAttribute('data-thumbnail',value||'')}
   function replaceDeep(v,oldV,newV){if(!oldV||oldV===newV)return v;if(typeof v==='string')return v.split(oldV).join(newV);if(Array.isArray(v))return v.map(x=>replaceDeep(x,oldV,newV));if(v&&typeof v==='object')for(const k of Object.keys(v))v[k]=replaceDeep(v[k],oldV,newV);return v}
+  function imageLikeUrl(v){const s=String(v||'').trim();if(!s)return false;try{const u=new URL(s,location.href);return /\.(?:avif|bmp|gif|jpe?g|png|svg|webp)(?:$|[?#])/i.test(u.pathname+u.search+u.hash)||/\/wp-content\/uploads\//i.test(u.pathname)}catch{return /\.(?:avif|bmp|gif|jpe?g|png|svg|webp)(?:$|[?#])/i.test(s)||/\/wp-content\/uploads\//i.test(s)}}
+  function isImageLightboxAnchor(a){if(!a?.matches?.('a'))return false;const href=a.getAttribute('href')||'';return imageLikeUrl(href)||a.hasAttribute('data-elementor-open-lightbox')||a.hasAttribute('data-elementor-lightbox-slideshow')||/elementor-(?:gallery|lightbox)|gallery-item|lightbox/i.test(String(a.className||''))}
+  function syncImageClickTarget(img,value){if(!img)return false;const a=img.closest?.('a[href]');if(!a||!isImageLightboxAnchor(a))return false;if(value){a.setAttribute('href',String(value));a.setAttribute('data-dini-image-authority','display-src')}else a.removeAttribute('href');return true}
+  function reconcileImageClickTargets(doc){let changed=0;for(const img of doc?.querySelectorAll?.('a[href] img')||[]){const src=img.getAttribute('src')||img.getAttribute('data-src')||'';if(!src)continue;const a=img.closest('a[href]');if(!a||!isImageLightboxAnchor(a))continue;if(a.getAttribute('href')!==src){a.setAttribute('href',src);changed++}a.setAttribute('data-dini-image-authority','display-src')}return changed}
 
   function applyField(doc,f,value){
     const nodes=nodesFor(doc,f),old=String(baselineValues[f.id]??f.value??'');
     if(f.kind==='text'){
       for(const n of nodes){const leaf=textLeaf(n,f)||n;if(leaf.matches?.('input,textarea,select')){leaf.value=value;leaf.setAttribute('value',value)}else leaf.textContent=value;leaf.setAttribute?.('data-template-v2-text',f.id)}
     }else if(f.kind==='image'){
-      for(const n of nodes){const imgs=n.matches?.('img')?[n]:[...n.querySelectorAll?.('img')||[]];for(const img of imgs){if(value){img.setAttribute('src',value);img.setAttribute('data-src',value)}else{img.removeAttribute('src');img.removeAttribute('data-src')}img.removeAttribute('srcset');img.removeAttribute('data-srcset');img.removeAttribute('data-lazy-src')}}
+      for(const n of nodes){const imgs=n.matches?.('img')?[n]:[...n.querySelectorAll?.('img')||[]];for(const img of imgs){if(value){img.setAttribute('src',value);img.setAttribute('data-src',value)}else{img.removeAttribute('src');img.removeAttribute('data-src')}img.removeAttribute('srcset');img.removeAttribute('data-srcset');img.removeAttribute('data-lazy-src');syncImageClickTarget(img,value)}}
     }else if(f.kind==='background'){
       for(const n of nodes){
         if(f.media_role==='slideshow'||f.attribute==='data-settings'){
@@ -177,6 +181,7 @@
   async function renderFresh(){
     const doc=new DOMParser().parseFromString(baselineHtml,'text/html');
     for(const f of schema.fields){const valueChanged=!eq(values[f.id],baselineValues[f.id]),transformChanged=!eq(transforms[f.id],baselineTransforms[f.id]);if(valueChanged)applyField(doc,f,valueOf(f));if(transformChanged||valueChanged){const t=transforms[f.id];if(t)applyTransform(doc,f,t)}}
+    reconcileImageClickTargets(doc);
     let html='<!doctype html>\n'+doc.documentElement.outerHTML;
     for(const [p,u] of [...liveUrls].sort((a,b)=>b[0].length-a[0].length))html=html.split(p).join(u);
     frame.srcdoc=html;
@@ -240,6 +245,7 @@
   async function buildApplied(){
     const doc=new DOMParser().parseFromString(baselineHtml,'text/html');
     for(const f of schema.fields){const valueChanged=!eq(values[f.id],baselineValues[f.id]),transformChanged=!eq(transforms[f.id],baselineTransforms[f.id]);if(valueChanged)applyField(doc,f,valueOf(f));if(transformChanged||valueChanged){const t=transforms[f.id];if(t)applyTransform(doc,f,t)}}
+    reconcileImageClickTargets(doc);
     let snap={...deep(originalSnap),version:'template-edit-v2.0.0',template_id:templateId,record_id:templateId,snapshot_scope:templateId,snapshot_scope_version:'template-v2',schema:deep(schema),values:deep(values),transforms:deep(transforms),html:'<!doctype html>\n'+doc.documentElement.outerHTML,baseHtml:'<!doctype html>\n'+doc.documentElement.outerHTML,assets:[...uploaded.values()].map(deep),template_edit_v2:{version:VERSION,baseline_snapshot_url:snapUrl,loaded_at:now(),same_uuid:true}};
     if(window.DINI_TEMPLATE_CANONICAL_V1160?.resolveSnapshot)snap=window.DINI_TEMPLATE_CANONICAL_V1160.resolveSnapshot(snap);
     return snap;

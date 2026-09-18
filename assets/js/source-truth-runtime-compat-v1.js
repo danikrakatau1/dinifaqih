@@ -3,7 +3,7 @@
   if(window.__DINI_SOURCE_TRUTH_RUNTIME_COMPAT_V1__)return;
   window.__DINI_SOURCE_TRUTH_RUNTIME_COMPAT_V1__=true;
 
-  const VERSION='1.2.0';
+  const VERSION='1.2.1';
   const MOBILE_MAX=767;
   const boundDocs=new WeakMap();
   const boundFrames=new WeakSet();
@@ -175,19 +175,45 @@
     return patched;
   }
 
+  function imageLikeUrl(v){
+    const s=String(v||'').trim();if(!s)return false;
+    return /\.(?:avif|bmp|gif|jpe?g|png|svg|webp)(?:$|[?#])/i.test(s)||/\/wp-content\/uploads\//i.test(s);
+  }
+
+  function isImageLightboxAnchor(a){
+    if(!a?.matches?.('a[href]'))return false;
+    const href=a.getAttribute('href')||'';
+    return imageLikeUrl(href)||a.hasAttribute('data-elementor-open-lightbox')||a.hasAttribute('data-elementor-lightbox-slideshow')||/elementor-(?:gallery|lightbox)|gallery-item|lightbox/i.test(String(a.className||''));
+  }
+
+  function patchImageAuthority(doc){
+    if(!doc?.querySelectorAll)return 0;
+    let patched=0;
+    for(const img of doc.querySelectorAll('a[href] img')){
+      const a=img.closest('a[href]');if(!a||!isImageLightboxAnchor(a))continue;
+      const src=img.getAttribute('src')||img.getAttribute('data-src')||img.currentSrc||'';
+      if(!src)continue;
+      if(a.getAttribute('href')!==src){a.setAttribute('href',src);patched++}
+      a.setAttribute('data-dini-image-authority','display-src');
+    }
+    return patched;
+  }
+
   function applyDocument(doc){
-    if(!doc?.documentElement)return {revealed:0,social:0,icons:0};
+    if(!doc?.documentElement)return {revealed:0,social:0,icons:0,imageLinks:0};
     let revealed=0;
     if(isMobileDoc(doc)){
       for(const host of doc.querySelectorAll('[data-native-animation-mobile],[data-settings]'))if(revealMobileNone(host,doc))revealed++;
     }
     const icons=patchGeneralIcons(doc);
     const social=patchSocial(doc);
+    const imageLinks=patchImageAuthority(doc);
     doc.documentElement.setAttribute('data-dini-source-truth-runtime-compat',VERSION);
     doc.documentElement.setAttribute('data-dini-source-truth-runtime-revealed',String(revealed));
     doc.documentElement.setAttribute('data-dini-source-truth-runtime-social',String(social));
     doc.documentElement.setAttribute('data-dini-source-truth-runtime-icons',String(icons));
-    return {revealed,social,icons};
+    doc.documentElement.setAttribute('data-dini-source-truth-runtime-image-links',String(imageLinks));
+    return {revealed,social,icons,imageLinks};
   }
 
   function bindDocument(doc){
@@ -221,5 +247,5 @@
   [100,300,800,1800,4000,8000].forEach(ms=>setTimeout(discoverFrames,ms));
   setTimeout(()=>rootObserver.disconnect(),15000);
 
-  window.DINI_SOURCE_TRUTH_RUNTIME_COMPAT_V1={VERSION,applyDocument,revealMobileNone,patchSocial,patchGeneralIcons,isMobileDoc};
+  window.DINI_SOURCE_TRUTH_RUNTIME_COMPAT_V1={VERSION,applyDocument,revealMobileNone,patchSocial,patchGeneralIcons,patchImageAuthority,isMobileDoc};
 })();

@@ -164,7 +164,7 @@
     if(pkg.source_truth){
       blocks.push('<script>document.documentElement.dataset.diniSourceTruthPublic="1";document.documentElement.dataset.diniPublicCompatibility="source-truth-exact-plus-runtime-compat";</script>');
       blocks.push('<script src="'+localAsset('/assets/js/icon-contract-v1.js?v=100')+'"></script>');
-      blocks.push('<script src="'+localAsset('/assets/js/source-truth-runtime-compat-v1.js?v=120')+'"></script>');
+      blocks.push('<script src="'+localAsset('/assets/js/source-truth-runtime-compat-v1.js?v=121')+'"></script>');
     }else{
       if(pkg.authority){
         blocks.push('<script type="application/json" id="diniSnapshotAuthorityData">'+safeJson(pkg.authority)+'</script>');
