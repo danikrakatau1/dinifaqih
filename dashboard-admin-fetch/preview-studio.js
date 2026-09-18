@@ -58,7 +58,18 @@
     if(nativeHtml){
       frame.removeAttribute('src');
       frame.setAttribute('sandbox','allow-scripts allow-forms allow-popups allow-modals allow-downloads');
+      const bindConsumer=()=>{
+        try{
+          const api=window.DiniSourceConsumerContract,manifest=pack?.manifest?.runtime_manifest||{};
+          if(api?.bindFrame&&manifest?.format){
+            api.bindFrame(frame,manifest,{mode:'preview'});
+            frame.dataset.diniConsumerPreview=api.version||'';
+          }
+        }catch(err){console.warn('FETCH_PREVIEW_CONSUMER',err)}
+      };
+      frame.addEventListener('load',()=>setTimeout(bindConsumer,0));
       frame.srcdoc=nativeHtml;
+      [80,250,700].forEach(ms=>setTimeout(bindConsumer,ms));
     }else{
       try{localStorage.setItem('artSundaMerahPreview',JSON.stringify(pack.data));sessionStorage.setItem('artSundaMerahPreview',JSON.stringify(pack.data))}catch{}
       frame.src='./invitation.html?rebuildPreview=1&ts='+Date.now();
