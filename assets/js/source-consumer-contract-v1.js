@@ -2,7 +2,7 @@
   'use strict';
   if(g.DiniSourceConsumerContract?.version)return;
 
-  const VERSION='1.0.0';
+  const VERSION='1.0.1';
   const CONTRACT_VERSION=1;
   const boundDocs=new WeakMap();
   const boundFrames=new WeakMap();
@@ -219,10 +219,10 @@
             const msgField=queryOne(form,'[data-dini-native-field-role="guestbook_message"]');
             if(msgField)msgField.value='';
             await loadGuestbook(doc,manifest,context).catch(()=>false);
-            form.dispatchEvent(new CustomEvent('dinifaqih:guestbook:success',{bubbles:true}));
+            const EventCtor=doc.defaultView?.CustomEvent||CustomEvent;form.dispatchEvent(new EventCtor('dinifaqih:guestbook:success',{bubbles:true}));
           }catch(err){
             form.setAttribute('data-dini-submit-state','error');
-            form.dispatchEvent(new CustomEvent('dinifaqih:guestbook:error',{bubbles:true,detail:{error:String(err?.message||err)}}));
+            const EventCtor=doc.defaultView?.CustomEvent||CustomEvent;form.dispatchEvent(new EventCtor('dinifaqih:guestbook:error',{bubbles:true,detail:{error:String(err?.message||err)}}));
           }finally{if(submit)submit.disabled=false}
         },true);
         bound++;
