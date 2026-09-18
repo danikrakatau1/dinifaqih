@@ -3,7 +3,7 @@
   if(window.__DINI_PUBLIC_SOURCE_TRUTH_RENDERER_V1__)return;
   window.__DINI_PUBLIC_SOURCE_TRUTH_RENDERER_V1__=true;
 
-  const VERSION='1.3.10';
+  const VERSION='1.3.11';
   const CFG=window.DINI_PUBLIC_ENTRY||{};
   const MODE=CFG.mode==='guest'?'guest':'public';
   const SB='https://jfvmcerrsxjvbiogfqes.supabase.co';
@@ -108,6 +108,23 @@
     doc.documentElement.setAttribute('data-dini-media-authority-map-size',String(map.size));
     return {html:'<!doctype html>\n'+doc.documentElement.outerHTML,count,mapSize:map.size};
   };
+
+  const deferHeavyGalleryBackgrounds=html=>{
+    const doc=new DOMParser().parseFromString(String(html||''),'text/html');
+    let count=0;
+    for(const el of doc.querySelectorAll('.e-gallery-image[data-thumbnail],[data-native-gallery-image][data-thumbnail]')){
+      const url=String(el.getAttribute('data-thumbnail')||'').trim();
+      if(!url)continue;
+      const inline=String(el.style.getPropertyValue('background-image')||'').trim();
+      if(!inline&&!el.getAttribute('style'))continue;
+      el.setAttribute('data-dini-gallery-bg',url);
+      el.setAttribute('data-dini-gallery-bg-deferred','1');
+      el.style.removeProperty('background-image');
+      count++;
+    }
+    if(count)doc.documentElement.setAttribute('data-dini-gallery-deferred-count',String(count));
+    return {html:'<!doctype html>\n'+doc.documentElement.outerHTML,count};
+  };
   const guestContractFromPackage=pkg=>{
     const m=pkg?.manifest||{},s=pkg?.snapshot||{};
     const candidates=[
@@ -204,8 +221,11 @@
     let html=ensureBase(pkg.html,pkg.manifest,String(row.source_path||''));
     const mediaPatch=reconcileSnapshotImageLinks(html,pkg.snapshot);
     html=mediaPatch.html;
+    const galleryPerf=deferHeavyGalleryBackgrounds(html);
+    html=galleryPerf.html;
     document.documentElement.dataset.publicMediaAuthorityPrepatched=String(mediaPatch.count||0);
     document.documentElement.dataset.publicMediaAuthorityMapSize=String(mediaPatch.mapSize||0);
+    document.documentElement.dataset.publicGalleryDeferred=String(galleryPerf.count||0);
     const blocks=[];
     const runtimeManifest=runtimeManifestFromPackage(pkg);
     blocks.push('<script src="'+localAsset('/assets/js/live-stream-contract-v1.js?v=101')+'"></script>');
@@ -216,6 +236,7 @@
       blocks.push('<script>document.documentElement.dataset.diniSourceTruthPublic="1";document.documentElement.dataset.diniPublicCompatibility="source-truth-exact-plus-runtime-compat";</script>');
       blocks.push('<script src="'+localAsset('/assets/js/icon-contract-v1.js?v=100')+'"></script>');
       blocks.push('<script src="'+localAsset('/assets/js/source-truth-runtime-compat-v1.js?v=123')+'"></script>');
+      if(galleryPerf.count)blocks.push('<script src="'+localAsset('/assets/js/gallery-performance-v1.js?v=100')+'"></script>');
     }else{
       if(pkg.authority){
         blocks.push('<script type="application/json" id="diniSnapshotAuthorityData">'+safeJson(pkg.authority)+'</script>');
@@ -291,5 +312,5 @@
     }
   })();
 
-  window.DINI_PUBLIC_SOURCE_TRUTH_RENDERER={VERSION,sourceTruthVersion,isSourceTruth,guestContractFromPackage,runtimeManifestFromPackage,layoutContractFromPackage,mediaReplacementMapFromSnapshot,reconcileSnapshotImageLinks};
+  window.DINI_PUBLIC_SOURCE_TRUTH_RENDERER={VERSION,sourceTruthVersion,isSourceTruth,guestContractFromPackage,runtimeManifestFromPackage,layoutContractFromPackage,mediaReplacementMapFromSnapshot,reconcileSnapshotImageLinks,deferHeavyGalleryBackgrounds};
 })();
