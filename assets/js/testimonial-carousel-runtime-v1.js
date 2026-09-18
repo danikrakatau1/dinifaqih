@@ -2,7 +2,7 @@
   'use strict';
   if(window.DINI_TESTIMONIAL_CAROUSEL_V1?.version)return;
 
-  const VERSION='1.0.0';
+  const VERSION='1.0.1';
   const clamp=(n,min,max)=>Math.min(max,Math.max(min,n));
   const parseSettings=el=>{
     try{return JSON.parse(el.getAttribute('data-settings')||'{}')||{}}catch{return{}}
@@ -14,49 +14,28 @@
     const wrapper=viewport?.querySelector(':scope > .swiper-wrapper');
     if(!viewport||!wrapper)return null;
 
-    const originals=[...wrapper.children].filter(el=>el.classList.contains('swiper-slide')&&!el.dataset.diniCarouselClone);
-    if(originals.length<2)return null;
+    const slides=[...wrapper.children].filter(el=>el.classList.contains('swiper-slide'));
+    if(slides.length<2)return null;
 
     widget.dataset.diniCarouselReady='1';
     const settings=parseSettings(widget);
-    const count=originals.length;
-    const speed=clamp(Number(settings.speed)||500,0,4000);
+    const count=slides.length;
+    const speed=clamp(Number(settings.speed)||500,180,900);
     const delay=Math.max(1200,Number(settings.autoplay_speed)||3000);
     const autoplay=String(settings.autoplay||'').toLowerCase()==='yes'||settings.autoplay===true;
     const loop=String(settings.loop||'').toLowerCase()==='yes'||settings.loop===true;
     const pauseOnHover=String(settings.pause_on_hover||'').toLowerCase()==='yes'||settings.pause_on_hover===true;
     const pauseOnInteraction=String(settings.pause_on_interaction||'').toLowerCase()==='yes'||settings.pause_on_interaction===true;
 
-    // Preserve source markup and styling; only supply the missing carousel motion contract.
     viewport.style.setProperty('overflow','hidden');
     viewport.style.setProperty('touch-action','pan-y');
-    wrapper.style.setProperty('display','flex');
-    wrapper.style.setProperty('will-change','transform');
-    originals.forEach(slide=>{
-      slide.style.setProperty('flex','0 0 100%');
-      slide.style.setProperty('width','100%');
-    });
+    wrapper.style.setProperty('display','block');
+    wrapper.style.removeProperty('transform');
+    wrapper.style.removeProperty('transition');
+    wrapper.style.removeProperty('will-change');
 
-    let virtualSlides=originals;
     let logical=0;
-    let physical=0;
-
-    if(loop){
-      const first=originals[0].cloneNode(true);
-      const last=originals[count-1].cloneNode(true);
-      first.dataset.diniCarouselClone='1';
-      last.dataset.diniCarouselClone='1';
-      first.setAttribute('aria-hidden','true');
-      last.setAttribute('aria-hidden','true');
-      first.style.setProperty('flex','0 0 100%');
-      first.style.setProperty('width','100%');
-      last.style.setProperty('flex','0 0 100%');
-      last.style.setProperty('width','100%');
-      wrapper.insertBefore(last,originals[0]);
-      wrapper.appendChild(first);
-      virtualSlides=[last,...originals,first];
-      physical=1;
-    }
+    let direction=1;
 
     const pagination=widget.querySelector('.swiper-pagination');
     let progressFill=null;
@@ -70,12 +49,35 @@
       }
     }
 
-    function updateA11y(){
-      originals.forEach((slide,i)=>{
+    function render(animate=true){
+      slides.forEach((slide,i)=>{
         const active=i===logical;
         slide.classList.toggle('swiper-slide-active',active);
         slide.setAttribute('aria-hidden',active?'false':'true');
+        slide.style.setProperty('width','100%');
+        slide.style.setProperty('max-width','100%');
+        slide.style.setProperty('flex','none');
+        slide.style.setProperty('display',active?'block':'none','important');
+        if(active){
+          slide.style.setProperty('opacity','1','important');
+          slide.style.setProperty('visibility','visible','important');
+        }
       });
+
+      const active=slides[logical];
+      if(animate&&active?.animate){
+        try{
+          const x=direction>0?14:-14;
+          active.animate(
+            [
+              {opacity:.25,transform:'translate3d('+x+'px,0,0)'},
+              {opacity:1,transform:'translate3d(0,0,0)'}
+            ],
+            {duration:speed,easing:'cubic-bezier(.22,.61,.36,1)'}
+          );
+        }catch{}
+      }
+
       widget.dataset.diniCarouselIndex=String(logical);
       if(progressFill){
         const ratio=(logical+1)/count;
@@ -84,45 +86,11 @@
       }
     }
 
-    function translate(animate=true){
-      wrapper.style.setProperty('transition-property','transform');
-      wrapper.style.setProperty('transition-timing-function','ease');
-      wrapper.style.setProperty('transition-duration',animate?speed+'ms':'0ms');
-      wrapper.style.setProperty('transform','translate3d('+(-physical*100)+'%,0,0)');
-      updateA11y();
-    }
-
-    function settleLoop(){
-      if(!loop)return;
-      if(physical===0){
-        physical=count;
-        logical=count-1;
-        translate(false);
-      }else if(physical===count+1){
-        physical=1;
-        logical=0;
-        translate(false);
-      }
-    }
-
-    let settleTimer=0;
-    function goTo(nextLogical,direction=1,user=false){
-      clearTimeout(settleTimer);
-      if(loop){
-        if(direction>0&&logical===count-1){
-          logical=0; physical=count+1;
-        }else if(direction<0&&logical===0){
-          logical=count-1; physical=0;
-        }else{
-          logical=(nextLogical+count)%count;
-          physical=logical+1;
-        }
-      }else{
-        logical=clamp(nextLogical,0,count-1);
-        physical=logical;
-      }
-      translate(true);
-      settleTimer=setTimeout(settleLoop,speed+34);
+    function goTo(nextLogical,dir=1,user=false){
+      direction=dir;
+      if(loop) logical=(nextLogical+count)%count;
+      else logical=clamp(nextLogical,0,count-1);
+      render(true);
       if(user)onUserInteraction();
     }
 
@@ -155,8 +123,6 @@
       if(pauseOnInteraction){
         interactionPaused=true;
         stopAuto();
-        // Source behavior pauses on interaction, but resume after a calm period so
-        // the carousel does not become permanently static after one swipe/click.
         setTimeout(()=>{interactionPaused=false;schedule()},Math.max(delay,4500));
       }else schedule();
     }
@@ -169,7 +135,10 @@
     let startX=0,startY=0,lastX=0,lastY=0,dragging=false,startTime=0;
     viewport.addEventListener('pointerdown',e=>{
       if(e.pointerType==='mouse'&&e.button!==0)return;
-      startX=lastX=e.clientX;startY=lastY=e.clientY;startTime=performance.now();dragging=true;
+      startX=lastX=e.clientX;
+      startY=lastY=e.clientY;
+      startTime=performance.now();
+      dragging=true;
       try{viewport.setPointerCapture(e.pointerId)}catch{}
     },{passive:true});
     viewport.addEventListener('pointermove',e=>{
@@ -192,8 +161,7 @@
 
     if('IntersectionObserver' in window){
       const io=new IntersectionObserver(entries=>{
-        const entry=entries[0];
-        visible=!!entry?.isIntersecting;
+        visible=!!entries[0]?.isIntersecting;
         if(visible)schedule();else stopAuto();
       },{threshold:0.05});
       io.observe(widget);
@@ -201,8 +169,7 @@
 
     document.addEventListener('visibilitychange',()=>{if(document.hidden)stopAuto();else schedule()});
 
-    // First frame: exact first authored story.
-    translate(false);
+    render(false);
     schedule();
 
     return {widget,count,next,prev,get index(){return logical}};
