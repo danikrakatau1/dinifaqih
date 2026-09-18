@@ -72,12 +72,13 @@
     const links=unique([...doc.querySelectorAll('a[href]')].map(a=>a.href).filter(Boolean));
     const sections=[...doc.querySelectorAll('section,.elementor-top-section')];
     const forms=[...doc.querySelectorAll('form')];
+    const icons=window.DINI_ICON_CONTRACT_V1?.scanDocument(doc,{markNodes:false})||[];
     const customScripts=[...doc.scripts].filter(s=>!s.src&&!s.hasAttribute('data-dini-source-js-inert')&&cleanText(s.textContent).length>80).length;
     const externalScripts=[...doc.scripts].filter(s=>/^https?:/i.test(s.src)).map(s=>s.src);
     const canvas=doc.querySelectorAll('canvas').length;
     const iframes=doc.querySelectorAll('iframe').length;
     const elementor=!!doc.querySelector('.elementor,.elementor-section,[data-elementor-type]') || /elementor/i.test(html);
-    const detected={sections:sections.length,texts:allText.length,images:imgs.length,backgrounds:unique(bg).length,videos:videos.length,audios:audios.length,links:links.length,forms:forms.length,animations:unique(animations).length,canvas,iframes,customScripts,externalScripts:externalScripts.length,elementor,embeddedCss:embeddedAudit?.counts?.css||0,embeddedJs:embeddedAudit?.counts?.javascript||0,embeddedBytes:embeddedAudit?.counts?.bytes||0};
+    const detected={sections:sections.length,texts:allText.length,images:imgs.length,backgrounds:unique(bg).length,videos:videos.length,audios:audios.length,links:links.length,forms:forms.length,icons:icons.length,animations:unique(animations).length,canvas,iframes,customScripts,externalScripts:externalScripts.length,elementor,embeddedCss:embeddedAudit?.counts?.css||0,embeddedJs:embeddedAudit?.counts?.javascript||0,embeddedBytes:embeddedAudit?.counts?.bytes||0};
     const unsupported=canvas+iframes+Math.min(customScripts,5);
     let parity=68;
     if(elementor) parity+=14;
@@ -280,6 +281,20 @@
     [...doc.querySelectorAll('audio')].forEach((node,i)=>{let v=node.getAttribute('src')||node.querySelector('source')?.getAttribute('src')||'';addField(node,'audio',`Audio ${i+1}`,abs(v,base),'src')});
     // URLs. Do not duplicate open invitation href="#" as a meaningful link.
     [...doc.querySelectorAll('a[href]')].forEach((node,i)=>{if(node.hasAttribute('data-native-gallery-item'))return;const v=node.getAttribute('href')||'';if(v&&v!=='#'&&!/^javascript:/i.test(v))addField(node,'url',short(node.textContent)||`Link ${i+1}`,abs(v,base),'href')});
+    // Universal Icon Contract V1 — icons become first-class source-native fields.
+    const iconRows=window.DINI_ICON_CONTRACT_V1?.scanDocument(doc,{markNodes:true})||[];
+    iconRows.forEach(({node,meta},i)=>{
+      addField(node,'icon',meta.label||`Icon ${i+1}`,meta.value||meta.class_name||'','class',{
+        icon_contract_version:1,
+        icon_role:meta.role||'custom',
+        icon_library:meta.library||'icon-font',
+        icon_class:meta.class_name||'',
+        icon_tag:meta.tag||String(node.tagName||'').toLowerCase(),
+        icon_href:meta.href||'',
+        preserve_source_style:true,
+        preserve_source_link:true
+      });
+    });
     // Form placeholders.
     [...doc.querySelectorAll('input[placeholder],textarea[placeholder]')].forEach((node,i)=>addField(node,'placeholder',`Placeholder ${i+1}`,node.getAttribute('placeholder')||'','placeholder'));
     // Countdown/date targets exposed as one editable datetime source.
@@ -692,7 +707,9 @@ document.querySelectorAll('[data-native-reveal]').forEach(el=>io.observe(el));
 })();`;
     doc.body.appendChild(safe);
     window.DiniVisualResolver?.sanitizeIdentity(doc,{title:'Dini Anif — '+(doc.querySelector('h1,h2')?.textContent?.trim()||'Template'),favicon:'/assets/favicon.svg'});
-    lastNativeSchema={version:5,mode:'source-native-dynamic',resolver:'dini-source-graph-v3',section_count:nativeSections.length,field_count:nativeFields.length,sections:nativeSections,fields:nativeFields};
+    const iconManifest=window.DINI_ICON_CONTRACT_V1?.manifestFromFields(nativeFields)||{version:1,contract:'dini-universal-icon-v1',count:0,roles:[],libraries:[],icons:[]};
+    if(lastSourceGraph&&typeof lastSourceGraph==='object')lastSourceGraph.icon_contract=iconManifest;
+    lastNativeSchema={version:6,mode:'source-native-dynamic',resolver:'dini-source-graph-v3',icon_contract:iconManifest,section_count:nativeSections.length,field_count:nativeFields.length,sections:nativeSections,fields:nativeFields};
     return '<!doctype html>\n'+doc.documentElement.outerHTML;
   }
 
@@ -706,7 +723,7 @@ document.querySelectorAll('[data-native-reveal]').forEach(el=>io.observe(el));
     const external=v.filter(x=>x.source_location==='external-css');
     return {version:3,visuals:v.length,external_css_layers:external.length,responsive_layers:external.filter(x=>x.media_query).length,pseudo_layers:v.filter(x=>x.pseudo).length,overlay_layers:v.filter(x=>x.type==='overlay'||x.semantic_role==='cover-decoration').length,source_bound:external.filter(x=>x.source_key&&x.css_selector&&x.owner_selector).length,ambiguous_targets:external.filter(x=>Number(x.target_count||0)>1).length,policy:graph?.policy||{}};
   }
-  function sourceNativeSchema(a){ return lastNativeSchema || {version:5,mode:'source-native-dynamic',section_count:0,sections:[],fields:[]}; }
+  function sourceNativeSchema(a){ return lastNativeSchema || {version:6,mode:'source-native-dynamic',icon_contract:{version:1,contract:'dini-universal-icon-v1',count:0,roles:[],libraries:[],icons:[]},section_count:0,sections:[],fields:[]}; }
 
 
   function mapToBlueprint(a){
@@ -742,7 +759,7 @@ document.querySelectorAll('[data-native-reveal]').forEach(el=>io.observe(el));
 
   function reportRows(a){
     const D=a.detected;
-    const rows=[['Framework',D.elementor?'Elementor / WordPress terdeteksi':'Generic HTML'],['Sections',D.sections],['Text nodes',D.texts],['Images',D.images],['Backgrounds',D.backgrounds],['Video',D.videos],['Music/Audio',D.audios],['Links',D.links],['Forms',D.forms],['Animations',D.animations],['Embedded CSS',D.embeddedCss||0],['Embedded JS (inert)',D.embeddedJs||0],['Canvas',D.canvas],['Iframes',D.iframes],['Custom scripts',D.customScripts]];
+    const rows=[['Framework',D.elementor?'Elementor / WordPress terdeteksi':'Generic HTML'],['Sections',D.sections],['Text nodes',D.texts],['Images',D.images],['Backgrounds',D.backgrounds],['Video',D.videos],['Music/Audio',D.audios],['Links',D.links],['Forms',D.forms],['Icons',D.icons||0],['Animations',D.animations],['Embedded CSS',D.embeddedCss||0],['Embedded JS (inert)',D.embeddedJs||0],['Canvas',D.canvas],['Iframes',D.iframes],['Custom scripts',D.customScripts]];
     $('#detectList').classList.remove('empty');$('#detectList').innerHTML=rows.map(([k,v])=>`<div class="detect-row"><b>${k}</b><span>${v}</span></div>`).join('');
   }
   function setAnalysis(a){
@@ -761,7 +778,7 @@ document.querySelectorAll('[data-native-reveal]').forEach(el=>io.observe(el));
     lastCoverDecorAudit={version:'2.26',embedded:false,preserved:!!lastCriticalCssAudit?.preserved,bytes:lastCriticalCssAudit?.bytes||0,stylesheets:lastCriticalCssAudit?.stylesheets||0,rules:lastCriticalCssAudit?.rules||0,reason:lastCriticalCssAudit?.preserved?'source-graph-v3-css-cascade-preserved':'source-graph-no-flatten'};
     const nativeSchema=sourceNativeSchema(analysis);
     rebuild={
-      manifest:{format:'dini-anif-rebuild-package',version:3,engine:'source-native-rebuild-v2.26-smart-source-ownership',created_at:new Date().toISOString(),invitation_id:(globalThis.crypto?.randomUUID?.()||('inv-'+Date.now()+'-'+Math.random().toString(36).slice(2))),template:'source-native',source_url:sourceBaseUrl||'',visual_manifest:lastVisualManifest,source_graph:lastSourceGraph,layout_topology:lastSourceGraph?.layout||null,semantic_diagnostics:lastSourceGraph?.semantic_diagnostics||null,embedded_data:analysis.embeddedAudit?.scan||null,identity_sanitized:true},
+      manifest:{format:'dini-anif-rebuild-package',version:3,engine:'source-native-rebuild-v2.26-smart-source-ownership',created_at:new Date().toISOString(),invitation_id:(globalThis.crypto?.randomUUID?.()||('inv-'+Date.now()+'-'+Math.random().toString(36).slice(2))),template:'source-native',source_url:sourceBaseUrl||'',visual_manifest:lastVisualManifest,source_graph:lastSourceGraph,icon_contract:nativeSchema?.icon_contract||null,layout_topology:lastSourceGraph?.layout||null,semantic_diagnostics:lastSourceGraph?.semantic_diagnostics||null,embedded_data:analysis.embeddedAudit?.scan||null,identity_sanitized:true},
       schema:{editable_coverage:100,mode:'source-native',native:nativeSchema,legacy_groups:['cover','motionHero','couple','saveDate','event','live','gallery','story','gift','rsvp','wishes','closing','brand','media','backgrounds']},
       data,
       native:{html:nativeHtml,schema:nativeSchema,source_url:sourceBaseUrl||''},
@@ -787,7 +804,8 @@ document.querySelectorAll('[data-native-reveal]').forEach(el=>io.observe(el));
       const bgCount=sectionFields.filter(f=>f.kind==='background').length;
       const videoCount=sectionFields.filter(f=>f.kind==='video').length;
       const textCount=sectionFields.filter(f=>f.kind==='text').length;
-      return `<div class="mapping-group"><strong>✓ ${label}</strong><small>${textCount} text · ${imageCount} image · ${bgCount} bg · ${videoCount} video</small></div>`;
+      const iconCount=sectionFields.filter(f=>f.kind==='icon').length;
+      return `<div class="mapping-group"><strong>✓ ${label}</strong><small>${textCount} text · ${imageCount} image · ${bgCount} bg · ${videoCount} video · ${iconCount} icon</small></div>`;
     }).join('');
     $('#mappingTree').innerHTML=rows+(safeSections.length>18?`<div class="mapping-group"><strong>+ ${safeSections.length-18} section lainnya</strong><small>source-native mapping</small></div>`:'');
     previewBtn.classList.remove('disabled');downloadBtn.disabled=false;$('#studioMessage').textContent='Source-Native Rebuild siap ✓ · Source Graph V3 · Engine V2.26 · Runtime V1.4.6. Struktur dan visual berasal dari source yang sedang di-Fetch.';
@@ -803,7 +821,7 @@ document.querySelectorAll('[data-native-reveal]').forEach(el=>io.observe(el));
       {name:'source-report.json',data:JSON.stringify(p.report,null,2)},
       {name:'source-native.html',data:p.native?.html||''},
       {name:'native-schema.json',data:JSON.stringify(p.native?.schema||{},null,2)},
-      {name:'visual-manifest.json',data:JSON.stringify(p.manifest?.visual_manifest||{version:2,sources:[]},null,2)},{name:'source-graph.json',data:JSON.stringify(p.manifest?.source_graph||{version:2,visuals:[],interactions:[]},null,2)},{name:'layout-topology.json',data:JSON.stringify(p.manifest?.layout_topology||p.manifest?.source_graph?.layout||{version:1,topology:'unclassified'},null,2)},{name:'behavior-adapters.json',data:JSON.stringify(p.manifest?.runtime_manifest?.behavior_adapters||p.manifest?.source_graph?.behavior_adapters||{},null,2)},{name:'semantic-components.json',data:JSON.stringify(p.manifest?.runtime_manifest?.semantic_components||p.manifest?.source_graph?.semantic_components||{},null,2)},{name:'semantic-repeaters.json',data:JSON.stringify(p.manifest?.runtime_manifest?.semantic_components?.repeaters_v1||p.manifest?.source_graph?.semantic_components?.repeaters_v1||{version:1,events:[],countdown_displays:[],repeaters:[]},null,2)},{name:'native-form-components.json',data:JSON.stringify(p.manifest?.runtime_manifest?.semantic_components?.native_forms_v1||p.manifest?.source_graph?.semantic_components?.native_forms_v1||{version:1,forms:[],copy_actions:[],gift_accounts:[],guestbook_surfaces:[]},null,2)},{name:'semantic-diagnostics.json',data:JSON.stringify(p.manifest?.semantic_diagnostics||p.manifest?.source_graph?.semantic_diagnostics||{version:1,warnings:[],counts:{}},null,2)},{name:'embedded-data.json',data:JSON.stringify(p.manifest?.embedded_data||{version:1,resources:[],counts:{}},null,2)},
+      {name:'visual-manifest.json',data:JSON.stringify(p.manifest?.visual_manifest||{version:2,sources:[]},null,2)},{name:'icon-contract.json',data:JSON.stringify(p.manifest?.icon_contract||p.native?.schema?.icon_contract||{version:1,count:0,icons:[]},null,2)},{name:'source-graph.json',data:JSON.stringify(p.manifest?.source_graph||{version:2,visuals:[],interactions:[]},null,2)},{name:'layout-topology.json',data:JSON.stringify(p.manifest?.layout_topology||p.manifest?.source_graph?.layout||{version:1,topology:'unclassified'},null,2)},{name:'behavior-adapters.json',data:JSON.stringify(p.manifest?.runtime_manifest?.behavior_adapters||p.manifest?.source_graph?.behavior_adapters||{},null,2)},{name:'semantic-components.json',data:JSON.stringify(p.manifest?.runtime_manifest?.semantic_components||p.manifest?.source_graph?.semantic_components||{},null,2)},{name:'semantic-repeaters.json',data:JSON.stringify(p.manifest?.runtime_manifest?.semantic_components?.repeaters_v1||p.manifest?.source_graph?.semantic_components?.repeaters_v1||{version:1,events:[],countdown_displays:[],repeaters:[]},null,2)},{name:'native-form-components.json',data:JSON.stringify(p.manifest?.runtime_manifest?.semantic_components?.native_forms_v1||p.manifest?.source_graph?.semantic_components?.native_forms_v1||{version:1,forms:[],copy_actions:[],gift_accounts:[],guestbook_surfaces:[]},null,2)},{name:'semantic-diagnostics.json',data:JSON.stringify(p.manifest?.semantic_diagnostics||p.manifest?.source_graph?.semantic_diagnostics||{version:1,warnings:[],counts:{}},null,2)},{name:'embedded-data.json',data:JSON.stringify(p.manifest?.embedded_data||{version:1,resources:[],counts:{}},null,2)},
       {name:'README.txt',data:'DINI ANIF REBUILD PACKAGE V2.26 — SMART SOURCE OWNERSHIP\n\nBuka /dashboard-admin-edit untuk melanjutkan edit, atau import ZIP hasil Fetch secara manual.\nLayout/motion blueprint terkunci; konten dapat diedit setelah import.\n'}
     ];
     return window.UNDANGAN_ZIP.buildZip(entries);

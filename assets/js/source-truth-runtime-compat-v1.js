@@ -3,7 +3,7 @@
   if(window.__DINI_SOURCE_TRUTH_RUNTIME_COMPAT_V1__)return;
   window.__DINI_SOURCE_TRUTH_RUNTIME_COMPAT_V1__=true;
 
-  const VERSION='1.1.1';
+  const VERSION='1.2.0';
   const MOBILE_MAX=767;
   const boundDocs=new WeakMap();
   const boundFrames=new WeakSet();
@@ -69,6 +69,7 @@
   }
 
   function generalIconRole(icon){
+    const shared=window.DINI_ICON_CONTRACT_V1?.role?.(icon);if(shared&&shared!=='custom')return shared;
     const sig=lower(`${icon?.className||''} ${icon?.getAttribute?.('aria-label')||''} ${icon?.getAttribute?.('title')||''}`);
     if(/instagram/.test(sig))return'instagram';
     if(/whatsapp/.test(sig))return'whatsapp';
@@ -81,12 +82,14 @@
     if(/envelope|mail/.test(sig))return'mail';
     if(/phone|mobile-alt|telephone/.test(sig))return'phone';
     if(/music|musical-note/.test(sig))return'music';
-    if(/\bfa-play\b|\beicon-play\b/.test(sig))return'play';
-    if(/\bfa-pause\b|\beicon-pause\b/.test(sig))return'pause';
-    if(/chevron-down|angle-down/.test(sig))return'down';
-    if(/chevron-up|angle-up/.test(sig))return'up';
-    if(/chevron-left|angle-left/.test(sig))return'left';
-    if(/chevron-right|angle-right/.test(sig))return'right';
+    if(/camera/.test(sig))return'camera';
+    if(/\bfa-play(?:-circle)?\b|\beicon-play(?:-circle)?\b/.test(sig))return'play';
+    if(/\bfa-pause(?:-circle)?\b|\beicon-pause(?:-circle)?\b/.test(sig))return'pause';
+    if(/chevron-down|angle-down|caret-down/.test(sig))return'down';
+    if(/chevron-up|angle-up|caret-up/.test(sig))return'up';
+    if(/chevron-left|angle-left|caret-left/.test(sig))return'left';
+    if(/chevron-right|angle-right|caret-right/.test(sig))return'right';
+    if(/\bfa-link\b|social-icon-link/.test(sig))return'link';
     return'';
   }
 
@@ -103,6 +106,8 @@
     if(role==='mail')return `<svg ${common}><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="m4 7 8 6 8-6"></path></svg>`;
     if(role==='phone')return `<svg ${common}><path d="M7 3h3l1 4-2 1c1.1 2.4 2.6 3.9 5 5l1-2 4 1v3c0 1.1-.9 2-2 2C9.8 17 7 14.2 7 7c0-1.1.9-2 2-2"></path></svg>`;
     if(role==='music')return `<svg ${common}><path d="M9 18V6l10-2v12"></path><circle cx="6" cy="18" r="3"></circle><circle cx="16" cy="16" r="3"></circle></svg>`;
+    if(role==='camera')return `<svg ${common}><path d="M4 7h4l1.5-2h5L16 7h4v12H4Z"></path><circle cx="12" cy="13" r="3.5"></circle></svg>`;
+    if(role==='link')return `<svg ${common}><path d="M10 13a5 5 0 0 0 7.1.1l2-2A5 5 0 0 0 12 4l-1.1 1.1"></path><path d="M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1"></path></svg>`;
     if(role==='play')return `<svg ${common} class="dini-general-fill"><path d="M8 5v14l11-7Z"></path></svg>`;
     if(role==='pause')return `<svg ${common} class="dini-general-fill"><path d="M7 5h4v14H7zM13 5h4v14h-4z"></path></svg>`;
     if(role==='down')return `<svg ${common}><path d="m6 9 6 6 6-6"></path></svg>`;
@@ -135,6 +140,7 @@
     if(!doc?.querySelectorAll)return 0;
     ensureStyle(doc);
     let patched=0;
+    window.DINI_ICON_CONTRACT_V1?.scanDocument?.(doc,{markNodes:true});
     const nodes=doc.querySelectorAll('i[class*="fa-"],i[class*="eicon-"],span[class*="fa-"],span[class*="eicon-"]');
     for(const icon of nodes){
       const role=generalIconRole(icon);if(!role)continue;

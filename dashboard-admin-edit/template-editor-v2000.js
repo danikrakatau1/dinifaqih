@@ -100,7 +100,7 @@
     let stack=[];try{stack=doc.elementsFromPoint(x,y)||[]}catch{}
     stack.forEach((n,i)=>{add(n,i);let p=n.parentElement,c=0;while(p&&c++<6){add(p,i+c/10);p=p.parentElement}});
     if(target){let p=target,c=0;while(p&&c++<8){add(p,-10+c/10);p=p.parentElement}}
-    const rank=({f,depth})=>{let s=0;if(target?.matches?.('img')&&f.kind==='image')s+=500;if(f.kind==='text')s+=250;else if(f.kind==='image')s+=200;else if(f.kind==='background')s+=150;else s+=60;if(f.source_location==='external-css')s-=10;s-=Math.max(0,depth)*2;return s};
+    const rank=({f,depth})=>{let s=0;if(target?.matches?.('img')&&f.kind==='image')s+=500;if(f.kind==='icon'&&target?.closest?.(`[data-native-edit-id="${cssEsc(f.id)}"],[data-native-edit-ids~="${cssEsc(f.id)}"]`))s+=480;if(f.kind==='icon')s+=300;else if(f.kind==='text')s+=250;else if(f.kind==='image')s+=200;else if(f.kind==='background')s+=150;else s+=60;if(f.source_location==='external-css')s-=10;s-=Math.max(0,depth)*2;return s};
     return found.sort((a,b)=>rank(b)-rank(a)).map(x=>x.f);
   }
 
@@ -133,6 +133,8 @@
           if(runtime){let arr=[];try{arr=JSON.parse(runtime.getAttribute('data-native-slideshow-urls')||'[]')}catch{};const i=Number(f.slide_index)||0;arr[i]=value;runtime.setAttribute('data-native-slideshow-urls',JSON.stringify(arr));const slides=[...runtime.querySelectorAll?.('[data-native-slide-bg],.swiper-slide-bg')||[]];if(slides[i])setBg(slides[i],value);else slides.forEach(x=>setBg(x,value))}
         }else setBg(n,value)
       }
+    }else if(f.kind==='icon'){
+      for(const n of nodes){if(window.DINI_ICON_CONTRACT_V1?.applyNode)window.DINI_ICON_CONTRACT_V1.applyNode(n,value,f);else if(value)n.setAttribute('class',String(value))}
     }else if(f.kind==='url'){
       for(const n of nodes){const a=n.matches?.('a,[href]')?n:n.querySelector?.('a,[href]');if(a)a.setAttribute('href',value)}
     }else if(f.kind==='placeholder'){
@@ -202,6 +204,7 @@
     if(!f){inspector.className='inspector-empty';inspector.textContent='Klik elemen di preview atau pilih field dari panel kiri.';badge.textContent='Belum ada elemen';return}
     selectedId=f.id;badge.textContent=`${f.kind.toUpperCase()} · ${f.label||f.id}`;const v=valueOf(f);let control='';
     if(f.kind==='text')control=`<textarea id="v2val" rows="5" style="width:100%">${escHtml(v)}</textarea><button id="v2set">Terapkan Teks</button>`;
+    else if(f.kind==='icon')control=`<div style="font-size:12px;display:grid;gap:5px"><strong>${escHtml(f.icon_role||'custom')} · ${escHtml(f.icon_library||'icon-font')}</strong><small style="opacity:.72">Icon source-native. Class, posisi, warna dan link asal dipertahankan.</small></div><input id="v2val" type="text" style="width:100%" value="${escHtml(v)}"><button id="v2set">Terapkan Icon Class</button>`;
     else if(['image','background','video','audio'].includes(f.kind)){
       const t=transformOf(f)||{};const zoom=Number(t.zoom??t.scale??1);
       control=`<div style="font-size:11px;opacity:.72;word-break:break-all">${escHtml(v)}</div><button id="v2upload">Upload / Ganti</button><button id="v2delete" style="border-color:#a33;color:#ffb3b3">Hapus</button>${['image','background'].includes(f.kind)?`<div class="media-controls"><label>Posisi X <input id="tx" type="range" min="0" max="100" value="${Number(t.x??50)}"></label><label>Posisi Y <input id="ty" type="range" min="0" max="100" value="${Number(t.y??50)}"></label><label>Zoom <input id="tz" type="range" min="25" max="300" value="${Math.round(zoom*100)}"></label>${f.kind==='image'?`<label>Rotate <input id="tr" type="range" min="-180" max="180" value="${Number(t.rotate??0)}"></label>`:''}<label>Fit <select id="tf"><option>cover</option><option>contain</option><option>fill</option></select></label><button id="treset">Reset Transform</button></div>`:''}`;
