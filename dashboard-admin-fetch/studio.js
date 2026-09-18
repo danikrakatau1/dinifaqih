@@ -236,7 +236,7 @@
     });
     // Images and media.
     [...doc.querySelectorAll('img')].forEach((node,i)=>{const v=node.getAttribute('data-src')||node.getAttribute('data-lazy-src')||node.getAttribute('src')||'';addField(node,'image',node.getAttribute('alt')||`Foto ${i+1}`,abs(v,base),'src',{media_role:'image'});});
-    // V1.7.6 — GALLERY 8-SLOT HYDRATION + ACTION-HASH RECOVERY.
+    // Gallery hydration + action-hash recovery. P1-C runtime owns source-specific layout/lightbox semantics.
     // Elementor gallery can hide the real file URL inside data-e-action-hash while data-thumbnail
     // is only a transparent 1x1 placeholder. Recover the authored URL and bind each item by index.
     const galleryPlaceholder=u=>{
@@ -271,8 +271,8 @@
       const f=addField(node,'background',`Foto Galeri ${i+1}`,v,'style.backgroundImage',{media_role:'gallery',gallery_index:i});
       if(parent){const ids=(parent.getAttribute('data-native-media-proxy')||'').split(/[\s,]+/).filter(Boolean);if(!ids.includes(f.id))ids.push(f.id);parent.setAttribute('data-native-media-proxy',ids.join(','));}
     });
-    // Elementor's gallery layout JS is intentionally stripped from rebuilt source. Recreate the
-    // source-like 3-column composition deterministically so all 8 items remain visible/editable.
+    // Elementor's gallery JS is intentionally stripped. Mark the root for a neutral static fallback;
+    // P1-C applies source-authored grid/masonry/justified settings at runtime.
     [...doc.querySelectorAll('.elementor-gallery__container')].forEach(root=>{
       if(!root.querySelector('[data-native-gallery-item]'))return;root.setAttribute('data-native-gallery-root','1');
     });
@@ -468,14 +468,12 @@ html,body{margin:0;min-height:100%;}
 /* V1.5.7: never let a synthesized empty slideshow cover the invitation. Source CSS remains authoritative for fixed geometry. */
 .elementor-background-slideshow[data-native-slideshow][data-native-empty="1"]{display:none!important}
 [data-native-gallery-image]{background-repeat:no-repeat;background-position:center center;background-size:cover}
-/* V1.7.6: Elementor Gallery JS replacement — source-like 8-slot layout. */
-[data-native-gallery-root]{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:10px!important;height:auto!important;align-items:stretch!important}
-[data-native-gallery-root] > [data-native-gallery-item]{position:relative!important;inset:auto!important;width:auto!important;height:auto!important;min-width:0!important;overflow:hidden!important;display:block!important}
-[data-native-gallery-root] > [data-native-gallery-item]:first-child{grid-column:span 2}
-[data-native-gallery-root] [data-native-gallery-image]{position:relative!important;inset:auto!important;width:100%!important;height:auto!important;min-height:0!important;aspect-ratio:var(--native-gallery-ratio,2/3)!important}
-[data-native-gallery-root] > [data-native-gallery-item]:first-child [data-native-gallery-image]{aspect-ratio:1152/968!important}
+/* Neutral gallery fallback. P1-C source gallery adapter overrides layout from source settings. */
+[data-native-gallery-root]:not([data-dini-gallery-ready]){display:grid!important;grid-template-columns:repeat(auto-fit,minmax(120px,1fr))!important;gap:10px!important;height:auto!important;align-items:stretch!important}
+[data-native-gallery-root] > [data-native-gallery-item]{position:relative!important;inset:auto!important;width:auto!important;height:auto!important;min-width:0!important;overflow:hidden!important;display:block!important;grid-column:auto!important}
+[data-native-gallery-root] [data-native-gallery-image]{position:relative!important;inset:auto!important;width:100%!important;height:auto!important;min-height:0!important;aspect-ratio:var(--native-gallery-ratio,1/1)!important}
 [data-native-gallery-root] .elementor-gallery-item__overlay{position:absolute!important;inset:0!important}
-@media(max-width:560px){[data-native-gallery-root]{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:8px!important}}
+@media(max-width:560px){[data-native-gallery-root]:not([data-dini-gallery-ready]){grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}}
 `;
     doc.head.appendChild(style);
     // Mark source-defined animations using exact responsive ownership, including explicit "none".
