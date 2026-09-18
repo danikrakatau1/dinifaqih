@@ -2,7 +2,7 @@
   'use strict';
   if(g.DiniSemanticManifest?.version)return;
 
-  const VERSION='1.7.0';
+  const VERSION='1.8.0';
   const MANIFEST_VERSION=1;
   const REPEATER_CONTRACT_VERSION=1;
   const COMPONENT_IDENTITY_VERSION=1;
@@ -359,6 +359,13 @@
     if(Number(gal?.counts?.masonry||0)>0)set.add('gallery-masonry');
     if(Number(gal?.counts?.justified||0)>0)set.add('gallery-justified');
     if(Number(gal?.counts?.lightbox||0)>0)set.add('gallery-lightbox');
+    const bg=sourceGraph?.behavior_adapters?.background_lifecycle;
+    if(Number(bg?.counts?.slideshows||0)>0)set.add('background-slideshow');
+    if(Number(bg?.counts?.fade||0)>0)set.add('background-slideshow-fade');
+    if(Number(bg?.counts?.slide_left||0)>0)set.add('background-slideshow-slide-left');
+    if(Number(bg?.counts?.slide_right||0)>0)set.add('background-slideshow-slide-right');
+    if(Number(bg?.counts?.ken_burns||0)>0)set.add('background-ken-burns');
+    if(bg?.lazy_background?.enabled)set.add('elementor-lazy-background');
     return [...set].sort();
   }
 
@@ -411,7 +418,14 @@
         gallery_items:Number(sourceGraph?.behavior_adapters?.gallery?.counts?.items||0),
         gallery_masonry:Number(sourceGraph?.behavior_adapters?.gallery?.counts?.masonry||0),
         gallery_justified:Number(sourceGraph?.behavior_adapters?.gallery?.counts?.justified||0),
-        gallery_lightbox:Number(sourceGraph?.behavior_adapters?.gallery?.counts?.lightbox||0)
+        gallery_lightbox:Number(sourceGraph?.behavior_adapters?.gallery?.counts?.lightbox||0),
+        background_slideshows:Number(sourceGraph?.behavior_adapters?.background_lifecycle?.counts?.slideshows||0),
+        background_frames:Number(sourceGraph?.behavior_adapters?.background_lifecycle?.counts?.frames||0),
+        background_fade:Number(sourceGraph?.behavior_adapters?.background_lifecycle?.counts?.fade||0),
+        background_slide_left:Number(sourceGraph?.behavior_adapters?.background_lifecycle?.counts?.slide_left||0),
+        background_slide_right:Number(sourceGraph?.behavior_adapters?.background_lifecycle?.counts?.slide_right||0),
+        background_ken_burns:Number(sourceGraph?.behavior_adapters?.background_lifecycle?.counts?.ken_burns||0),
+        lazy_background_contract:sourceGraph?.behavior_adapters?.background_lifecycle?.lazy_background?.enabled?1:0
       },
       layout:{topology:layout?.topology||'unclassified',confidence:Number(layout?.confidence||0),viewport_policy:layout?.runtime?.viewport_policy||'canonical-content'},
       semantic:semanticDiagnostics
@@ -508,6 +522,12 @@
         gallery_source_order_preserved:true,
         gallery_lightbox_group_isolation:true,
         gallery_source_urls_preserved:true,
+        background_lifecycle_contract_version:Number(behaviorAdapters?.background_lifecycle?.version||0),
+        background_exact_slide_duration:true,
+        background_exact_transition_duration:true,
+        background_transition_mode_preserved:true,
+        background_ken_burns_preserved:true,
+        elementor_lazy_background_lifecycle:true,
         consumer_contract_version:0
       },
       runtime_policy:{
@@ -532,7 +552,10 @@
         carousel_execution:'semantic-swiper-bridge-no-source-api-dependency',
         carousel_cross_instance_mutation:false,
         gallery_execution:'semantic-layout-and-lightbox-adapter',
-        gallery_cross_instance_mutation:false
+        gallery_cross_instance_mutation:false,
+        background_execution:'semantic-slideshow-and-lazy-lifecycle',
+        background_duration_normalization:false,
+        background_cross_instance_mutation:false
       },
       diagnostics
     };
@@ -600,6 +623,13 @@
       gallery_masonry:runtimeManifest.diagnostics?.counts?.gallery_masonry||0,
       gallery_justified:runtimeManifest.diagnostics?.counts?.gallery_justified||0,
       gallery_lightbox:runtimeManifest.diagnostics?.counts?.gallery_lightbox||0,
+      background_slideshows:runtimeManifest.diagnostics?.counts?.background_slideshows||0,
+      background_frames:runtimeManifest.diagnostics?.counts?.background_frames||0,
+      background_fade:runtimeManifest.diagnostics?.counts?.background_fade||0,
+      background_slide_left:runtimeManifest.diagnostics?.counts?.background_slide_left||0,
+      background_slide_right:runtimeManifest.diagnostics?.counts?.background_slide_right||0,
+      background_ken_burns:runtimeManifest.diagnostics?.counts?.background_ken_burns||0,
+      lazy_background_contract:runtimeManifest.diagnostics?.counts?.lazy_background_contract||0,
       warnings:safeArray(runtimeManifest.diagnostics?.warnings).length
     };
     return runtimeManifest;
@@ -643,5 +673,5 @@
     armLegacyStudioBridge
   };
   armLegacyStudioBridge();
-  console.info('[DINI SEMANTIC MANIFEST] V'+VERSION+' aktif — P0 Core + P1-A/P1-B + P1-C Gallery/Lightbox contract.');
+  console.info('[DINI SEMANTIC MANIFEST] V'+VERSION+' aktif — P0 Core + P1-A/B/C + P1-D Background/Lazy contract.');
 })(window);
