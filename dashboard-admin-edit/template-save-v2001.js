@@ -102,9 +102,18 @@
       const finalHtml=replaceAllDeep(String(raw.html||raw.baseHtml||''),replacements);
       const schema=rebaseSchema(replaceAllDeep(deep(raw.schema||{}),replacements),values);
       const manifestBase=replaceAllDeep(deep(raw.manifest||{}),replacements);
+      const iconFields=(schema.fields||[]).filter(f=>f?.kind==='icon');
+      const iconContract={version:1,contract:'dini-universal-icon-v1',count:iconFields.length,roles:[...new Set(iconFields.map(f=>f.icon_role||'custom'))],libraries:[...new Set(iconFields.map(f=>f.icon_library||'icon-font'))],icons:iconFields.map(f=>({id:f.id,section_index:f.section_index,role:f.icon_role||'custom',library:f.icon_library||'icon-font',class_name:String(values[f.id]??f.value??f.icon_class??''),node_id:f.node_id||'',href:f.icon_href||''}))};
+      schema.icon_contract=iconContract;
+      manifestBase.icon_contract=iconContract;
+      manifestBase.source_graph=manifestBase.source_graph||{};
+      manifestBase.source_graph.icon_contract=iconContract;
       if(!manifestBase.runtime_manifest&&current.manifest_json?.runtime_manifest)manifestBase.runtime_manifest=replaceAllDeep(deep(current.manifest_json.runtime_manifest),replacements);
       if(!manifestBase.consumer_contract&&current.manifest_json?.consumer_contract)manifestBase.consumer_contract=replaceAllDeep(deep(current.manifest_json.consumer_contract),replacements);
       if(manifestBase.runtime_manifest){
+        manifestBase.runtime_manifest.icon_contract=iconContract;
+        manifestBase.runtime_manifest.capabilities=Array.isArray(manifestBase.runtime_manifest.capabilities)?manifestBase.runtime_manifest.capabilities:[];
+        if(!manifestBase.runtime_manifest.capabilities.includes('icons'))manifestBase.runtime_manifest.capabilities.push('icons');
         manifestBase.consumer_contract_version=1;
         manifestBase.consumer_contract=manifestBase.consumer_contract||{version:1,runtime_manifest_path:'manifest.runtime_manifest',runtime_manifest_compiler:manifestBase.runtime_manifest.compiler||'',semantic_components_path:'manifest.runtime_manifest.semantic_components',personalization_path:'manifest.runtime_manifest.personalization',chain:['fetch','preview','editor','apply','save','supabase','renderer','guest-route','reload'],backend_owner:'dini-faqih',source_dom_authoritative:true,arbitrary_source_js:false};
         manifestBase.runtime_manifest.consumer_contract_version=1;
@@ -119,8 +128,8 @@
       const currentEntry=current.manifest_json?.editor_snapshot_url?{revision:current.manifest_json.revision||'previous',source_path:current.source_path,editor_snapshot_url:current.manifest_json.editor_snapshot_url,saved_at:current.manifest_json.saved_at||current.updated_at||null}:null;
       const history=[...(currentEntry?[currentEntry]:[]),...(current.manifest_json?.revision_history||[])].filter((x,i,a)=>x?.editor_snapshot_url&&a.findIndex(y=>y.editor_snapshot_url===x.editor_snapshot_url)===i).slice(0,10);
       const assetBase=canonicalAssetBase(finalHtml,{...manifestBase,source_url:sourceUrl});
-      const manifest={...manifestBase,editor_version:'template-edit-v2.0.2-p2d',renderer_version:'template-edit-v2-exact-persistence',revision,revision_id:revision,template_id:recordId,record_id:recordId,editor_snapshot_url:snapshotUrl,source_url:sourceUrl,source_of_truth:'template-edit-v2-exact-applied',asset_base:assetBase,saved_at:new Date().toISOString(),artifact_prefix:base,revision_history:history,exact_persistence:true,explicit_saved_fields:uploadedFields.map(x=>x.id),consumer_contract_version:manifestBase.consumer_contract_version||0,consumer_chain_persisted:!!manifestBase.runtime_manifest};
-      const cloud={...deep(raw),version:'template-edit-v2.0.2-p2d',template_id:recordId,record_id:recordId,snapshot_scope:recordId,snapshot_scope_version:'template-v2-exact',revision,html:finalHtml,baseHtml:finalHtml,values,schema,transforms,manifest,runtime_manifest:manifest.runtime_manifest||null,consumer_contract:manifest.consumer_contract||null,assets:[],saved_at:new Date().toISOString(),template_edit_v2:{...(raw.template_edit_v2||{}),version:'2.0.2-p2d',same_uuid:true,exact_persistence:true,consumer_contract_persisted:!!manifest.runtime_manifest,explicit_saved_fields:uploadedFields.map(x=>x.id),saved_revision:revision,saved_at:new Date().toISOString()}};
+      const manifest={...manifestBase,editor_version:'template-edit-v2.0.2-p2d',renderer_version:'template-edit-v2-exact-persistence',revision,revision_id:revision,template_id:recordId,record_id:recordId,editor_snapshot_url:snapshotUrl,source_url:sourceUrl,source_of_truth:'template-edit-v2-exact-applied',asset_base:assetBase,saved_at:new Date().toISOString(),artifact_prefix:base,revision_history:history,exact_persistence:true,explicit_saved_fields:uploadedFields.map(x=>x.id),consumer_contract_version:manifestBase.consumer_contract_version||0,consumer_chain_persisted:!!manifestBase.runtime_manifest,icon_contract_persisted:true,icon_contract_count:iconContract.count};
+      const cloud={...deep(raw),version:'template-edit-v2.0.2-p2d',template_id:recordId,record_id:recordId,snapshot_scope:recordId,snapshot_scope_version:'template-v2-exact',revision,html:finalHtml,baseHtml:finalHtml,values,schema,transforms,manifest,runtime_manifest:manifest.runtime_manifest||null,consumer_contract:manifest.consumer_contract||null,icon_contract:iconContract,assets:[],saved_at:new Date().toISOString(),template_edit_v2:{...(raw.template_edit_v2||{}),version:'2.0.2-p2d',same_uuid:true,exact_persistence:true,consumer_contract_persisted:!!manifest.runtime_manifest,explicit_saved_fields:uploadedFields.map(x=>x.id),saved_revision:revision,saved_at:new Date().toISOString()}};
 
       if(progress?.querySelector?.('small'))progress.querySelector('small').textContent='Upload exact revision…';
       await Promise.all([

@@ -204,6 +204,11 @@
     const delta=replaceDeep(snap.delta||{},publicMap);
     const schema=replaceDeep(snap.schema||{},publicMap);
     const manifestBase=replaceDeep(snap.manifest||{},publicMap);
+    const iconContract=schema?.icon_contract||manifestBase?.icon_contract||manifestBase?.source_graph?.icon_contract||{version:1,contract:'dini-universal-icon-v1',count:(schema?.fields||[]).filter(f=>f?.kind==='icon').length,roles:[...new Set((schema?.fields||[]).filter(f=>f?.kind==='icon').map(f=>f.icon_role||'custom'))],icons:(schema?.fields||[]).filter(f=>f?.kind==='icon').map(f=>({id:f.id,role:f.icon_role||'custom',library:f.icon_library||'icon-font',class_name:f.icon_class||String(f.value||''),node_id:f.node_id||'',href:f.icon_href||''}))};
+    manifestBase.icon_contract=iconContract;
+    manifestBase.source_graph=manifestBase.source_graph||{};
+    manifestBase.source_graph.icon_contract=iconContract;
+    if(manifestBase.runtime_manifest){manifestBase.runtime_manifest.icon_contract=iconContract;manifestBase.runtime_manifest.capabilities=Array.isArray(manifestBase.runtime_manifest.capabilities)?manifestBase.runtime_manifest.capabilities:[];if(!manifestBase.runtime_manifest.capabilities.includes('icons'))manifestBase.runtime_manifest.capabilities.push('icons')}
     const guestResult=normalizeGuestContract(html,manifestBase);
     html=guestResult.html;
     persistGuestContract(manifestBase,guestResult.contract);
@@ -228,6 +233,8 @@
       guest_personalization_persisted:true,
       guest_personalization_fields:guestResult.after_count||0,
       guest_personalization_roles:guestResult.contract?.roles||[],
+      icon_contract_persisted:true,
+      icon_contract_count:Number(iconContract?.count||0),
       consumer_contract_version:consumerContract?.version||1,
       consumer_chain_persisted:true,
       saved_at:E.now(),
@@ -244,6 +251,7 @@
       schema,
       assets:cloudAssets,
       personalization_contract:guestResult.contract,
+      icon_contract:iconContract,
       runtime_manifest:manifest.runtime_manifest||null,
       consumer_contract:consumerContract,
       save_finalizer:{
