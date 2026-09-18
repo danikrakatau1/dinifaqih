@@ -3,7 +3,7 @@
   if(window.__DINI_PUBLIC_SOURCE_TRUTH_RENDERER_V1__)return;
   window.__DINI_PUBLIC_SOURCE_TRUTH_RENDERER_V1__=true;
 
-  const VERSION='1.2.0';
+  const VERSION='1.3.0';
   const CFG=window.DINI_PUBLIC_ENTRY||{};
   const MODE=CFG.mode==='guest'?'guest':'public';
   const SB='https://jfvmcerrsxjvbiogfqes.supabase.co';
@@ -73,6 +73,16 @@
       s?.source_graph?.personalization
     ];
     return candidates.find(x=>Array.isArray(x?.fields)&&x.fields.length)||candidates.find(x=>x&&typeof x==='object')||{};
+  };
+  const runtimeManifestFromPackage=pkg=>{
+    const m=pkg?.manifest||{},s=pkg?.snapshot||{};
+    const candidates=[
+      m?.runtime_manifest,
+      s?.manifest?.runtime_manifest,
+      s?.runtime_manifest
+    ];
+    return candidates.find(x=>x?.format==='dini-universal-runtime-manifest')||
+      candidates.find(x=>x&&typeof x==='object')||{};
   };
   const layoutContractFromPackage=pkg=>{
     const m=pkg?.manifest||{},s=pkg?.snapshot||{};
@@ -146,6 +156,10 @@
   function prepareHtml(pkg,row,guest){
     let html=ensureBase(pkg.html,pkg.manifest,String(row.source_path||''));
     const blocks=[];
+    const runtimeManifest=runtimeManifestFromPackage(pkg);
+    if(runtimeManifest&&Object.keys(runtimeManifest).length){
+      blocks.push('<script type="application/json" id="diniSemanticRuntimeManifest">'+safeJson(runtimeManifest)+'</script>');
+    }
     if(pkg.source_truth){
       blocks.push('<script>document.documentElement.dataset.diniSourceTruthPublic="1";document.documentElement.dataset.diniPublicCompatibility="source-truth-exact-plus-runtime-compat";</script>');
       blocks.push('<script src="'+localAsset('/assets/js/source-truth-runtime-compat-v1.js?v=103')+'"></script>');
@@ -194,17 +208,35 @@
       const pkg=await loadPackage(row);
       const html=prepareHtml(pkg,row,guest);
       const layout=layoutContractFromPackage(pkg);
+      const runtimeManifest=runtimeManifestFromPackage(pkg);
       document.documentElement.dataset.publicCanonicalMode=MODE;
       document.documentElement.dataset.publicSourceTruthVersion=String(sourceTruthVersion(pkg.snapshot||pkg.manifest));
       document.documentElement.dataset.publicPackagePolicy=pkg.source_truth?'exact-source-truth-snapshot':'legacy-canonical-compatibility';
       document.documentElement.dataset.guestSourceRestore=guest?'global-personalization-contract':'not-guest';
       if(guest){document.title='Untuk '+guest.name+' — Faqih & Dini';}else document.title=(row.name?row.name+' — ':'')+'Faqih & Dini';
-      renderFrame(html,guest?'Untuk '+guest.name:'Undangan Faqih & Dini',layout);
+      const frame=renderFrame(html,guest?'Untuk '+guest.name:'Undangan Faqih & Dini',layout);
+      const bindConsumer=()=>{
+        try{
+          const api=window.DiniSourceConsumerContract;
+          if(!api?.bindFrame||!runtimeManifest||!Object.keys(runtimeManifest).length)return false;
+          api.bindFrame(frame,runtimeManifest,{
+            mode:guest?'guest':'public',
+            invitationId:String(CFG.invitationId||''),
+            guestName:String(guest?.name||''),
+            templateId:String(row.id||'')
+          });
+          document.documentElement.dataset.publicConsumerContract=api.version||'';
+          document.documentElement.dataset.publicRuntimeManifest=String(runtimeManifest.compiler||'');
+          return true;
+        }catch(err){console.warn('PUBLIC_CONSUMER_BIND',err);return false}
+      };
+      bindConsumer();
+      [80,250,700,1600,3500].forEach(ms=>setTimeout(bindConsumer,ms));
     }catch(err){
       console.error('PUBLIC_SOURCE_TRUTH_RENDERER_V1',err);
       fail(MODE==='guest'?'Undangan belum dapat dimuat':'Template belum dapat dimuat',err?.message||String(err),500);
     }
   })();
 
-  window.DINI_PUBLIC_SOURCE_TRUTH_RENDERER={VERSION,sourceTruthVersion,isSourceTruth,guestContractFromPackage,layoutContractFromPackage};
+  window.DINI_PUBLIC_SOURCE_TRUTH_RENDERER={VERSION,sourceTruthVersion,isSourceTruth,guestContractFromPackage,runtimeManifestFromPackage,layoutContractFromPackage};
 })();
