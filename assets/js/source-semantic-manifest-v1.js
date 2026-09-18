@@ -2,7 +2,7 @@
   'use strict';
   if(g.DiniSemanticManifest?.version)return;
 
-  const VERSION='1.5.0';
+  const VERSION='1.6.0';
   const MANIFEST_VERSION=1;
   const REPEATER_CONTRACT_VERSION=1;
   const COMPONENT_IDENTITY_VERSION=1;
@@ -345,6 +345,15 @@
     if(Number(as?.counts?.elementor||0)>0)set.add('elementor-responsive-animation');
     if(Number(as?.counts?.scrollspy||0)>0)set.add('bdt-scrollspy');
     if(Number(as?.counts?.parallax||0)>0)set.add('bdt-parallax');
+    const car=sourceGraph?.behavior_adapters?.carousel;
+    if(Number(car?.counts?.total||0)>0)set.add('universal-carousel-runtime');
+    if(Number(car?.counts?.image_carousel||0)>0)set.add('image-carousel');
+    if(Number(car?.counts?.media_carousel||0)>0)set.add('media-carousel');
+    if(Number(car?.counts?.testimonial_carousel||0)>0)set.add('testimonial-carousel');
+    if(Number(car?.counts?.coverflow||0)>0)set.add('carousel-coverflow');
+    if(Number(car?.counts?.progressbar||0)>0)set.add('carousel-progressbar');
+    if(Number(car?.source_swiper_major||0)===5)set.add('swiper-legacy-v5');
+    if(Number(car?.source_swiper_major||0)>=8)set.add('swiper-modern-v8plus');
     return [...set].sort();
   }
 
@@ -388,7 +397,11 @@
         elementor_animation_adapters:Number(sourceGraph?.behavior_adapters?.animation_scroll?.counts?.elementor||0),
         scrollspy_adapters:Number(sourceGraph?.behavior_adapters?.animation_scroll?.counts?.scrollspy||0),
         parallax_adapters:Number(sourceGraph?.behavior_adapters?.animation_scroll?.counts?.parallax||0),
-        unsupported_parallax_properties:Number(sourceGraph?.behavior_adapters?.animation_scroll?.counts?.unsupported_parallax_properties||0)
+        unsupported_parallax_properties:Number(sourceGraph?.behavior_adapters?.animation_scroll?.counts?.unsupported_parallax_properties||0),
+        carousel_adapters:Number(sourceGraph?.behavior_adapters?.carousel?.counts?.total||0),
+        carousel_slides:Number(sourceGraph?.behavior_adapters?.carousel?.counts?.slides||0),
+        carousel_coverflow:Number(sourceGraph?.behavior_adapters?.carousel?.counts?.coverflow||0),
+        carousel_progressbar:Number(sourceGraph?.behavior_adapters?.carousel?.counts?.progressbar||0)
       },
       layout:{topology:layout?.topology||'unclassified',confidence:Number(layout?.confidence||0),viewport_policy:layout?.runtime?.viewport_policy||'canonical-content'},
       semantic:semanticDiagnostics
@@ -474,6 +487,13 @@
         exact_animation_delay_preserved:true,
         bdt_scrollspy_semantic_adapter:true,
         bdt_parallax_semantic_adapter:true,
+        carousel_contract_version:Number(behaviorAdapters?.carousel?.version||0),
+        carousel_instance_isolation:true,
+        swiper5_compatibility:true,
+        swiper8_compatibility:true,
+        carousel_item_count_independent_from_viewport:true,
+        carousel_source_speed_preserved:true,
+        carousel_source_autoplay_delay_preserved:true,
         consumer_contract_version:0
       },
       runtime_policy:{
@@ -494,7 +514,9 @@
         runtime_fault_log_limit:80,
         semantic_diagnostics_policy:'warn-never-normalize',
         animation_scroll_execution:'semantic-adapter-first-generic-fallback',
-        explicit_responsive_none_authoritative:true
+        explicit_responsive_none_authoritative:true,
+        carousel_execution:'semantic-swiper-bridge-no-source-api-dependency',
+        carousel_cross_instance_mutation:false
       },
       diagnostics
     };
@@ -553,6 +575,10 @@
       elementor_animation_adapters:runtimeManifest.diagnostics?.counts?.elementor_animation_adapters||0,
       scrollspy_adapters:runtimeManifest.diagnostics?.counts?.scrollspy_adapters||0,
       parallax_adapters:runtimeManifest.diagnostics?.counts?.parallax_adapters||0,
+      carousel_adapters:runtimeManifest.diagnostics?.counts?.carousel_adapters||0,
+      carousel_slides:runtimeManifest.diagnostics?.counts?.carousel_slides||0,
+      carousel_coverflow:runtimeManifest.diagnostics?.counts?.carousel_coverflow||0,
+      carousel_progressbar:runtimeManifest.diagnostics?.counts?.carousel_progressbar||0,
       warnings:safeArray(runtimeManifest.diagnostics?.warnings).length
     };
     return runtimeManifest;
@@ -596,5 +622,5 @@
     armLegacyStudioBridge
   };
   armLegacyStudioBridge();
-  console.info('[DINI SEMANTIC MANIFEST] V'+VERSION+' aktif — P0 Core + P1-A Animation/Scroll behavior contract.');
+  console.info('[DINI SEMANTIC MANIFEST] V'+VERSION+' aktif — P0 Core + P1-A Animation/Scroll + P1-B Carousel contract.');
 })(window);
