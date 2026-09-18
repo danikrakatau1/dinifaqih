@@ -213,25 +213,31 @@
     // Old probe contracts could point to a temporary "Nama Tamu" node outside the proven
     // salutation → recipient → "Di Tempat" block. Once a strong semantic cover slot exists,
     // that stale probe must not remain a second visible cover binding.
-    const semanticCover=fields.find(f=>f?.role==='cover'&&f?.semantic_synthesis===true)||null;
-    const semanticCoverNodes=new Set(semanticCover?resolveFieldNodes(doc,semanticCover):[]);
+    const canonicalCover=
+      fields.find(f=>f?.role==='cover'&&f?.source==='cover-structure')||
+      fields.find(f=>f?.role==='cover'&&f?.semantic_synthesis===true)||
+      null;
+    const canonicalCoverNodes=new Set(canonicalCover?resolveFieldNodes(doc,canonicalCover):[]);
     const coverRootFor=node=>node?.closest?.('#cover,.elementor-top-section,section,.elementor-section')||null;
-    const semanticRoot=coverRootFor([...semanticCoverNodes][0]);
+    const canonicalRoot=coverRootFor([...canonicalCoverNodes][0]);
     const isStaleLegacyCover=f=>{
-      if(!semanticCover||!f)return false;
+      if(!canonicalCover||!f)return false;
       const role=String(f.role||'generic');
       if(!['cover','generic'].includes(role))return false;
       if(String(f.target_kind||'text')==='value')return false;
       const source=String(f.source||'');
       const fallback=clean(f.fallback_text||'');
-      const probeLike=source==='source-probe-marker'||GUEST_PLACEHOLDER_RE.test(fallback);
-      if(!probeLike)return false;
       const nodes=resolveFieldNodes(doc,f);
       if(!nodes.length)return false;
+      const probeLike=
+        source==='source-probe-marker'||
+        GUEST_PLACEHOLDER_RE.test(fallback)||
+        nodes.some(node=>node?.getAttribute?.('data-dini-guest-source-probe')==='1');
+      if(!probeLike)return false;
       return nodes.some(node=>{
-        if(semanticCoverNodes.has(node))return false;
+        if(canonicalCoverNodes.has(node))return false;
         const root=coverRootFor(node);
-        return !!root&&(!semanticRoot||root===semanticRoot);
+        return !!root&&(!canonicalRoot||root===canonicalRoot);
       });
     };
     const retainedExisting=existing.filter(f=>!isStaleLegacyCover(f));
