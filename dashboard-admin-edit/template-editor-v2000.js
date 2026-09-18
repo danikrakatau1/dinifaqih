@@ -3,7 +3,7 @@
   if(window.__DINI_TEMPLATE_EDITOR_V2000__)return;
   window.__DINI_TEMPLATE_EDITOR_V2000__=true;
 
-  const VERSION='2.0.0';
+  const VERSION='2.0.1-p2d';
   const scope=window.__DINI_TEMPLATE_EDITOR_SCOPE__||{};
   const templateId=String(scope.template_id||'').trim();
   if(!templateId)throw new Error('Template Editor V2 membutuhkan UUID template ter-scope.');
@@ -69,6 +69,7 @@
   if(!baselineHtml)throw new Error('HTML template kosong.');
   const baselineValues=deep(originalSnap.values||Object.fromEntries(schema.fields.map(f=>[f.id,f.value??''])));
   const baselineTransforms=deep(originalSnap.transforms||{});
+  const runtimeManifest=deep(originalSnap?.manifest?.runtime_manifest||row?.manifest_json?.runtime_manifest||{});
   let values=deep(baselineValues),transforms=deep(baselineTransforms),selectedId='',dirtyFlag=false,lastApplied=null;
   const uploaded=new Map();
   const liveUrls=new Map();
@@ -221,7 +222,7 @@
   }
 
   function bindFrame(){
-    try{const doc=frame.contentDocument;if(!doc)return;let st=doc.getElementById('template-v2-editor-style');if(!st){st=doc.createElement('style');st.id='template-v2-editor-style';st.textContent='.native-selected-outline{outline:2px solid #f0c768!important;outline-offset:2px!important}';doc.head.appendChild(st)}
+    try{const doc=frame.contentDocument;if(!doc)return;const consumer=window.DiniSourceConsumerContract;if(consumer?.bindDocument&&runtimeManifest?.format){const report=consumer.bindDocument(doc,runtimeManifest,{mode:'editor'});frame.dataset.diniConsumerContract=consumer.version||'';frame.dataset.diniConsumerForms=String(report?.forms||0)}let st=doc.getElementById('template-v2-editor-style');if(!st){st=doc.createElement('style');st.id='template-v2-editor-style';st.textContent='.native-selected-outline{outline:2px solid #f0c768!important;outline-offset:2px!important}';doc.head.appendChild(st)}
       doc.addEventListener('click',e=>{const open=e.target?.closest?.('[data-native-open],#tombolbuka,.tombolbuka');if(open||/\bBuka\s+Undangan\b/i.test(String(e.target?.textContent||'')))return;const fs=fieldsAtPoint(doc,e.clientX,e.clientY,e.target);if(!fs.length)return;e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();selectField(fs[0].id,fs)},true);
     }catch(err){console.warn('TEMPLATE_V2_BIND',err)}
   }
@@ -250,7 +251,8 @@
   if(auditBtn)auditBtn.onclick=()=>toast(`Saved snapshot authority: ${schema.fields.length} field. Template Editor V2 tidak melakukan discovery ulang.`,'info','Audit Baseline');
 
   renderSections();frame.srcdoc=baselineHtml;status('SAVED SNAPSHOT LOADED ✓');saveBtn.disabled=true;
-  document.documentElement.dataset.templateEditorEngine='v2.0.0';
+  document.documentElement.dataset.templateEditorEngine='v2.0.1-p2d';
+  document.documentElement.dataset.templateConsumerContract=window.DiniSourceConsumerContract?.version||'none';
   document.querySelector('.editor-head h1').textContent='DINI ANIF — TEMPLATE EDITOR V2';
   const desc=document.querySelector('.editor-head p');if(desc)desc.textContent='UX Fetch-style · existing saved snapshot sebagai baseline · UPDATE SAME UUID · tidak memakai state Fetch Editor.';
   const toolbar=document.querySelector('.preview-toolbar');if(toolbar)toolbar.firstChild.textContent='Template Saved Snapshot + Delta ';
