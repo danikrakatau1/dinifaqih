@@ -360,7 +360,7 @@
       blocks.push('<script src="'+localAsset('/assets/js/icon-contract-v1.js?v=100')+'"></script>');
       blocks.push('<script src="'+localAsset('/assets/js/source-truth-runtime-compat-v1.js?v=123')+'"></script>');
       blocks.push('<script src="'+localAsset('/assets/js/testimonial-carousel-runtime-v1.js?v=102')+'"></script>');
-      if(galleryPerf.count)blocks.push('<script src="'+localAsset('/assets/js/gallery-performance-v1.js?v=140')+'"></script>');
+      if(galleryPerf.count)blocks.push('<script src="'+localAsset('/assets/js/gallery-performance-v1.js?v=141')+'"></script>');
     }else{
       if(pkg.authority){
         blocks.push('<script type="application/json" id="diniSnapshotAuthorityData">'+safeJson(pkg.authority)+'</script>');
