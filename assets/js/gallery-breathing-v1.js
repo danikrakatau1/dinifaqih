@@ -2,25 +2,28 @@
   'use strict';
   if(window.DINI_GALLERY_BREATHING_V1?.version)return;
 
-  const VERSION='1.1.0';
+  const VERSION='1.2.0';
   const doc=document;
-  const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches===true;
   const SELECTOR='.elementor-widget-gallery .e-gallery-image';
+  const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches===true;
+  const timers=new WeakMap();
 
   function ensureStyle(){
     if(doc.getElementById('diniGalleryBreathingStyle'))return;
+
     const style=doc.createElement('style');
     style.id='diniGalleryBreathingStyle';
     style.textContent=`
       ${SELECTOR}[data-dini-gallery-breathe="1"]{
         position:relative!important;
         overflow:hidden!important;
-        isolation:isolate;
+        isolation:isolate!important;
+        background-image:none!important;
       }
 
       ${SELECTOR}[data-dini-gallery-breathe="1"] > .dini-gallery-breathe-layer{
         position:absolute;
-        inset:-1px;
+        inset:-2px;
         z-index:0;
         display:block;
         pointer-events:none;
@@ -32,9 +35,9 @@
         will-change:transform;
         animation:
           diniGalleryBreathingLayer
-          var(--dini-gallery-breathe-duration,6.4s)
+          var(--dini-gallery-breathe-duration,5.8s)
           cubic-bezier(.45,0,.55,1)
-          var(--dini-gallery-breathe-delay,0s)
+          0s
           infinite
           both;
       }
@@ -45,8 +48,12 @@
       }
 
       @keyframes diniGalleryBreathingLayer{
-        0%,100%{transform:translate3d(0,0,0) scale(1)}
-        50%{transform:translate3d(0,0,0) scale(1.022)}
+        0%,100%{
+          transform:translate3d(0,0,0) scale(1);
+        }
+        50%{
+          transform:translate3d(0,0,0) scale(1.038);
+        }
       }
 
       @media (prefers-reduced-motion:reduce){
@@ -57,34 +64,35 @@
         }
       }
     `;
+
     (doc.head||doc.documentElement).appendChild(style);
   }
 
-  const delays=[0,-1.15,-2.3,-3.45,-.55,-1.7,-2.85,-4,-1.05,-2.2,-3.35,-.25];
-  const durations=[6.2,6.7,6.35,6.8,6.45,6.95,6.25,6.6,6.4,6.85,6.3,6.75];
+  const durations=[5.6,6.0,5.8,6.2,5.7,6.1,5.9,6.3,5.75,6.05,5.85,6.15];
 
-  function readBackground(image){
-    let cs=null;
-    try{cs=getComputedStyle(image)}catch{}
+  function renderedBackground(image){
+    let computed=null;
+    try{computed=getComputedStyle(image)}catch{}
+
     const inline=String(image.style?.backgroundImage||'').trim();
-    const computed=String(cs?.backgroundImage||'').trim();
-    const backgroundImage=inline&&inline!=='none'?inline:computed;
+    const css=String(computed?.backgroundImage||'').trim();
+    const backgroundImage=(inline&&inline!=='none')?inline:css;
+
     if(!backgroundImage||backgroundImage==='none')return null;
+
     return{
-      backgroundImage,
-      backgroundSize:String(cs?.backgroundSize||'cover')||'cover',
-      backgroundPosition:String(cs?.backgroundPosition||'50% 50%')||'50% 50%',
-      backgroundRepeat:String(cs?.backgroundRepeat||'no-repeat')||'no-repeat'
+      image:backgroundImage,
+      size:String(computed?.backgroundSize||'cover')||'cover',
+      position:String(computed?.backgroundPosition||'50% 50%')||'50% 50%',
+      repeat:String(computed?.backgroundRepeat||'no-repeat')||'no-repeat'
     };
   }
 
-  function attach(image,index){
+  function activate(image,index){
     if(!image?.isConnected)return false;
     if(image.getAttribute('data-dini-gallery-breathe')==='1')return true;
-    if(!image.classList.contains('e-gallery-image-loaded'))return false;
-    if(!image.classList.contains('dini-gallery-compositor-released'))return false;
 
-    const bg=readBackground(image);
+    const bg=renderedBackground(image);
     if(!bg)return false;
 
     ensureStyle();
@@ -92,50 +100,68 @@
     const layer=doc.createElement('span');
     layer.className='dini-gallery-breathe-layer';
     layer.setAttribute('aria-hidden','true');
-    layer.style.backgroundImage=bg.backgroundImage;
-    layer.style.backgroundSize=bg.backgroundSize;
-    layer.style.backgroundPosition=bg.backgroundPosition;
-    layer.style.backgroundRepeat=bg.backgroundRepeat;
+    layer.style.backgroundImage=bg.image;
+    layer.style.backgroundSize=bg.size;
+    layer.style.backgroundPosition=bg.position;
+    layer.style.backgroundRepeat=bg.repeat;
 
-    image.style.setProperty('--dini-gallery-breathe-delay',String(delays[index%delays.length])+'s');
     image.style.setProperty('--dini-gallery-breathe-duration',String(durations[index%durations.length])+'s');
+
+    // Put the animated copy in place first, then remove the static parent
+    // background in the same frame. This avoids a visible blank/flash.
     image.insertBefore(layer,image.firstChild);
     image.setAttribute('data-dini-gallery-breathe','1');
+    image.style.setProperty('background-image','none','important');
+
     return true;
   }
 
-  function apply(){
+  function schedule(image,index){
+    if(!image?.isConnected)return;
+    if(image.getAttribute('data-dini-gallery-breathe')==='1')return;
+    if(timers.has(image))return;
+
+    // Breathing starts only after the source-native reveal has substantially
+    // finished, preserving the existing one-by-one gallery choreography.
+    const ready=
+      image.classList.contains('e-gallery-image-loaded')||
+      image.getAttribute('data-dini-gallery-bg-loaded')==='1';
+
+    if(!ready)return;
+
+    const timer=setTimeout(()=>{
+      timers.delete(image);
+      activate(image,index);
+      updateState();
+    },900);
+
+    timers.set(image,timer);
+  }
+
+  function updateState(){
     const images=[...doc.querySelectorAll(SELECTOR)];
-    if(!images.length)return{total:0,attached:0};
-    let attached=0;
-    images.forEach((image,index)=>{if(attach(image,index))attached++});
+    const active=images.filter(x=>x.getAttribute('data-dini-gallery-breathe')==='1').length;
     doc.documentElement.setAttribute('data-dini-gallery-breathing',VERSION);
-    doc.documentElement.setAttribute('data-dini-gallery-breathing-count',String(attached));
-    return{total:images.length,attached};
+    doc.documentElement.setAttribute('data-dini-gallery-breathing-count',String(active));
+    return{total:images.length,active};
+  }
+
+  function scan(){
+    const images=[...doc.querySelectorAll(SELECTOR)];
+    images.forEach((image,index)=>schedule(image,index));
+    return updateState();
   }
 
   function boot(){
+    ensureStyle();
+
     if(reduced){
-      apply();
+      // Respect accessibility preference: keep gallery visually unchanged.
+      doc.documentElement.setAttribute('data-dini-gallery-breathing',VERSION+'-reduced');
       return;
     }
 
-    let settled=false;
-    let timer=0;
-    const finish=()=>{
-      if(settled)return;
-      settled=true;
-      clearTimeout(timer);
-      try{observer.disconnect()}catch{}
-      apply();
-    };
-    const run=()=>{
-      if(settled)return;
-      const state=apply();
-      if(state.total>0&&state.attached>=state.total)finish();
-    };
-
-    const observer=new MutationObserver(run);
+    const observer=new MutationObserver(scan);
     try{
       observer.observe(doc.documentElement,{
         subtree:true,
@@ -145,14 +171,17 @@
       });
     }catch{}
 
-    [80,240,550,1000,1700,2600,3800,5200,7000].forEach(ms=>setTimeout(run,ms));
-    timer=setTimeout(finish,9000);
-    run();
+    [0,120,300,600,1000,1500,2200,3200,4500,6000,8000].forEach(ms=>setTimeout(scan,ms));
+    setTimeout(()=>{
+      scan();
+      observer.disconnect();
+    },11000);
   }
 
   window.DINI_GALLERY_BREATHING_V1={
     version:VERSION,
-    apply
+    scan,
+    activate
   };
 
   if(doc.readyState==='loading')doc.addEventListener('DOMContentLoaded',boot,{once:true});
