@@ -2,7 +2,7 @@
   'use strict';
   if(window.DINI_MAP_ICON_RUNTIME_V1?.version)return;
 
-  const VERSION='1.1.0';
+  const VERSION='1.2.0';
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
 
   const isMapLink=a=>{
@@ -13,6 +13,28 @@
     return /google\s*maps?/i.test(text)||/google\s*maps?/i.test(aria)||
       /maps\.(?:app\.goo\.gl|google\.)|google\.com\/maps|goo\.gl\/maps/i.test(href);
   };
+
+  function ensureStyle(){
+    if(document.getElementById('diniEventMapPinStyle'))return;
+    const style=document.createElement('style');
+    style.id='diniEventMapPinStyle';
+    style.textContent=`
+      [data-dini-event-map-pin-runtime]::before,
+      [data-dini-event-map-pin-runtime]::after{
+        content:none!important;
+        display:none!important;
+        background:none!important;
+      }
+      [data-dini-event-map-pin-runtime]{
+        background-image:none!important;
+        text-shadow:none!important;
+      }
+      [data-dini-event-map-pin-runtime] > [data-dini-event-map-pin-svg]{
+        display:block!important;
+      }
+    `;
+    (document.head||document.documentElement).appendChild(style);
+  }
 
   const iconSvg=()=>{
     const ns='http://www.w3.org/2000/svg';
@@ -28,7 +50,7 @@
     svg.setAttribute('aria-hidden','true');
     svg.setAttribute('focusable','false');
     svg.setAttribute('data-dini-event-map-pin-svg','lucide-map-pin');
-    svg.style.cssText='display:block;width:30px;height:30px;overflow:visible';
+    svg.style.cssText='display:block;width:30px;height:30px;min-width:30px;overflow:visible';
 
     const path=document.createElementNS(ns,'path');
     path.setAttribute('d','M20 10c0 5-5.5 11-7.4 12.9a1 1 0 0 1-1.2 0C9.5 21 4 15 4 10a8 8 0 1 1 16 0');
@@ -43,9 +65,9 @@
   function eventRootFromButton(button){
     let node=button;
     let best=null;
-    for(let depth=0;node&&node!==document.body&&depth<14;depth++,node=node.parentElement){
+    for(let depth=0;node&&node!==document.body&&depth<16;depth++,node=node.parentElement){
       const txt=clean(node.textContent);
-      if(txt.length>5000)continue;
+      if(txt.length>6500)continue;
       if(!/google\s*maps?/i.test(txt))continue;
       if(!/(akad\s+nikah|resepsi|ramah\s+tamah)/i.test(txt))continue;
       best=node;
@@ -74,42 +96,63 @@
       let score=0;
       if(buttonRect){
         const gap=buttonRect.top-r.bottom;
-        if(gap<0||gap>190)continue;
-        score+=300-gap*1.4;
+        if(gap<0||gap>210)continue;
+        score+=320-gap*1.5;
         const dx=Math.abs((r.left+r.right)/2-(buttonRect.left+buttonRect.right)/2);
-        score+=Math.max(0,120-dx);
+        score+=Math.max(0,140-dx);
       }
       const txt=clean(el.textContent);
-      if(/dukuh|gang|jalan|jl\.?|desa|kec\.?|kab\.?|batang|kertoharjo|madureso|sidorejo|warungasem/i.test(txt))score+=220;
-      if(txt.length>=15&&txt.length<=120)score+=50;
+      if(/dukuh|gang|jalan|jl\.?|desa|kec\.?|kab\.?|batang|kertoharjo|madureso|sidorejo|warungasem/i.test(txt))score+=260;
+      if(txt.length>=10&&txt.length<=140)score+=60;
       if(score>bestScore){bestScore=score;best=el}
     }
     return best;
   }
 
-  function iconCandidates(root,button){
-    const selectors=[
-      '.elementor-widget-icon .elementor-icon',
-      '.elementor-icon',
-      '.elementor-widget-icon i',
-      'i[class*="map-marker"]',
-      'i[class*="location"]',
-      'i[class*="marker"]',
-      '[class*="icon"] > svg',
-      '.elementor-widget-icon svg'
-    ].join(',');
-    return [...new Set([...root.querySelectorAll(selectors)])].filter(el=>{
-      if(button.contains(el)||el.closest('a,button,[role="button"]')===button)return false;
-      if(el.closest('[data-dini-event-map-pin-runtime]'))return false;
-      try{
-        const cs=getComputedStyle(el);
-        return cs.display!=='none'&&cs.visibility!=='hidden';
-      }catch{return true}
+  function signature(el){
+    return clean([
+      el.tagName||'',
+      el.className?.baseVal||el.className||'',
+      el.id||'',
+      el.getAttribute?.('data-icon')||'',
+      el.getAttribute?.('aria-label')||'',
+      el.getAttribute?.('title')||'',
+      el.getAttribute?.('src')||''
+    ].join(' ')).toLowerCase();
+  }
+
+  function pseudoHasVisual(el){
+    try{
+      for(const pseudo of ['::before','::after']){
+        const cs=getComputedStyle(el,pseudo);
+        const content=String(cs.content||'');
+        if(content&&content!=='none'&&content!=='normal'&&content!=='""')return true;
+        if(cs.backgroundImage&&cs.backgroundImage!=='none')return true;
+      }
+    }catch{}
+    return false;
+  }
+
+  function candidateElements(root,button,address){
+    const all=[...root.querySelectorAll('*')];
+    return all.filter(el=>{
+      if(el===button||button.contains(el)||el.contains(button))return false;
+      if(address&&(el===address||address.contains(el)||el.contains(address)))return false;
+      if(el.closest?.('[data-dini-event-map-pin-runtime]'))return false;
+
+      let r,cs;
+      try{r=el.getBoundingClientRect();cs=getComputedStyle(el)}catch{return false}
+      if(!r||r.width<5||r.height<5||r.width>95||r.height>95)return false;
+      if(cs.display==='none'||cs.visibility==='hidden'||Number(cs.opacity)===0)return false;
+
+      const txt=clean(el.textContent);
+      if(txt.length>3)return false;
+      return true;
     });
   }
 
   function findStandalonePin(root,button,address){
-    const candidates=iconCandidates(root,button);
+    const candidates=candidateElements(root,button,address);
     let addressRect=null,buttonRect=null;
     try{addressRect=address?.getBoundingClientRect?.()||null}catch{}
     try{buttonRect=button.getBoundingClientRect()}catch{}
@@ -117,34 +160,54 @@
     let best=null,bestScore=-Infinity;
     for(const el of candidates){
       let r;try{r=el.getBoundingClientRect()}catch{continue}
-      if(!r||!r.width||!r.height)continue;
-      if(r.width>90||r.height>90)continue;
-
       let score=0;
-      const sig=clean([
-        el.className?.baseVal||el.className||'',
-        el.getAttribute?.('data-icon')||'',
-        el.getAttribute?.('aria-label')||'',
-        el.getAttribute?.('title')||''
-      ].join(' ')).toLowerCase();
-      if(/map-marker|location|marker|map-pin/.test(sig))score+=420;
+      const sig=signature(el);
+
+      if(/map-marker|location|marker|map-pin|pin|place/.test(sig))score+=520;
+      if(/^(IMG|SVG|I|SPAN)$/i.test(el.tagName||''))score+=90;
+      if(pseudoHasVisual(el))score+=120;
+
+      try{
+        const cs=getComputedStyle(el);
+        if(cs.backgroundImage&&cs.backgroundImage!=='none')score+=100;
+      }catch{}
 
       if(addressRect){
         const vertical=addressRect.top-r.bottom;
-        if(vertical< -15||vertical>170)continue;
-        score+=260-Math.abs(vertical)*1.7;
+        if(vertical<-8||vertical>145)continue;
         const dx=Math.abs((r.left+r.right)/2-(addressRect.left+addressRect.right)/2);
-        score+=Math.max(0,160-dx*1.5);
+        if(dx>105)continue;
+
+        score+=520-Math.abs(vertical-18)*3.2;
+        score+=260-dx*2.2;
       }else if(buttonRect){
         const vertical=buttonRect.top-r.bottom;
-        if(vertical<20||vertical>280)continue;
-        score+=180-Math.abs(vertical-90);
+        if(vertical<35||vertical>300)continue;
+        const dx=Math.abs((r.left+r.right)/2-(buttonRect.left+buttonRect.right)/2);
+        if(dx>110)continue;
+        score+=260-Math.abs(vertical-105);
+        score+=140-dx;
       }
 
-      if(r.width>=12&&r.width<=55&&r.height>=12&&r.height<=60)score+=60;
+      if(r.width>=12&&r.width<=50&&r.height>=12&&r.height<=55)score+=130;
       if(score>bestScore){bestScore=score;best=el}
     }
-    return best;
+    return bestScore>250?best:null;
+  }
+
+  function replacementHost(pin){
+    if(!pin)return null;
+    if(pin.matches?.('img,svg,i')){
+      const span=document.createElement('span');
+      span.className='dini-event-map-pin-replacement';
+      try{
+        const cs=getComputedStyle(pin);
+        span.style.color=cs.color||'';
+      }catch{}
+      pin.replaceWith(span);
+      return span;
+    }
+    return pin;
   }
 
   function replaceStandalonePin(button){
@@ -155,34 +218,41 @@
     const pin=findStandalonePin(root,button,address);
     if(!pin)return false;
 
-    let host=pin;
-    if(pin.matches('i,svg')){
-      host=pin.parentElement||pin;
-    }
-
+    const host=replacementHost(pin);
+    if(!host)return false;
     if(host.getAttribute?.('data-dini-event-map-pin-runtime')===VERSION)return true;
 
     let color='';
-    try{color=getComputedStyle(pin).color||getComputedStyle(host).color||''}catch{}
+    try{
+      color=getComputedStyle(host).color||getComputedStyle(pin).color||'';
+    }catch{}
+    if(!color||color==='rgb(0, 0, 0)'||color==='rgba(0, 0, 0, 0)')color='#b79a6d';
 
     host.textContent='';
     host.appendChild(iconSvg());
     host.setAttribute('data-dini-event-map-pin-runtime',VERSION);
     host.setAttribute('data-native-icon-role','location');
     host.setAttribute('aria-hidden','true');
-    host.style.setProperty('display','inline-flex');
-    host.style.setProperty('align-items','center');
-    host.style.setProperty('justify-content','center');
-    host.style.setProperty('line-height','1');
-    host.style.setProperty('width','auto');
-    host.style.setProperty('height','auto');
-    if(color)host.style.setProperty('color',color);
+    host.style.setProperty('display','inline-flex','important');
+    host.style.setProperty('align-items','center','important');
+    host.style.setProperty('justify-content','center','important');
+    host.style.setProperty('line-height','1','important');
+    host.style.setProperty('width','30px','important');
+    host.style.setProperty('height','30px','important');
+    host.style.setProperty('min-width','30px','important');
+    host.style.setProperty('min-height','30px','important');
+    host.style.setProperty('font-size','0','important');
+    host.style.setProperty('background','none','important');
+    host.style.setProperty('background-image','none','important');
+    host.style.setProperty('color',color,'important');
+    host.style.setProperty('overflow','visible','important');
 
     button.setAttribute('data-dini-map-button-preserved','1');
     return true;
   }
 
   function scan(root=document){
+    ensureStyle();
     let count=0;
     const buttons=[
       ...(root.matches?.('a,button,[role="button"]')?[root]:[]),
@@ -193,7 +263,7 @@
       if(replaceStandalonePin(button))count++;
     }
     const total=document.querySelectorAll('[data-dini-event-map-pin-runtime]').length;
-    if(total)document.documentElement.setAttribute('data-dini-event-map-pin-count',String(total));
+    document.documentElement.setAttribute('data-dini-event-map-pin-count',String(total));
     return count;
   }
 
@@ -204,7 +274,7 @@
   const rescan=()=>{
     scan();
     clearTimeout(stopTimer);
-    stopTimer=setTimeout(()=>{observer?.disconnect();observer=null},1600);
+    stopTimer=setTimeout(()=>{observer?.disconnect();observer=null},1700);
   };
 
   observer=new MutationObserver(mutations=>{
@@ -219,9 +289,9 @@
   });
 
   try{observer.observe(document.body||document.documentElement,{childList:true,subtree:true})}catch{}
-  [120,450,900,1600,2800,4200].forEach(ms=>setTimeout(rescan,ms));
-  stopTimer=setTimeout(()=>{observer?.disconnect();observer=null},5200);
+  [80,180,420,800,1400,2400,3600,5000].forEach(ms=>setTimeout(rescan,ms));
+  stopTimer=setTimeout(()=>{observer?.disconnect();observer=null},6200);
 
   document.documentElement.setAttribute('data-dini-map-icon-runtime',VERSION);
-  window.DINI_MAP_ICON_RUNTIME_V1={version:VERSION,scan,replaceStandalonePin};
+  window.DINI_MAP_ICON_RUNTIME_V1={version:VERSION,scan,replaceStandalonePin,findStandalonePin};
 })();
