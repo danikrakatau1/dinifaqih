@@ -3,7 +3,7 @@
   if(window.__DINI_SOURCE_TRUTH_RUNTIME_COMPAT_V1__)return;
   window.__DINI_SOURCE_TRUTH_RUNTIME_COMPAT_V1__=true;
 
-  const VERSION='1.2.3';
+  const VERSION='1.2.4';
   const MOBILE_MAX=767;
   const boundDocs=new WeakMap();
   const boundFrames=new WeakSet();
@@ -366,12 +366,29 @@
     for(const id of ['previewFrame','templatePreviewFrame','diniPublicCanonicalFrame'])bindFrame(doc.getElementById?.(id));
   }
 
+  const isPublic=!!window.DINI_PUBLIC_ENTRY||!!document.querySelector('meta[name="dini-public-renderer"]');
   bindDocument(document);
   discoverFrames();
-  const rootObserver=new MutationObserver(()=>discoverFrames());
-  try{rootObserver.observe(document.documentElement,{subtree:true,childList:true})}catch{}
-  [100,300,800,1800,4000,8000].forEach(ms=>setTimeout(discoverFrames,ms));
-  setTimeout(()=>rootObserver.disconnect(),15000);
+
+  let rootObserver=null;
+  const publicFramePresent=()=>!!document.getElementById('diniPublicCanonicalFrame');
+  if(!(isPublic&&publicFramePresent())){
+    rootObserver=new MutationObserver(()=>{
+      discoverFrames();
+      if(isPublic&&publicFramePresent()){
+        rootObserver?.disconnect();
+        rootObserver=null;
+        document.documentElement.dataset.diniSourceTruthFrameWatch='settled';
+      }
+    });
+    try{
+      const root=isPublic?(document.body||document.documentElement):document.documentElement;
+      rootObserver.observe(root,{subtree:!isPublic,childList:true});
+    }catch{}
+  }
+  const scans=isPublic?[120,500,1500,4000]:[100,300,800,1800,4000,8000];
+  scans.forEach(ms=>setTimeout(discoverFrames,ms));
+  setTimeout(()=>{rootObserver?.disconnect();rootObserver=null},isPublic?6000:15000);
 
   window.DINI_SOURCE_TRUTH_RUNTIME_COMPAT_V1={VERSION,applyDocument,revealMobileNone,patchSocial,patchGeneralIcons,patchImageAuthority,syncImageAnchor,isMobileDoc};
 })();
