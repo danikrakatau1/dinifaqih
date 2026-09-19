@@ -2,7 +2,7 @@
   'use strict';
   if(window.DINI_RSVP_GIFT_FEATURE_RUNTIME_V1?.version)return;
 
-  const VERSION='1.0.0';
+  const VERSION='1.1.0';
   const SUPABASE_URL='https://jfvmcerrsxjvbiogfqes.supabase.co';
   const SUPABASE_PUBLISHABLE_KEY='sb_publishable_3IqSDxkpxCGiDpxAEwdsXQ_AsJpsC4W';
 
@@ -54,10 +54,21 @@
       margin:0!important;
       border:1px solid rgba(255,255,255,.55);
       border-radius:14px;
-      overflow:hidden;
+      max-height:300px;
+      overflow-x:hidden;
+      overflow-y:auto;
+      overscroll-behavior:contain;
+      scroll-behavior:auto;
+      scrollbar-width:none;
+      -ms-overflow-style:none;
       background:rgba(25,18,13,.22);
       -webkit-backdrop-filter:blur(2px);
       backdrop-filter:blur(2px);
+    }
+    .cui-wrapper[data-dini-rsvp-wishes="1"] .cui-container-comments::-webkit-scrollbar{
+      display:none;
+      width:0;
+      height:0;
     }
     .cui-wrapper[data-dini-rsvp-wishes="1"] .dini-rsvp-wish{
       list-style:none!important;
@@ -158,9 +169,97 @@
     return list;
   }
 
+  const wishAutoControllers=new WeakMap();
+
+  function stopWishAutoScroll(list){
+    const ctl=wishAutoControllers.get(list);
+    if(!ctl)return;
+    ctl.stopped=true;
+    if(ctl.raf)cancelAnimationFrame(ctl.raf);
+    ctl.cleanups.forEach(fn=>{try{fn()}catch{}});
+    wishAutoControllers.delete(list);
+  }
+
+  function startWishAutoScroll(list){
+    if(!list?.isConnected)return;
+    stopWishAutoScroll(list);
+    if(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches)return;
+
+    const maxScroll=Math.max(0,list.scrollHeight-list.clientHeight);
+    if(maxScroll<10){
+      list.scrollTop=0;
+      list.removeAttribute('data-dini-auto-scroll');
+      return;
+    }
+
+    const ctl={
+      stopped:false,
+      raf:0,
+      dir:1,
+      last:0,
+      holdUntil:performance.now()+1400,
+      pausedUntil:0,
+      cleanups:[]
+    };
+    wishAutoControllers.set(list,ctl);
+    list.setAttribute('data-dini-auto-scroll','ping-pong');
+
+    const pauseFor=(ms=4200)=>{
+      ctl.pausedUntil=performance.now()+ms;
+      ctl.last=0;
+    };
+    const add=(type,fn,opts)=>{
+      list.addEventListener(type,fn,opts);
+      ctl.cleanups.push(()=>list.removeEventListener(type,fn,opts));
+    };
+    add('pointerdown',()=>pauseFor(),{passive:true});
+    add('touchstart',()=>pauseFor(),{passive:true});
+    add('wheel',()=>pauseFor(),{passive:true});
+
+    const speed=.032; // ~32 px/second, intentionally calm.
+    const edgePause=1500;
+
+    const tick=now=>{
+      if(ctl.stopped||!list.isConnected)return;
+      const max=Math.max(0,list.scrollHeight-list.clientHeight);
+      if(max<10){
+        list.scrollTop=0;
+        stopWishAutoScroll(list);
+        return;
+      }
+
+      if(now<ctl.pausedUntil||now<ctl.holdUntil){
+        ctl.last=now;
+        ctl.raf=requestAnimationFrame(tick);
+        return;
+      }
+
+      if(!ctl.last)ctl.last=now;
+      const dt=Math.min(48,Math.max(0,now-ctl.last));
+      ctl.last=now;
+      list.scrollTop+=ctl.dir*speed*dt;
+
+      if(ctl.dir>0&&list.scrollTop>=max-1){
+        list.scrollTop=max;
+        ctl.dir=-1;
+        ctl.holdUntil=now+edgePause;
+      }else if(ctl.dir<0&&list.scrollTop<=1){
+        list.scrollTop=0;
+        ctl.dir=1;
+        ctl.holdUntil=now+edgePause;
+      }
+
+      ctl.raf=requestAnimationFrame(tick);
+    };
+
+    ctl.raf=requestAnimationFrame(tick);
+  }
+
   function renderMessages(rows=[]){
     const list=wishList();
     if(!list)return false;
+    stopWishAutoScroll(list);
+    list.scrollTop=0;
     list.innerHTML='';
     if(!rows.length){
       const li=document.createElement('li');
@@ -183,6 +282,7 @@
         </div>`;
       list.appendChild(li);
     }
+    requestAnimationFrame(()=>requestAnimationFrame(()=>startWishAutoScroll(list)));
     return true;
   }
 
