@@ -1,7 +1,7 @@
 (function(g){
   'use strict';
   if(g.DINI_GALLERY_PERFORMANCE_V1?.version)return;
-  const VERSION='1.4.0';
+  const VERSION='1.4.1';
   const doc=document;
   const items=[...doc.querySelectorAll('[data-dini-gallery-bg-deferred="1"]')];
 
@@ -42,6 +42,9 @@
           backface-visibility:hidden;
           -webkit-backface-visibility:hidden;
         }
+        .elementor-widget-gallery[data-dini-gallery-source-items="1"] .e-gallery-image.dini-gallery-compositor-released{
+          will-change:auto!important;
+        }
         .elementor-widget-gallery[data-dini-gallery-source-items="1"] .e-gallery-image:not(.e-gallery-image-loaded){
           opacity:0!important;
           transform:translate3d(0,14px,0) scale(.985)!important;
@@ -65,11 +68,11 @@
       const images=[...widget.querySelectorAll('.e-gallery-image')];
       if(!images.length)return;
       if(reduced){
-        images.forEach(image=>image.classList.add('e-gallery-image-loaded'));
+        images.forEach(image=>image.classList.add('e-gallery-image-loaded','dini-gallery-compositor-released'));
         return;
       }
 
-      images.forEach(image=>image.classList.remove('e-gallery-image-loaded'));
+      images.forEach(image=>image.classList.remove('e-gallery-image-loaded','dini-gallery-compositor-released'));
 
       // Source-like choreography: do not let cache-hot thumbnails reveal in the
       // same paint. Each item gets a real visual beat, while still waiting for
@@ -88,6 +91,11 @@
           revealed=true;
           requestAnimationFrame(()=>requestAnimationFrame(()=>{
             image.classList.add('e-gallery-image-loaded');
+            const release=()=>{
+              if(image.isConnected)image.classList.add('dini-gallery-compositor-released');
+            };
+            image.addEventListener('transitionend',release,{once:true});
+            setTimeout(release,900);
           }));
         };
 
@@ -132,7 +140,7 @@
 
       const images=[...widget.querySelectorAll('.e-gallery-image')];
       if(reduced){
-        images.forEach(image=>image.classList.add('e-gallery-image-loaded'));
+        images.forEach(image=>image.classList.add('e-gallery-image-loaded','dini-gallery-compositor-released'));
         widget.classList.remove('elementor-invisible');
         widget.setAttribute('data-dini-gallery-reveal','done');
       }else{
