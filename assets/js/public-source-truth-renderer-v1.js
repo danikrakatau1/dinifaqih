@@ -506,7 +506,7 @@
       blocks.push('<script>document.documentElement.dataset.diniSourceTruthPublic="1";document.documentElement.dataset.diniPublicCompatibility="source-truth-exact-plus-runtime-compat";</script>');
       blocks.push('<script src="'+localAsset('/assets/js/icon-contract-v1.js?v=100')+'"></script>');
       blocks.push('<script src="'+localAsset('/assets/js/source-truth-runtime-compat-v1.js?v=125')+'"></script>');
-      blocks.push('<script src="'+localAsset('/assets/js/testimonial-carousel-runtime-v1.js?v=102')+'"></script>');
+      blocks.push('<script src="'+localAsset('/assets/js/testimonial-carousel-runtime-v1.js?v=103')+'"></script>');
       if(galleryPerf.count)blocks.push('<script src="'+localAsset('/assets/js/gallery-performance-v1.js?v=141')+'"></script>');
     }else{
       if(pkg.authority){
