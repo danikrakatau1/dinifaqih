@@ -2,7 +2,7 @@
   'use strict';
   if(window.DINI_GALLERY_LOVE_SHARED_LAYER_V1?.version)return;
 
-  const VERSION='2.2.0';
+  const VERSION='2.3.0';
   const doc=document;
   const GALLERY_TOP_ID='bc6eeaf';
 
@@ -85,22 +85,43 @@
 
       [data-dini-love-same-section-owner="1"]{
         position:relative!important;
+        display:flex!important;
+        flex-direction:column!important;
+        align-items:stretch!important;
+        width:100%!important;
+        max-width:none!important;
       }
 
-      [data-dini-love-same-section-content="1"]{
-        position:relative!important;
-        z-index:1!important;
+      [data-dini-love-same-section-owner="1"] > [data-dini-gallery-same-section="1"]{
+        order:0!important;
+        width:100%!important;
+        max-width:none!important;
+        flex:0 0 auto!important;
+        align-self:stretch!important;
       }
 
       [data-dini-gallery-love-v22-spacer="1"]{
+        order:1!important;
         position:relative!important;
         z-index:1!important;
         display:block!important;
         width:100%!important;
         height:clamp(180px,26vh,320px)!important;
         min-height:180px!important;
+        flex:0 0 auto!important;
         background:transparent!important;
         pointer-events:none!important;
+      }
+
+      [data-dini-love-same-section-content="1"]{
+        order:2!important;
+        position:relative!important;
+        z-index:1!important;
+        display:block!important;
+        width:100%!important;
+        max-width:none!important;
+        flex:0 0 auto!important;
+        align-self:stretch!important;
       }
     `;
 
@@ -171,7 +192,7 @@
     }
 
     doc.documentElement.setAttribute('data-dini-gallery-love-shared-layer',VERSION);
-    doc.documentElement.setAttribute('data-dini-gallery-love-layer-mode','v16-native-plus-direct-spacer');
+    doc.documentElement.setAttribute('data-dini-gallery-love-layer-mode','v23-layout-only-vertical');
     doc.documentElement.setAttribute('data-dini-gallery-love-layout','gallery-spacer-love');
     doc.documentElement.setAttribute(
       'data-dini-love-owner-id',
