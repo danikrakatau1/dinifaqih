@@ -1,7 +1,7 @@
 (function(g){
   'use strict';
   if(g.DINI_GALLERY_PERFORMANCE_V1?.version)return;
-  const VERSION='1.3.1';
+  const VERSION='1.4.0';
   const doc=document;
   const items=[...doc.querySelectorAll('[data-dini-gallery-bg-deferred="1"]')];
 
@@ -37,13 +37,14 @@
       revealStyle.textContent=`
         .elementor-widget-gallery[data-dini-gallery-source-items="1"] .e-gallery-image{
           transform-origin:center top!important;
-          transition:opacity .3s ease,transform .3s ease!important;
+          transition:opacity .72s cubic-bezier(.22,1,.36,1),transform .72s cubic-bezier(.22,1,.36,1)!important;
+          will-change:opacity,transform;
           backface-visibility:hidden;
           -webkit-backface-visibility:hidden;
         }
         .elementor-widget-gallery[data-dini-gallery-source-items="1"] .e-gallery-image:not(.e-gallery-image-loaded){
           opacity:0!important;
-          transform:scale(.5)!important;
+          transform:translate3d(0,14px,0) scale(.985)!important;
         }
         .elementor-widget-gallery[data-dini-gallery-source-items="1"] .e-gallery-image.e-gallery-image-loaded{
           opacity:1!important;
@@ -70,44 +71,39 @@
 
       images.forEach(image=>image.classList.remove('e-gallery-image-loaded'));
 
-      // Match the source video more closely: each optimized thumbnail becomes
-      // visible when its own decoded image is ready, with only a very small DOM
-      // order offset so cache-hot thumbnails do not all appear in one frame.
-      images.forEach((image,index)=>{
-        const url=String(
-          image.getAttribute('data-dini-gallery-bg-runtime')||
-          image.getAttribute('data-dini-gallery-bg')||
-          image.getAttribute('data-thumbnail')||''
-        ).trim();
+      // Source-like choreography: do not let cache-hot thumbnails reveal in the
+      // same paint. Each item gets a real visual beat, while still waiting for
+      // its optimized background to be ready when possible.
+      const started=performance.now();
+      const firstDelay=90;
+      const stagger=235;
+      const hardFallback=1900;
 
-        const show=()=>{
-          setTimeout(()=>{
-            requestAnimationFrame(()=>image.classList.add('e-gallery-image-loaded'));
-          },index*55);
+      images.forEach((image,index)=>{
+        const targetAt=started+firstDelay+(index*stagger);
+        let revealed=false;
+
+        const reveal=()=>{
+          if(revealed||!image.isConnected)return;
+          revealed=true;
+          requestAnimationFrame(()=>requestAnimationFrame(()=>{
+            image.classList.add('e-gallery-image-loaded');
+          }));
         };
 
-        if(!url){show();return;}
+        const ready=()=>image.getAttribute('data-dini-gallery-bg-loaded')==='1'||
+          !!String(image.style.backgroundImage||'').replace(/^none$/i,'');
 
-        try{
-          const probe=new Image();
-          probe.decoding='async';
-          try{probe.fetchPriority='low'}catch{}
-          let finished=false;
-          const done=()=>{
-            if(finished)return;
-            finished=true;
-            try{
-              const decoded=probe.decode?.();
-              if(decoded?.then)decoded.then(show).catch(show);
-              else show();
-            }catch{show()}
-          };
-          probe.addEventListener('load',done,{once:true});
-          probe.addEventListener('error',show,{once:true});
-          probe.src=url;
-          if(probe.complete&&probe.naturalWidth>0)done();
-          setTimeout(show,650+(index*35));
-        }catch{show()}
+        const wait=now=>{
+          if(revealed||!image.isConnected)return;
+          const timeReady=now>=targetAt;
+          const assetReady=ready();
+          if(timeReady&&assetReady)return reveal();
+          if(now>=targetAt+hardFallback)return reveal();
+          requestAnimationFrame(wait);
+        };
+
+        requestAnimationFrame(wait);
       });
     }
 
