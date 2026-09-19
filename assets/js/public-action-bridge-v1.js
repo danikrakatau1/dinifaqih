@@ -404,6 +404,7 @@
       const guestCountRaw = values.guest_count || values.guestCount || values.pax || values.jumlah || values['form_fields[jumlah]'] || 1;
       const guestCount = Number.parseInt(String(guestCountRaw), 10) || 1;
       const message = values.message || values.note || values.ucapan || values['form_fields[ucapan]'] || values.wishes || '';
+      if (!text(message)) throw new Error('rsvp_message_required');
       const guestSlug = text(
         values.guest_slug || values.guestSlug ||
         context.guestSlug || context.guest_slug ||
