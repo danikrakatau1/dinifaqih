@@ -3,7 +3,7 @@
   if(window.__DINI_PUBLIC_SOURCE_TRUTH_RENDERER_V1__)return;
   window.__DINI_PUBLIC_SOURCE_TRUTH_RENDERER_V1__=true;
 
-  const VERSION='1.3.49';
+  const VERSION='1.3.50';
   const CFG=window.DINI_PUBLIC_ENTRY||{};
   const MODE=CFG.mode==='guest'?'guest':'public';
   const SB='https://jfvmcerrsxjvbiogfqes.supabase.co';
@@ -441,11 +441,15 @@
     const querySlug=String(new URLSearchParams(location.search).get('guest_slug')||'').trim().toLowerCase();
     const slug=(querySlug||pathSlug).replace(/[^a-z0-9-]/g,'');
     if(!slug)throw new Error('Link tamu tidak valid.');
-    const r=await fetch(SB+'/rest/v1/rpc/resolve_guest_slug',{method:'POST',headers:H,body:JSON.stringify({p_slug:slug}),cache:'no-store'});
+    const r=await fetch(SB+'/rest/v1/rpc/resolve_guest_slug_v2',{method:'POST',headers:H,body:JSON.stringify({p_slug:slug}),cache:'no-store'});
     if(!r.ok)throw new Error(r.status===404||r.status===400?'Guest RPC belum tersedia.':'Guest resolver HTTP '+r.status);
     const j=await r.json();const guest=Array.isArray(j)?j[0]:j;
     if(!guest?.name)throw new Error('Tamu tidak ditemukan.');
-    return {name:String(guest.name),slug:String(guest.guest_slug||slug)};
+    return {
+      name:String(guest.name),
+      slug:String(guest.guest_slug||slug),
+      ramah_tamah_side:String(guest.ramah_tamah_side||'').trim().toLowerCase()
+    };
   }
 
   async function loadSnapshot(row,manifest){
@@ -521,6 +525,7 @@
       blocks.push('<script type="application/json" id="diniGuestPersonalizationContract">'+safeJson(contract)+'</script>');
       blocks.push('<script src="'+localAsset('/assets/js/guest-contract-core-v1.js?v=112')+'"></script>');
       blocks.push('<script src="'+localAsset('/assets/js/guest-runtime-v1.js?v=214')+'"></script>');
+      blocks.push('<script src="'+localAsset('/assets/js/ramah-tamah-runtime-v1.js?v=100')+'"></script>');
     }
     blocks.push('<script type="application/json" id="diniRsvpGiftFeatureConfig">'+safeJson({
       invitationId:String(CFG.invitationId||''),
