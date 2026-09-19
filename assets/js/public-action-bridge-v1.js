@@ -213,10 +213,75 @@
     return candidates[0]?.value || '';
   }
 
+  function isAccountCopyButton(button) {
+    if (!button) return false;
+    const own = norm(`${button.getAttribute?.('aria-label') || ''} ${button.getAttribute?.('title') || ''} ${button.textContent || ''} ${button.id || ''} ${button.className || ''} ${button.getAttribute?.('data-action') || ''} ${button.getAttribute?.('data-copy-kind') || ''}`);
+    if (!/(salin|copy)/.test(own)) return false;
+    return /(rekening|account|bank)/.test(own) || /copy rekening|salin rekening/.test(own);
+  }
+
+  function candidateVisibleAccount(button) {
+    const roots = [];
+    let node = button?.parentElement || null;
+    for (let depth = 0; node && depth < 9; depth += 1, node = node.parentElement) roots.push({ node, depth });
+
+    let buttonRect = null;
+    try { buttonRect = button.getBoundingClientRect?.() || null; } catch (_) {}
+
+    const seen = new Set();
+    const candidates = [];
+    const numberRe = /\b0?8\d(?:[\s.-]?\d){7,13}\b/g;
+
+    for (const { node: root, depth } of roots) {
+      const nodes = Array.from(root.querySelectorAll?.('p,span,strong,b,small,div') || []);
+      for (const el of nodes) {
+        if (seen.has(el) || el === button || el.contains?.(button) || !isVisibleNode(el)) continue;
+        seen.add(el);
+
+        const value = text(el.textContent);
+        if (!value || value.length > 260) continue;
+        if (!/(rekening|bank|dana|bca|bri|bni|mandiri|seabank|gopay|ovo|shopeepay)/i.test(value)) continue;
+
+        const matches = [...value.matchAll(numberRe)];
+        for (const match of matches) {
+          const raw = match[0] || '';
+          const digits = raw.replace(/\D/g, '');
+          if (digits.length < 10 || digits.length > 15) continue;
+
+          let score = 500 - depth * 28;
+          if (/no\.?\s*rekening/i.test(value)) score += 220;
+          if (/bank/i.test(value)) score += 90;
+          try {
+            const rect = el.getBoundingClientRect?.();
+            if (rect && buttonRect) {
+              const buttonY = (buttonRect.top + buttonRect.bottom) / 2;
+              const elY = (rect.top + rect.bottom) / 2;
+              const vertical = Math.abs(buttonY - elY);
+              score += Math.max(0, 360 - vertical * 2.2);
+              if (rect.bottom <= buttonRect.top + 32) score += 90;
+            }
+          } catch (_) {}
+          candidates.push({ value: digits, score });
+        }
+      }
+    }
+
+    candidates.sort((a, b) => b.score - a.score);
+    return candidates[0]?.value || '';
+  }
+
   function candidateCopyValue(button) {
     if (isAddressCopyButton(button)) {
       const visibleAddress = candidateVisibleAddress(button);
       if (visibleAddress) return visibleAddress;
+    }
+
+    // Rekening buttons in the source template can carry stale placeholder
+    // data-copy values. For those buttons, the visible authored bank/account
+    // text nearest to the clicked button is the source of truth.
+    if (isAccountCopyButton(button)) {
+      const visibleAccount = candidateVisibleAccount(button);
+      if (visibleAccount) return visibleAccount;
     }
 
     const explicit = text(button.dataset.copy || button.dataset.clipboardText || button.getAttribute('data-value'));
