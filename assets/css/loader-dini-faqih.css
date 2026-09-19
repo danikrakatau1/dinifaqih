@@ -1,4 +1,4 @@
-/* Dini & Faqih Premium Loader V1 */
+/* Dini & Faqih Premium Loader V2 */
 .state.dini-premium-loader{
   min-height:100vh;
   min-height:100dvh;
@@ -20,7 +20,9 @@
   align-items:center;
   justify-content:center;
   gap:14px;
-  animation:diniLoaderEnter .42s cubic-bezier(.22,1,.36,1) both;
+  will-change:transform,opacity;
+  transform:translateZ(0);
+  animation:diniLoaderEnter .72s cubic-bezier(.22,1,.36,1) both;
 }
 .dini-premium-loader__logo{
   display:block;
@@ -29,7 +31,8 @@
   max-height:210px;
   user-select:none;
   pointer-events:none;
-  filter:drop-shadow(0 10px 30px rgba(251,124,170,.08));
+  will-change:transform,opacity;
+  transform:translateZ(0);
 }
 .dini-premium-loader__copy{
   margin:0;
@@ -37,17 +40,28 @@
   letter-spacing:.075em;
   color:#8a7b74;
   opacity:.88;
-  animation:diniLoaderCopy .55s ease .38s both;
+  will-change:transform,opacity;
+  animation:diniLoaderCopy .72s cubic-bezier(.22,1,.36,1) .42s both;
 }
 .dini-premium-loader__dot{
   width:4px;height:4px;border-radius:999px;
   background:#fb7caa;
   box-shadow:-10px 0 0 rgba(251,124,170,.26),10px 0 0 rgba(251,124,170,.26);
-  animation:diniLoaderDot 1.45s ease-in-out .7s infinite;
+  will-change:transform,opacity;
+  animation:diniLoaderDot 1.8s cubic-bezier(.45,0,.55,1) .75s infinite;
 }
-@keyframes diniLoaderEnter{from{opacity:0;transform:translateY(7px) scale(.99)}to{opacity:1;transform:none}}
-@keyframes diniLoaderCopy{from{opacity:0;transform:translateY(4px)}to{opacity:.88;transform:none}}
-@keyframes diniLoaderDot{0%,100%{opacity:.35;transform:scale(.85)}50%{opacity:1;transform:scale(1)}}
+@keyframes diniLoaderEnter{
+  from{opacity:0;transform:translate3d(0,10px,0) scale(.992)}
+  to{opacity:1;transform:translate3d(0,0,0) scale(1)}
+}
+@keyframes diniLoaderCopy{
+  from{opacity:0;transform:translate3d(0,6px,0)}
+  to{opacity:.88;transform:translate3d(0,0,0)}
+}
+@keyframes diniLoaderDot{
+  0%,100%{opacity:.34;transform:translate3d(0,0,0) scale(.9)}
+  50%{opacity:.96;transform:translate3d(0,0,0) scale(1.04)}
+}
 @media (max-width:480px){
   .state.dini-premium-loader{padding:22px}
   .dini-premium-loader__inner{gap:10px}
