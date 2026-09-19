@@ -279,8 +279,8 @@
     ].join('\n');
   }
 
-  function directGiftToWhatsapp(form){
-    const data=formValues(form);
+  function directGiftToWhatsapp(form,dataOverride=null){
+    const data=dataOverride||formValues(form);
     const msg=encodeURIComponent(whatsappMessage(data));
     const target=giftWhatsapp
       ?'https://wa.me/'+giftWhatsapp+'?text='+msg
@@ -303,17 +303,18 @@
   document.addEventListener('dinifaqih:gift:success',event=>{
     const form=event.target;
     if(!classifyGiftForm(form))return;
+    let data=formValues(form);
     if(pendingGift.has(form)){
       const saved=pendingGift.get(form);
       if(saved){
         // Preserve the exact values from submit time in case another runtime
         // mutates or resets the fields immediately after persistence.
-        const current=formValues(form);
-        for(const [key,value] of Object.entries(saved))if(value!==''&&value!=null)current[key]=value;
+        for(const [key,value] of Object.entries(saved))if(value!==''&&value!=null)data[key]=value;
       }
     }
+    pendingGift.delete(form);
     form.removeAttribute('data-dini-gift-wa-pending');
-    directGiftToWhatsapp(form);
+    directGiftToWhatsapp(form,data);
   });
 
   document.addEventListener('dinifaqih:gift:error',event=>{
