@@ -200,6 +200,7 @@
       pos:Math.max(0,Math.min(maxScroll,list.scrollTop||0)),
       last:0,
       pausedUntil:0,
+      nextMeasure:0,
       visible:false,
       observer:null,
       resizeObserver:null,
@@ -264,7 +265,10 @@
       ctl.last=now;
 
       // Refresh occasionally without forcing layout every frame.
-      if((Math.floor(now/1000)%2)===0)refreshMax();
+      if(now>=ctl.nextMeasure){
+        refreshMax();
+        ctl.nextMeasure=now+1200;
+      }
       if(maxScroll<8){
         list.scrollTop=0;
         stopWishAutoScroll(list);
