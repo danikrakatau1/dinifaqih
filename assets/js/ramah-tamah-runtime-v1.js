@@ -2,16 +2,18 @@
   'use strict';
   if(window.DINI_RAMAH_TAMAH_RUNTIME_V1?.version)return;
 
-  const VERSION='1.0.1';
+  const VERSION='1.1.0';
   const EVENT={
     title:'Ramah Tamah',
     date:'KAMIS, 24 SEPTEMBER 2026',
     time:'SELERA ANDA',
     dini:{
+      label:'Dini',
       address:'Dukuh Madureso, Sidorejo, Warungasem, Batang',
       maps:'https://maps.app.goo.gl/gbu377WKqwHDLD3h7'
     },
     faqih:{
+      label:'Faqih',
       address:'Kertoharjo Gang 10',
       maps:'https://maps.app.goo.gl/5aj8aQhKqa7z9xi76'
     }
@@ -19,21 +21,26 @@
 
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
   const lower=v=>clean(v).toLowerCase();
+  const guestDataEl=document.getElementById('diniGuestRuntimeData');
   const cfg=(()=>{
-    try{
-      const el=document.getElementById('diniGuestRuntimeData');
-      return el?JSON.parse(el.textContent||'{}'):{};
-    }catch{return{}}
+    try{return guestDataEl?JSON.parse(guestDataEl.textContent||'{}'):{}}
+    catch{return{}}
   })();
-  const side=lower(cfg.ramah_tamah_side);
-  const location=EVENT[side];
+  const isGuest=!!guestDataEl;
+  const guestSide=lower(cfg.ramah_tamah_side);
 
   document.documentElement.setAttribute('data-dini-ramah-tamah-runtime',VERSION);
-  document.documentElement.setAttribute('data-dini-ramah-tamah-side',side||'unassigned');
+  document.documentElement.setAttribute('data-dini-ramah-tamah-mode',isGuest?'guest':'public');
+  document.documentElement.setAttribute('data-dini-ramah-tamah-side',guestSide||'unassigned');
 
-  if(!location){
+  if(isGuest&&!EVENT[guestSide]){
     document.documentElement.setAttribute('data-dini-ramah-tamah','unassigned');
-    window.DINI_RAMAH_TAMAH_RUNTIME_V1={version:VERSION,side:'',event:EVENT};
+    window.DINI_RAMAH_TAMAH_RUNTIME_V1={
+      version:VERSION,
+      mode:'guest',
+      side:'',
+      event:EVENT
+    };
     return;
   }
 
@@ -76,7 +83,10 @@
     return topSection||candidates[candidates.length-1];
   }
 
-  function replaceTextNodes(root){
+  function replaceTextNodes(root,side,title){
+    const location=EVENT[side];
+    if(!location)return;
+
     const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
     const nodes=[];
     while(walker.nextNode())nodes.push(walker.currentNode);
@@ -87,7 +97,7 @@
       if(!normalized)continue;
 
       let next=raw;
-      next=next.replace(/\bResepsi\b/gi,EVENT.title);
+      next=next.replace(/\bResepsi\b/gi,title);
       next=next.replace(/JUMAT\s*,?\s*25\s+SEPTEMBER\s+2026/gi,EVENT.date);
       next=next.replace(/25\s+SEPTEMBER\s+2026/gi,'24 SEPTEMBER 2026');
       next=next.replace(/13[.:]00\s*WIB\s*(?:-|–|—)?\s*SELESAI/gi,EVENT.time);
@@ -120,7 +130,7 @@
         a.setAttribute('href',location.maps);
         a.setAttribute('target','_blank');
         a.setAttribute('rel','noopener');
-        a.setAttribute('aria-label','Google Maps');
+        a.setAttribute('aria-label','Google Maps '+location.label);
         const textWalker=document.createTreeWalker(a,NodeFilter.SHOW_TEXT);
         const textNodes=[];
         while(textWalker.nextNode())textNodes.push(textWalker.currentNode);
@@ -143,25 +153,50 @@
     }
   }
 
-  function install(){
-    const existing=document.querySelector('[data-dini-ramah-tamah-event="1"]');
-    if(existing)return true;
+  function makeClone(source,side,title,index){
+    const clone=source.cloneNode(true);
+    clone.setAttribute('data-dini-ramah-tamah-event','1');
+    clone.setAttribute('data-dini-ramah-tamah-side',side);
+    clone.setAttribute('data-dini-ramah-tamah-index',String(index));
+    replaceTextNodes(clone,side,title);
+    revealClone(clone);
+    return clone;
+  }
 
+  function installGuest(source){
+    if(document.querySelector('[data-dini-ramah-tamah-event="1"]'))return true;
+    const clone=makeClone(source,guestSide,EVENT.title,1);
+    source.parentNode.insertBefore(clone,source.nextSibling);
+    document.documentElement.setAttribute('data-dini-ramah-tamah','ready');
+    document.documentElement.setAttribute('data-dini-ramah-tamah-count','1');
+    return true;
+  }
+
+  function installPublic(source){
+    const existing=[...document.querySelectorAll('[data-dini-ramah-tamah-event="1"]')];
+    if(existing.length>=2)return true;
+    existing.forEach(el=>el.remove());
+
+    const dini=makeClone(source,'dini',EVENT.title+' Dini',1);
+    const faqih=makeClone(source,'faqih',EVENT.title+' Faqih',2);
+    source.parentNode.insertBefore(dini,source.nextSibling);
+    source.parentNode.insertBefore(faqih,dini.nextSibling);
+
+    document.documentElement.setAttribute('data-dini-ramah-tamah','ready');
+    document.documentElement.setAttribute('data-dini-ramah-tamah-count','2');
+    document.documentElement.setAttribute('data-dini-ramah-tamah-public-order','dini,faqih');
+    return true;
+  }
+
+  function install(){
     const label=exactTextNode('Resepsi');
     if(!label)return false;
     const source=eventRoot(label);
     if(!source?.parentNode)return false;
 
-    const clone=source.cloneNode(true);
-    clone.setAttribute('data-dini-ramah-tamah-event','1');
-    clone.setAttribute('data-dini-ramah-tamah-side',side);
-    replaceTextNodes(clone);
-    revealClone(clone);
-
-    source.parentNode.insertBefore(clone,source.nextSibling);
-    document.documentElement.setAttribute('data-dini-ramah-tamah','ready');
-    document.documentElement.setAttribute('data-dini-ramah-tamah-source','resepsi-clone');
-    return true;
+    const ok=isGuest?installGuest(source):installPublic(source);
+    if(ok)document.documentElement.setAttribute('data-dini-ramah-tamah-source','resepsi-clone');
+    return ok;
   }
 
   let observer=null;
@@ -183,7 +218,8 @@
 
   window.DINI_RAMAH_TAMAH_RUNTIME_V1={
     version:VERSION,
-    side,
+    mode:isGuest?'guest':'public',
+    side:guestSide,
     event:EVENT,
     install:settle
   };
