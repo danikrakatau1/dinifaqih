@@ -1,4 +1,4 @@
-/* Dini & Faqih Premium Loader V3 */
+/* Dini & Faqih Premium Loader V4 */
 .state.dini-premium-loader{
   min-height:100vh;
   min-height:100dvh;
@@ -31,11 +31,15 @@
   max-height:210px;
   user-select:none;
   pointer-events:none;
-  will-change:transform,opacity;
+  will-change:transform,opacity,clip-path;
   transform:translate3d(0,0,0);
   backface-visibility:hidden;
   -webkit-backface-visibility:hidden;
-  animation:diniLoaderLogoBreathe 4.8s cubic-bezier(.45,0,.55,1) 1s infinite;
+  clip-path:inset(0 100% 0 0);
+  -webkit-clip-path:inset(0 100% 0 0);
+  animation:
+    diniLoaderLogoReveal 2.05s cubic-bezier(.22,1,.36,1) .12s both,
+    diniLoaderLogoBreathe 4.8s cubic-bezier(.45,0,.55,1) 2.35s infinite;
 }
 .dini-premium-loader__copy{
   margin:0;
@@ -61,6 +65,40 @@
   from{opacity:0;transform:translate3d(0,6px,0)}
   to{opacity:.88;transform:translate3d(0,0,0)}
 }
+@keyframes diniLoaderLogoReveal{
+  0%{
+    clip-path:inset(0 100% 0 0);
+    -webkit-clip-path:inset(0 100% 0 0);
+  }
+  14%{
+    clip-path:inset(0 84% 0 0);
+    -webkit-clip-path:inset(0 84% 0 0);
+  }
+  28%{
+    clip-path:inset(0 70% 0 0);
+    -webkit-clip-path:inset(0 70% 0 0);
+  }
+  42%{
+    clip-path:inset(0 58% 0 0);
+    -webkit-clip-path:inset(0 58% 0 0);
+  }
+  56%{
+    clip-path:inset(0 42% 0 0);
+    -webkit-clip-path:inset(0 42% 0 0);
+  }
+  70%{
+    clip-path:inset(0 28% 0 0);
+    -webkit-clip-path:inset(0 28% 0 0);
+  }
+  84%{
+    clip-path:inset(0 14% 0 0);
+    -webkit-clip-path:inset(0 14% 0 0);
+  }
+  100%{
+    clip-path:inset(0 0 0 0);
+    -webkit-clip-path:inset(0 0 0 0);
+  }
+}
 @keyframes diniLoaderLogoBreathe{
   0%,100%{opacity:1;transform:translate3d(0,0,0) scale(1)}
   50%{opacity:.985;transform:translate3d(0,0,0) scale(1.006)}
@@ -81,4 +119,5 @@
 }
 @media (prefers-reduced-motion:reduce){
   .dini-premium-loader__inner,.dini-premium-loader__logo,.dini-premium-loader__copy,.dini-premium-loader__dot{animation:none!important}
+  .dini-premium-loader__logo{clip-path:none!important;-webkit-clip-path:none!important}
 }
