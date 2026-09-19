@@ -2,7 +2,7 @@
   'use strict';
   if(window.DINI_GALLERY_LOVE_SHARED_LAYER_V1?.version)return;
 
-  const VERSION='2.1.0';
+  const VERSION='2.2.0';
   const doc=document;
   const GALLERY_TOP_ID='bc6eeaf';
 
@@ -24,10 +24,8 @@
     for(let depth=0;node&&depth<16;depth++,node=node.parentElement){
       if(node.matches?.('.elementor-top-section,.elementor-section,.e-con'))fallback=node;
 
-      const slideshow=
-        node.querySelector?.(':scope > .elementor-background-slideshow')||
-        node.querySelector?.('.elementor-background-slideshow');
-
+      const slideshow=node.querySelector?.(':scope > .elementor-background-slideshow')||
+                      node.querySelector?.('.elementor-background-slideshow');
       if(slideshow){
         return{section:node,slideshow,carousel};
       }
@@ -56,84 +54,53 @@
   }
 
   function ensureStyle(){
-    if(doc.getElementById('diniGalleryLoveStackStyle'))return;
+    if(doc.getElementById('diniGalleryLoveSameSectionStyle'))return;
 
     const style=doc.createElement('style');
-    style.id='diniGalleryLoveStackStyle';
+    style.id='diniGalleryLoveSameSectionStyle';
     style.textContent=`
-      [data-dini-love-stack-owner="1"]{
-        position:relative!important;
-        width:100%!important;
-        max-width:none!important;
-        overflow:hidden!important;
-      }
-
-      [data-dini-love-stack-owner="1"] > .elementor-background-slideshow{
-        position:absolute!important;
-        inset:0!important;
-        width:100%!important;
-        height:100%!important;
-        min-height:100%!important;
-        z-index:0!important;
-        pointer-events:none!important;
-      }
-
-      [data-dini-love-stack="1"]{
+      [data-dini-gallery-same-section="1"]{
         position:relative!important;
         z-index:1!important;
-        display:flex!important;
-        flex-direction:column!important;
-        align-items:stretch!important;
         width:100%!important;
-        max-width:none!important;
-        margin:0!important;
-        padding:0!important;
-        background:transparent!important;
-      }
-
-      [data-dini-gallery-love-stack-gallery="1"]{
-        display:block!important;
-        width:100%!important;
-        max-width:none!important;
-        margin:0!important;
-        flex:0 0 auto!important;
         background-color:transparent!important;
         background-image:none!important;
       }
 
-      [data-dini-gallery-love-stack-gallery="1"] > .elementor-container,
-      [data-dini-gallery-love-stack-gallery="1"] .elementor-column,
-      [data-dini-gallery-love-stack-gallery="1"] .elementor-widget-wrap,
-      [data-dini-gallery-love-stack-gallery="1"] .elementor-widget-heading,
-      [data-dini-gallery-love-stack-gallery="1"] .elementor-widget-gallery,
-      [data-dini-gallery-love-stack-gallery="1"] .e-con,
-      [data-dini-gallery-love-stack-gallery="1"] .e-con-inner{
+      [data-dini-gallery-same-section="1"] > .elementor-container,
+      [data-dini-gallery-same-section="1"] .elementor-column,
+      [data-dini-gallery-same-section="1"] .elementor-widget-wrap,
+      [data-dini-gallery-same-section="1"] .elementor-widget-heading,
+      [data-dini-gallery-same-section="1"] .elementor-widget-gallery,
+      [data-dini-gallery-same-section="1"] .e-con,
+      [data-dini-gallery-same-section="1"] .e-con-inner{
         background-color:transparent!important;
         background-image:none!important;
       }
 
-      [data-dini-gallery-love-stack-gallery="1"] .elementor-background-overlay{
+      [data-dini-gallery-same-section="1"] .elementor-background-overlay{
         background-color:transparent!important;
         background-image:none!important;
       }
 
-      [data-dini-gallery-love-stack-spacer="1"]{
+      [data-dini-love-same-section-owner="1"]{
+        position:relative!important;
+      }
+
+      [data-dini-love-same-section-content="1"]{
+        position:relative!important;
+        z-index:1!important;
+      }
+
+      [data-dini-gallery-love-v22-spacer="1"]{
+        position:relative!important;
+        z-index:1!important;
         display:block!important;
         width:100%!important;
         height:clamp(180px,26vh,320px)!important;
         min-height:180px!important;
-        flex:0 0 auto!important;
         background:transparent!important;
         pointer-events:none!important;
-      }
-
-      [data-dini-love-stack-content="1"]{
-        position:relative!important;
-        z-index:1!important;
-        display:block!important;
-        width:100%!important;
-        max-width:none!important;
-        flex:0 0 auto!important;
       }
     `;
 
@@ -141,7 +108,7 @@
   }
 
   function clearGallerySurface(gallery){
-    gallery.setAttribute('data-dini-gallery-love-stack-gallery','1');
+    gallery.setAttribute('data-dini-gallery-same-section','1');
     gallery.style.setProperty('background-color','transparent','important');
     gallery.style.setProperty('background-image','none','important');
 
@@ -171,57 +138,40 @@
     if(!gallery||!love?.section)return null;
     if(gallery===love.section)return null;
 
-    const section=love.section;
-    const contentRoot=directContentRoot(section);
-    if(!contentRoot)return null;
-
     ensureStyle();
     clearGallerySurface(gallery);
 
-    section.setAttribute('data-dini-love-stack-owner','1');
-    contentRoot.setAttribute('data-dini-love-stack-content','1');
+    const section=love.section;
+    const contentRoot=directContentRoot(section);
 
-    // One transparent content stack INSIDE the native Love Story owner:
-    // Gallery -> empty breathing area -> original Love Story content.
-    let stack=section.querySelector(':scope > [data-dini-love-stack="1"]');
-    if(!stack){
-      stack=doc.createElement('div');
-      stack.setAttribute('data-dini-love-stack','1');
-
-      // Keep background slideshow as a sibling behind the stack.
-      section.appendChild(stack);
+    section.setAttribute('data-dini-love-same-section-owner','1');
+    if(contentRoot){
+      contentRoot.setAttribute('data-dini-love-same-section-content','1');
     }
 
-    if(gallery.parentElement!==stack){
-      stack.appendChild(gallery);
+    // Gallery becomes the first content block INSIDE the native Love Story
+    // section. The source-native slideshow/background remains untouched and
+    // automatically covers Gallery + Love Story as one section.
+    if(gallery.parentElement!==section){
+      if(contentRoot){
+        section.insertBefore(gallery,contentRoot);
+      }else{
+        section.appendChild(gallery);
+      }
     }
 
-    let spacer=stack.querySelector(':scope > [data-dini-gallery-love-stack-spacer="1"]');
-    if(!spacer){
+    // Keep V1.6 native structure intact. Add only one transparent direct-child
+    // breathing spacer between Gallery and the original Love Story content.
+    let spacer=section.querySelector(':scope > [data-dini-gallery-love-v22-spacer="1"]');
+    if(!spacer&&contentRoot){
       spacer=doc.createElement('div');
-      spacer.setAttribute('data-dini-gallery-love-stack-spacer','1');
+      spacer.setAttribute('data-dini-gallery-love-v22-spacer','1');
       spacer.setAttribute('aria-hidden','true');
-      stack.appendChild(spacer);
-    }
-
-    if(contentRoot.parentElement!==stack){
-      stack.appendChild(contentRoot);
-    }
-
-    // Native slideshow remains the ONLY background and fills the now-taller
-    // Love Story owner. It is not copied, mirrored, shifted, or hidden.
-    if(love.slideshow){
-      love.slideshow.style.setProperty('top','0','important');
-      love.slideshow.style.setProperty('right','0','important');
-      love.slideshow.style.setProperty('bottom','0','important');
-      love.slideshow.style.setProperty('left','0','important');
-      love.slideshow.style.setProperty('width','100%','important');
-      love.slideshow.style.setProperty('height','100%','important');
-      love.slideshow.style.setProperty('min-height','100%','important');
+      section.insertBefore(spacer,contentRoot);
     }
 
     doc.documentElement.setAttribute('data-dini-gallery-love-shared-layer',VERSION);
-    doc.documentElement.setAttribute('data-dini-gallery-love-layer-mode','love-stack-native');
+    doc.documentElement.setAttribute('data-dini-gallery-love-layer-mode','v16-native-plus-direct-spacer');
     doc.documentElement.setAttribute('data-dini-gallery-love-layout','gallery-spacer-love');
     doc.documentElement.setAttribute(
       'data-dini-love-owner-id',
@@ -232,9 +182,8 @@
       gallery,
       love:section,
       slideshow:love.slideshow,
-      stack,
-      spacer,
-      contentRoot
+      contentRoot,
+      spacer:section.querySelector(':scope > [data-dini-gallery-love-v22-spacer="1"]')
     };
   }
 
