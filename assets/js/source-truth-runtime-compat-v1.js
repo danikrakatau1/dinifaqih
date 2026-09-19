@@ -3,7 +3,7 @@
   if(window.__DINI_SOURCE_TRUTH_RUNTIME_COMPAT_V1__)return;
   window.__DINI_SOURCE_TRUTH_RUNTIME_COMPAT_V1__=true;
 
-  const VERSION='1.2.4';
+  const VERSION='1.2.5';
   const MOBILE_MAX=767;
   const boundDocs=new WeakMap();
   const boundFrames=new WeakSet();
@@ -350,6 +350,20 @@
     try{observer.observe(doc.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['href','src','data-src','data-thumbnail','data-e-action-hash']})}catch{}
     boundDocs.set(doc,observer);
 
+    const publicRuntimeDoc=(()=>{
+      try{
+        if(doc===document&&(window.DINI_PUBLIC_ENTRY||document.querySelector('meta[name="dini-public-renderer"]')))return true;
+        return doc.defaultView?.frameElement?.id==='diniPublicCanonicalFrame';
+      }catch{return false}
+    })();
+
+    // Pointer/click authority handlers remain active, so public mutation
+    // observation can stop after the initial stabilization window.
+    if(publicRuntimeDoc)setTimeout(()=>{
+      try{observer.disconnect()}catch{}
+      doc.documentElement?.setAttribute('data-dini-source-truth-observer','settled');
+    },6000);
+
     // Short stabilization window only; no perpetual scroll-driven rescans.
     [60,180,500,1200,3000].forEach(ms=>setTimeout(run,ms));
   }
@@ -366,13 +380,16 @@
     for(const id of ['previewFrame','templatePreviewFrame','diniPublicCanonicalFrame'])bindFrame(doc.getElementById?.(id));
   }
 
-  const isPublic=!!window.DINI_PUBLIC_ENTRY||!!document.querySelector('meta[name="dini-public-renderer"]');
+  const insidePublicFrame=(()=>{
+    try{return window.frameElement?.id==='diniPublicCanonicalFrame'}catch{return false}
+  })();
+  const isPublic=insidePublicFrame||!!window.DINI_PUBLIC_ENTRY||!!document.querySelector('meta[name="dini-public-renderer"]');
   bindDocument(document);
   discoverFrames();
 
   let rootObserver=null;
-  const publicFramePresent=()=>!!document.getElementById('diniPublicCanonicalFrame');
-  if(!(isPublic&&publicFramePresent())){
+  const publicFramePresent=()=>insidePublicFrame||!!document.getElementById('diniPublicCanonicalFrame');
+  if(!insidePublicFrame&&!(isPublic&&publicFramePresent())){
     rootObserver=new MutationObserver(()=>{
       discoverFrames();
       if(isPublic&&publicFramePresent()){
