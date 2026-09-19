@@ -3,7 +3,7 @@
   if(window.__DINI_PUBLIC_SOURCE_TRUTH_RENDERER_V1__)return;
   window.__DINI_PUBLIC_SOURCE_TRUTH_RENDERER_V1__=true;
 
-  const VERSION='1.3.47';
+  const VERSION='1.3.48';
   const CFG=window.DINI_PUBLIC_ENTRY||{};
   const MODE=CFG.mode==='guest'?'guest':'public';
   const SB='https://jfvmcerrsxjvbiogfqes.supabase.co';
@@ -393,6 +393,9 @@
     frame.style.cssText=fullDocument
       ?'display:block;width:100vw;max-width:none;height:100vh;height:100dvh;border:0;margin:0;background:#fff;box-shadow:none;position:relative;z-index:0'
       :'display:block;width:min(100vw,450px);max-width:450px;height:100vh;height:100dvh;border:0;margin:0 auto;background:#fff;box-shadow:none;position:relative;z-index:0';
+    frame.style.visibility='hidden';
+    frame.style.opacity='0';
+    frame.style.pointerEvents='none';
     frame.srcdoc=String(html||'');
 
     document.documentElement.style.cssText='margin:0;width:100%;height:100%;background:#fff;overflow:hidden';
@@ -422,6 +425,7 @@
     }
 
     let presented=false;
+    let presenting=false;
     const started=performance.now();
     const minLoaderMs=2600;
     let minPresentTimer=0;
@@ -444,7 +448,7 @@
       }catch{}
     };
     const present=()=>{
-      if(presented)return;
+      if(presented||presenting)return;
       const elapsed=performance.now()-started;
       if(elapsed<minLoaderMs){
         if(!minPresentTimer){
@@ -456,8 +460,9 @@
         return;
       }
 
-      presented=true;
-      frame.style.pointerEvents='auto';
+      presenting=true;
+      frame.style.visibility='visible';
+      frame.style.opacity='1';
       document.documentElement.dataset.publicCoverFirstPaintReady=childReady()?'1':'fallback';
       document.documentElement.dataset.publicLoaderDuration=String(Math.round(performance.now()-started));
 
@@ -466,14 +471,28 @@
       };
 
       if(loader?.isConnected){
+        // Freeze the tiny decorative loops while the heavy iframe performs its
+        // first visible paint behind the opaque loader. After two compositor
+        // frames, fade the loader itself. This avoids visible stutter caused by
+        // SVG/iframe paint competing in the same frame.
+        loader.setAttribute('data-phase','settling');
         loader.setAttribute('aria-busy','false');
         loader.style.pointerEvents='none';
-        loader.style.opacity='0';
-        setTimeout(()=>{
-          try{loader.remove()}catch{}
-          releaseAfterHandoff();
-        },500);
+
+        requestAnimationFrame(()=>requestAnimationFrame(()=>{
+          presented=true;
+          presenting=false;
+          frame.style.pointerEvents='auto';
+          loader.style.opacity='0';
+          setTimeout(()=>{
+            try{loader.remove()}catch{}
+            releaseAfterHandoff();
+          },520);
+        }));
       }else{
+        presented=true;
+        presenting=false;
+        frame.style.pointerEvents='auto';
         releaseAfterHandoff();
       }
 
@@ -481,7 +500,7 @@
     };
 
     const check=()=>{
-      if(presented)return;
+      if(presented||presenting)return;
       if(childReady())return present();
       if(performance.now()-started>=1500)return present();
       requestAnimationFrame(check);
