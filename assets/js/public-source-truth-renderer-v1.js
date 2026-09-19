@@ -3,7 +3,7 @@
   if(window.__DINI_PUBLIC_SOURCE_TRUTH_RENDERER_V1__)return;
   window.__DINI_PUBLIC_SOURCE_TRUTH_RENDERER_V1__=true;
 
-  const VERSION='1.3.48';
+  const VERSION='1.3.49';
   const CFG=window.DINI_PUBLIC_ENTRY||{};
   const MODE=CFG.mode==='guest'?'guest':'public';
   const SB='https://jfvmcerrsxjvbiogfqes.supabase.co';
@@ -34,8 +34,9 @@
   };
   const embeddedBase=(html,manifest={},fallback='')=>{
     try{
-      const doc=new DOMParser().parseFromString(String(html||''),'text/html');
-      const authored=String(doc.querySelector('base')?.getAttribute('href')||'').trim();
+      const raw=String(html||'');
+      const m=raw.match(/<base\b[^>]*\bhref\s*=\s*(["'])(.*?)\1/i);
+      const authored=String(m?.[2]||'').trim();
       if(authored)return new URL(authored,manifest.source_url||manifest.asset_base||fallback||location.href).href;
     }catch{}
     for(const raw of [manifest.source_url,manifest.asset_base,fallback]){
@@ -245,6 +246,150 @@
     }
     return {html:'<!doctype html>\n'+doc.documentElement.outerHTML,count,preloadCount:preloads.length};
   };
+
+  const prepareSourceDocument=(html,manifest,sourcePath,snap)=>{
+    const raw=String(html||'');
+    const doc=new DOMParser().parseFromString(raw,'text/html');
+
+    // Base URL: preserve authored behavior without a separate parser pass.
+    const baseHref=embeddedBase(raw,manifest,sourcePath);
+    let base=doc.querySelector('base');
+    if(!base){
+      base=doc.createElement('base');
+      base.setAttribute('data-dini-template-base','source-truth');
+      (doc.head||doc.documentElement).prepend(base);
+    }else{
+      base.setAttribute('data-dini-template-base','source-truth');
+    }
+    base.setAttribute('href',baseHref);
+
+    // Media authority patch.
+    const map=mediaReplacementMapFromSnapshot(snap);
+    let mediaCount=0;
+    const replaceAttr=(el,name)=>{
+      const before=String(el.getAttribute(name)||'');
+      if(!before)return;
+      let next=before;
+      for(const [old,to] of map){
+        if(next===old)next=to;
+        else if(next.includes(old))next=next.split(old).join(to);
+      }
+      if(next!==before){el.setAttribute(name,next);mediaCount++}
+    };
+    if(map.size){
+      for(const a of doc.querySelectorAll('a[href]')){
+        replaceAttr(a,'href');
+        for(const at of [...a.attributes])if(/^data-/i.test(at.name))replaceAttr(a,at.name);
+      }
+    }
+    doc.documentElement.setAttribute('data-dini-media-authority-prepatched',String(mediaCount));
+    doc.documentElement.setAttribute('data-dini-media-authority-map-size',String(map.size));
+
+    // Cover performance contract, unchanged visually.
+    let coverPreloads=0;
+    const cover=doc.querySelector('#cover');
+    if(cover){
+      const style=doc.createElement('style');
+      style.setAttribute('data-dini-cover-performance','1');
+      style.textContent=`
+        html.dini-cover-perf-active #cover{
+          will-change:opacity,transform;
+          backface-visibility:hidden;
+          -webkit-backface-visibility:hidden;
+          isolation:isolate;
+        }
+        html.dini-cover-perf-active #cover [data-native-reveal]{
+          backface-visibility:hidden;
+          -webkit-backface-visibility:hidden;
+        }
+        html.dini-cover-staging #cover [data-native-reveal]{
+          animation-play-state:paused!important;
+          -webkit-animation-play-state:paused!important;
+        }
+      `;
+      (doc.head||doc.documentElement).appendChild(style);
+
+      const urls=new Set();
+      for(const img of cover.querySelectorAll('img[src]')){
+        const u=String(img.getAttribute('src')||'').trim();
+        if(u)urls.add(u);
+        img.setAttribute('fetchpriority','high');
+        img.setAttribute('loading','eager');
+      }
+      const ids=[...cover.querySelectorAll('[data-id]')].map(x=>String(x.getAttribute('data-id')||'').trim()).filter(Boolean);
+      for(const st of doc.querySelectorAll('style')){
+        const css=String(st.textContent||'');
+        if(!css||!css.includes('background-image'))continue;
+        for(const id of ids){
+          let pos=0;
+          const needle='elementor-element-'+id;
+          while((pos=css.indexOf(needle,pos))>=0){
+            const open=css.indexOf('{',pos);
+            const close=open>=0?css.indexOf('}',open):-1;
+            if(open<0||close<0||open-pos>600){pos+=needle.length;continue}
+            const rule=css.slice(open+1,close);
+            const m=rule.match(/background-image\s*:\s*url\(\s*["']?([^"')]+)["']?\s*\)/i);
+            if(m?.[1])urls.add(m[1]);
+            pos=close+1;
+          }
+        }
+      }
+      for(const href of [...urls].slice(0,4)){
+        if(!/^https?:\/\//i.test(href))continue;
+        const link=doc.createElement('link');
+        link.rel='preload';
+        link.as='image';
+        link.href=href;
+        link.setAttribute('fetchpriority','high');
+        link.setAttribute('data-dini-cover-preload','1');
+        (doc.head||doc.documentElement).appendChild(link);
+        coverPreloads++;
+      }
+
+      const nativeRuntime=doc.querySelector('script[data-dini-source-native-runtime]');
+      if(nativeRuntime?.parentNode){
+        const coverScript=doc.createElement('script');
+        coverScript.src=localAsset('/assets/js/cover-entrance-performance-v1.js?v=102');
+        coverScript.setAttribute('data-dini-cover-performance-runtime','1');
+        nativeRuntime.parentNode.insertBefore(coverScript,nativeRuntime);
+
+        const motionScript=doc.createElement('script');
+        motionScript.src=localAsset('/assets/js/motion-section-sequence-v1.js?v=150');
+        motionScript.setAttribute('data-dini-motion-section-sequence-runtime','1');
+        nativeRuntime.parentNode.insertBefore(motionScript,nativeRuntime);
+      }
+    }
+    doc.documentElement.setAttribute('data-dini-cover-performance-preloads',String(coverPreloads));
+
+    // Gallery images stay source-identical, but network/decode work waits until
+    // the existing gallery runtime's large pre-viewport window is reached.
+    let galleryCount=0;
+    for(const el of doc.querySelectorAll('.e-gallery-image[data-thumbnail],[data-native-gallery-image][data-thumbnail]')){
+      const original=String(el.getAttribute('data-thumbnail')||'').trim();
+      if(!original)continue;
+      const runtime=galleryThumbUrl(original,720,68);
+      if(!runtime)continue;
+      el.setAttribute('data-dini-gallery-bg',original);
+      el.setAttribute('data-dini-gallery-bg-runtime',runtime);
+      el.setAttribute('data-dini-gallery-bg-deferred','1');
+      el.removeAttribute('data-dini-gallery-bg-loaded');
+      el.removeAttribute('data-dini-gallery-bg-loading');
+      el.style.removeProperty('background-image');
+      galleryCount++;
+    }
+    if(galleryCount){
+      doc.documentElement.setAttribute('data-dini-gallery-optimized-count',String(galleryCount));
+      doc.documentElement.setAttribute('data-dini-gallery-preload-count','0');
+    }
+
+    return {
+      html:'<!doctype html>\n'+doc.documentElement.outerHTML,
+      mediaCount,
+      mapSize:map.size,
+      coverPreloads,
+      galleryCount
+    };
+  };
   const guestContractFromPackage=pkg=>{
     const m=pkg?.manifest||{},s=pkg?.snapshot||{};
     const candidates=[
@@ -338,17 +483,19 @@
   }
 
   function prepareHtml(pkg,row,guest){
-    let html=ensureBase(pkg.html,pkg.manifest,String(row.source_path||''));
-    const mediaPatch=reconcileSnapshotImageLinks(html,pkg.snapshot);
-    html=mediaPatch.html;
-    const coverPerf=optimizeCoverEntrance(html);
-    html=coverPerf.html;
-    const galleryPerf=deferHeavyGalleryBackgrounds(html);
-    html=galleryPerf.html;
-    document.documentElement.dataset.publicMediaAuthorityPrepatched=String(mediaPatch.count||0);
-    document.documentElement.dataset.publicCoverPerformancePreloads=String(coverPerf.preloads||0);
-    document.documentElement.dataset.publicMediaAuthorityMapSize=String(mediaPatch.mapSize||0);
-    document.documentElement.dataset.publicGalleryOptimized=String(galleryPerf.count||0);
+    const prepared=prepareSourceDocument(
+      pkg.html,
+      pkg.manifest,
+      String(row.source_path||''),
+      pkg.snapshot
+    );
+    let html=prepared.html;
+    const galleryPerf={count:prepared.galleryCount||0,preloadCount:0};
+    document.documentElement.dataset.publicMediaAuthorityPrepatched=String(prepared.mediaCount||0);
+    document.documentElement.dataset.publicCoverPerformancePreloads=String(prepared.coverPreloads||0);
+    document.documentElement.dataset.publicMediaAuthorityMapSize=String(prepared.mapSize||0);
+    document.documentElement.dataset.publicGalleryOptimized=String(prepared.galleryCount||0);
+    document.documentElement.dataset.publicPreparePasses='1';
     const blocks=[];
     const runtimeManifest=runtimeManifestFromPackage(pkg);
     blocks.push('<script src="'+localAsset('/assets/js/live-stream-contract-v1.js?v=101')+'"></script>');
