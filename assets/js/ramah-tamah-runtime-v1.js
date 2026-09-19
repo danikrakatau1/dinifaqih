@@ -2,7 +2,7 @@
   'use strict';
   if(window.DINI_RAMAH_TAMAH_RUNTIME_V1?.version)return;
 
-  const VERSION='1.0.0';
+  const VERSION='1.0.1';
   const EVENT={
     title:'Ramah Tamah',
     date:'KAMIS, 24 SEPTEMBER 2026',
@@ -134,12 +134,13 @@
   }
 
   function revealClone(root){
-    root.querySelectorAll('.elementor-invisible').forEach(el=>el.classList.remove('elementor-invisible'));
-    root.classList?.remove('elementor-invisible');
-    root.querySelectorAll('[style*="visibility:hidden"],[style*="opacity: 0"],[style*="opacity:0"]').forEach(el=>{
-      if(el.style.visibility==='hidden')el.style.removeProperty('visibility');
-      if(el.style.opacity==='0')el.style.removeProperty('opacity');
-    });
+    const hidden=[root,...root.querySelectorAll('.elementor-invisible')];
+    for(const el of hidden){
+      const wasInvisible=el.classList?.contains('elementor-invisible');
+      el.classList?.remove('elementor-invisible');
+      if(wasInvisible&&el.style?.visibility==='hidden')el.style.removeProperty('visibility');
+      if(wasInvisible&&el.style?.opacity==='0')el.style.removeProperty('opacity');
+    }
   }
 
   function install(){
