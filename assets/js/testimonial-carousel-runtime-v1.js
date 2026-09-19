@@ -2,7 +2,7 @@
   'use strict';
   if(window.DINI_TESTIMONIAL_CAROUSEL_V1?.version)return;
 
-  const VERSION='1.0.3';
+  const VERSION='1.0.4';
   const clamp=(n,min,max)=>Math.min(max,Math.max(min,n));
   const parseSettings=el=>{
     try{return JSON.parse(el.getAttribute('data-settings')||'{}')||{}}catch{return{}}
@@ -99,6 +99,8 @@
     let progressFill=null;
     if(pagination&&String(settings.pagination||'').toLowerCase()==='progressbar'){
       pagination.classList.add('swiper-pagination-progressbar','swiper-pagination-horizontal');
+      pagination.style.setProperty('display','none','important');
+      pagination.setAttribute('aria-hidden','true');
       progressFill=pagination.querySelector('.swiper-pagination-progressbar-fill');
       if(!progressFill){
         progressFill=document.createElement('span');
@@ -158,6 +160,18 @@
 
     const prevBtn=widget.querySelector('.elementor-swiper-button-prev,.swiper-button-prev');
     const nextBtn=widget.querySelector('.elementor-swiper-button-next,.swiper-button-next');
+    const prepareNavButton=btn=>{
+      if(!btn)return;
+      btn.style.setProperty('pointer-events','auto','important');
+      btn.style.setProperty('z-index','30','important');
+      btn.style.setProperty('cursor','pointer','important');
+      btn.style.setProperty('touch-action','manipulation','important');
+      btn.style.setProperty('user-select','none','important');
+      btn.setAttribute('role','button');
+      if(!btn.hasAttribute('tabindex'))btn.setAttribute('tabindex','0');
+    };
+    prepareNavButton(prevBtn);
+    prepareNavButton(nextBtn);
     if(prevBtn){
       prevBtn.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();prev(true)});
       prevBtn.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();prev(true)}});
@@ -196,6 +210,7 @@
 
     let startX=0,startY=0,lastX=0,lastY=0,dragging=false,startTime=0;
     viewport.addEventListener('pointerdown',e=>{
+      if(e.target?.closest?.('.elementor-swiper-button-prev,.swiper-button-prev,.elementor-swiper-button-next,.swiper-button-next'))return;
       if(e.pointerType==='mouse'&&e.button!==0)return;
       startX=lastX=e.clientX;
       startY=lastY=e.clientY;
