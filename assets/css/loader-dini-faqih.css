@@ -1,4 +1,4 @@
-/* Dini & Faqih Premium Loader V2 */
+/* Dini & Faqih Premium Loader V3 */
 .state.dini-premium-loader{
   min-height:100vh;
   min-height:100dvh;
@@ -32,7 +32,10 @@
   user-select:none;
   pointer-events:none;
   will-change:transform,opacity;
-  transform:translateZ(0);
+  transform:translate3d(0,0,0);
+  backface-visibility:hidden;
+  -webkit-backface-visibility:hidden;
+  animation:diniLoaderLogoBreathe 4.8s cubic-bezier(.45,0,.55,1) 1s infinite;
 }
 .dini-premium-loader__copy{
   margin:0;
@@ -58,9 +61,17 @@
   from{opacity:0;transform:translate3d(0,6px,0)}
   to{opacity:.88;transform:translate3d(0,0,0)}
 }
+@keyframes diniLoaderLogoBreathe{
+  0%,100%{opacity:1;transform:translate3d(0,0,0) scale(1)}
+  50%{opacity:.985;transform:translate3d(0,0,0) scale(1.006)}
+}
 @keyframes diniLoaderDot{
-  0%,100%{opacity:.34;transform:translate3d(0,0,0) scale(.9)}
-  50%{opacity:.96;transform:translate3d(0,0,0) scale(1.04)}
+  0%,100%{opacity:.34;transform:translate3d(0,0,0)}
+  50%{opacity:.96;transform:translate3d(0,0,0)}
+}
+.state.dini-premium-loader[data-phase="settling"] .dini-premium-loader__logo,
+.state.dini-premium-loader[data-phase="settling"] .dini-premium-loader__dot{
+  animation-play-state:paused!important;
 }
 @media (max-width:480px){
   .state.dini-premium-loader{padding:22px}
@@ -69,5 +80,5 @@
   .dini-premium-loader__copy{font-size:11px;letter-spacing:.06em}
 }
 @media (prefers-reduced-motion:reduce){
-  .dini-premium-loader__inner,.dini-premium-loader__copy,.dini-premium-loader__dot{animation:none!important}
+  .dini-premium-loader__inner,.dini-premium-loader__logo,.dini-premium-loader__copy,.dini-premium-loader__dot{animation:none!important}
 }
