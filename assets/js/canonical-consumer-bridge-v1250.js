@@ -2,7 +2,7 @@
   'use strict';
   if(window.__DINI_CANONICAL_CONSUMER_BRIDGE_1250__)return;
   window.__DINI_CANONICAL_CONSUMER_BRIDGE_1250__=true;
-  const VERSION='1.25.1';
+  const VERSION='1.25.2';
   const FRAME_IDS=['templatePreviewFrame','diniPublicCanonicalFrame'];
   const injected=new WeakSet();
 
@@ -35,14 +35,36 @@
     [0,60,180,500,1200,3000].forEach(ms=>setTimeout(()=>inject(frame),ms));
   }
 
+  const isPublic=!!window.DINI_PUBLIC_ENTRY||!!document.querySelector('meta[name="dini-public-renderer"]');
+  let mo=null;
+
   function scan(){
-    for(const id of FRAME_IDS)bind(document.getElementById(id));
+    let publicFrameFound=false;
+    for(const id of FRAME_IDS){
+      const frame=document.getElementById(id);
+      if(frame){
+        bind(frame);
+        if(id==='diniPublicCanonicalFrame')publicFrameFound=true;
+      }
+    }
     document.documentElement.dataset.canonicalConsumerBridge=VERSION;
+    if(isPublic&&publicFrameFound&&mo){
+      mo.disconnect();
+      mo=null;
+      document.documentElement.dataset.canonicalConsumerBridgeWatch='settled';
+    }
+    return publicFrameFound;
   }
 
-  scan();
-  const mo=new MutationObserver(scan);
-  try{mo.observe(document.documentElement,{subtree:true,childList:true})}catch{}
-  [100,300,800,1800,4000,8000,14000].forEach(ms=>setTimeout(scan,ms));
-  setTimeout(()=>mo.disconnect(),20000);
+  const found=scan();
+  if(!(isPublic&&found)){
+    mo=new MutationObserver(scan);
+    try{
+      const root=isPublic?(document.body||document.documentElement):document.documentElement;
+      mo.observe(root,{subtree:!isPublic,childList:true});
+    }catch{}
+  }
+  const scans=isPublic?[120,500,1500,4000]:[100,300,800,1800,4000,8000,14000];
+  scans.forEach(ms=>setTimeout(scan,ms));
+  setTimeout(()=>{mo?.disconnect();mo=null},isPublic?6000:20000);
 })();
