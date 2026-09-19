@@ -1,4 +1,6 @@
 const VERCEL_ORIGIN = 'https://www.dini-faqih.my.id';
+const SUPABASE_URL = 'https://jfvmcerrsxjvbiogfqes.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_3IqSDxkpxCGiDpxAEwdsXQ_AsJpsC4W';
 
 const STATIC_REWRITES = new Map([
   ['/', '/index.html'],
@@ -68,6 +70,108 @@ async function proxyReadOnlyApi(request) {
   });
 }
 
+const cleanText = (value, max = 500) => String(value ?? '').trim().slice(0, max);
+
+const supabaseHeaders = (extra = {}) => ({
+  apikey: SUPABASE_PUBLISHABLE_KEY,
+  ...extra
+});
+
+async function readBody(request) {
+  try { return await request.json(); } catch { return {}; }
+}
+
+async function invitationIsPublished(invitationId) {
+  const url = new URL(SUPABASE_URL + '/rest/v1/invitations');
+  url.searchParams.set('id', 'eq.' + invitationId);
+  url.searchParams.set('status', 'eq.published');
+  url.searchParams.set('select', 'id');
+  url.searchParams.set('limit', '1');
+  const res = await fetch(url.toString(), {
+    headers: supabaseHeaders({ Accept: 'application/json' })
+  });
+  if (!res.ok) throw new Error('invitation_check_' + res.status);
+  const rows = await res.json();
+  return Array.isArray(rows) && rows.length > 0;
+}
+
+async function handleRsvpWrite(request) {
+  const body = await readBody(request);
+  const invitationId = cleanText(body.invitation_id || body.invitationId, 80);
+  const guestName = cleanText(body.guest_name || body.guestName || body.name, 120);
+  const attendance = cleanText(body.attendance || body.status, 40).toLowerCase();
+  const guestCountRaw = Number(body.guest_count ?? body.guestCount ?? body.pax ?? 1);
+  const guestCount = Number.isFinite(guestCountRaw) ? Math.max(1, Math.min(20, Math.trunc(guestCountRaw))) : 1;
+  const message = cleanText(body.message || body.note || body.ucapan, 1000);
+
+  if (!invitationId || !guestName || !['hadir','tidak_hadir','ragu'].includes(attendance)) {
+    return json({ ok:false, error:'missing_or_invalid_fields' }, 400);
+  }
+  if (!(await invitationIsPublished(invitationId))) {
+    return json({ ok:false, error:'invitation_not_found' }, 404);
+  }
+
+  const res = await fetch(SUPABASE_URL + '/rest/v1/invitation_rsvps', {
+    method:'POST',
+    headers:supabaseHeaders({
+      'Content-Type':'application/json',
+      Prefer:'return=minimal'
+    }),
+    body:JSON.stringify({
+      invitation_id:invitationId,
+      guest_name:guestName,
+      attendance,
+      guest_count:guestCount,
+      message:message || null
+    })
+  });
+  if (!res.ok) {
+    const detail = (await res.text()).slice(0,300);
+    return json({ ok:false, error:'supabase_rsvp_' + res.status, detail }, 502);
+  }
+  return json({ ok:true }, 200, { 'x-dinifaqih-preview-api':'cloudflare-rsvp-direct' });
+}
+
+async function handleGiftWrite(request) {
+  const body = await readBody(request);
+  const invitationId = cleanText(body.invitation_id || body.invitationId, 80);
+  const guestName = cleanText(body.guest_name || body.guestName || body.name, 120);
+  const bankName = cleanText(body.bank_name || body.bankName || body.bank, 120);
+  const amountRaw = cleanText(body.amount || body.nominal, 80);
+  const note = cleanText(body.note || body.message || body.ucapan, 1000);
+  const proofPath = cleanText(body.proof_path || body.proofPath || body.proof_url || body.proofUrl, 1000);
+  const amountDigits = amountRaw.replace(/[^0-9.]/g,'');
+  const amount = amountDigits && Number.isFinite(Number(amountDigits)) ? Number(amountDigits) : null;
+
+  if (!invitationId || !guestName) {
+    return json({ ok:false, error:'missing_required_fields' }, 400);
+  }
+  if (!(await invitationIsPublished(invitationId))) {
+    return json({ ok:false, error:'invitation_not_found' }, 404);
+  }
+
+  const res = await fetch(SUPABASE_URL + '/rest/v1/gift_confirmations', {
+    method:'POST',
+    headers:supabaseHeaders({
+      'Content-Type':'application/json',
+      Prefer:'return=minimal'
+    }),
+    body:JSON.stringify({
+      invitation_id:invitationId,
+      guest_name:guestName,
+      bank_name:bankName || null,
+      amount,
+      note:note || null,
+      proof_path:proofPath || null
+    })
+  });
+  if (!res.ok) {
+    const detail = (await res.text()).slice(0,300);
+    return json({ ok:false, error:'supabase_gift_' + res.status, detail }, 502);
+  }
+  return json({ ok:true }, 200, { 'x-dinifaqih-preview-api':'cloudflare-gift-direct' });
+}
+
 function isGuestSlug(path) {
   return /^\/[a-z0-9][a-z0-9-]{0,119}$/i.test(path) &&
     !path.startsWith('/api') &&
@@ -94,11 +198,13 @@ export default {
         }, 503, { 'x-dinifaqih-preview-guard': 'route-blocked' });
       }
       try {
+        if (writeAllowed && routePath === '/api/rsvp') return await handleRsvpWrite(request);
+        if (writeAllowed && routePath === '/api/gift-confirmation') return await handleGiftWrite(request);
         return await proxyReadOnlyApi(request);
       } catch (error) {
         return json({
           ok: false,
-          error: 'Cloudflare feature preview gagal meneruskan API ke Vercel.',
+          error: 'Cloudflare feature preview gagal memproses API.',
           detail: error?.message || String(error)
         }, 502);
       }
