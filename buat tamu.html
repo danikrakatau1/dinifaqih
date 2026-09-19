@@ -36,19 +36,25 @@
     <div class="card">
       <h2>Tambah Tamu</h2>
       <label>Nama tamu</label><input id="guest" placeholder="Contoh: Rozak" autocomplete="off">
+      <label>Tujuan Ramah Tamah</label>
+      <select id="guestSide" aria-label="Tujuan Ramah Tamah">
+        <option value="">Pilih Dini / Faqih</option>
+        <option value="dini">Dini</option>
+        <option value="faqih">Faqih</option>
+      </select>
       <div class="toolbar" style="margin-top:16px"><button class="primary" id="add">+ Tambah Tamu</button></div>
       <p class="small">Link dasar: <span id="base">https://dini-faqih.my.id/</span></p>
     </div>
 
     <div class="card" id="batchCard">
       <div class="top">
-        <div><h2>Tambah Tamu Batch</h2><div class="muted">Paste banyak nama sekaligus — satu nama per baris. Setiap baris dibuatkan link personal unik.</div></div>
+        <div><h2>Tambah Tamu Batch</h2><div class="muted">Format wajib: <code>Nama | Dini</code> atau <code>Nama | Faqih</code>. Setiap baris dibuatkan link personal unik.</div></div>
         <span class="status belum">Maks. 500 / batch</span>
       </div>
       <div class="batch-grid">
         <div>
-          <label>Daftar nama tamu</label>
-          <textarea id="batchGuests" placeholder="Contoh:&#10;Budi Santoso&#10;Siti Aminah&#10;Pak Rozak&#10;Imeel Nindya" spellcheck="false"></textarea>
+          <label>Daftar nama tamu + tujuan</label>
+          <textarea id="batchGuests" placeholder="Contoh:&#10;Rozak | Dini&#10;Budi Santoso | Faqih&#10;Siti Aminah | Dini&#10;Pak Ahmad | Faqih" spellcheck="false"></textarea>
           <div id="batchMeta" class="batch-progress">0 nama siap dibuat.</div>
           <div class="toolbar" style="margin-top:14px">
             <button class="primary" id="addBatch">+ Generate Batch</button>
@@ -58,8 +64,9 @@
         <div class="batch-help">
           <strong>Batch Generator</strong>
           <div class="small">• Baris kosong otomatis dilewati.</div>
+          <div class="small">• Setiap baris wajib memiliki tujuan: <code>Nama | Dini</code> atau <code>Nama | Faqih</code>.</div>
+          <div class="small">• Baris tanpa tujuan / tujuan selain Dini-Faqih ditandai gagal, tidak diberi default.</div>
           <div class="small">• Nama yang sama tetap boleh — database akan memberi slug unik seperti <code>/budi</code>, <code>/budi-2</code>.</div>
-          <div class="small">• Proses dilakukan berurutan agar slug tidak bentrok.</div>
           <div class="small">• Setelah selesai, hasil langsung masuk ke Daftar Tamu di bawah.</div>
           <div id="batchResult" class="batch-result">
             <strong id="batchResultTitle">Batch selesai.</strong>
@@ -76,7 +83,7 @@
 
     <div class="card">
       <div class="top"><div><strong>Daftar Tamu</strong><div class="small" id="count">0 tamu</div></div><div class="toolbar"><input class="search" id="search" placeholder="🔎 Cari nama / slug"><button id="copyAll">Salin Semua Link</button><button id="export">Download CSV</button></div></div>
-      <div class="table-wrap"><table><thead><tr><th>Nama</th><th>Link Personal</th><th>Status RSVP</th><th>Aksi</th></tr></thead><tbody id="rows"></tbody></table><div id="empty" class="empty">Belum ada tamu.</div></div>
+      <div class="table-wrap"><table><thead><tr><th>Nama</th><th>Link Personal</th><th>Tujuan Ramah Tamah</th><th>Status RSVP</th><th>Aksi</th></tr></thead><tbody id="rows"></tbody></table><div id="empty" class="empty">Belum ada tamu.</div></div>
     </div>
   </section>
 </div>
@@ -98,8 +105,68 @@ function status(msg,type='info'){const e=$('appStatus');e.textContent=msg;e.clas
 function loginStatus(msg){const e=$('loginStatus');e.textContent=msg;e.style.display='block'}
 async function login(){const email=$('email').value.trim(),password=$('password').value;if(!email||!password)return loginStatus('Email dan password wajib diisi.');const {error}=await sb.auth.signInWithPassword({email,password});if(error)loginStatus(error.message)}
 async function loadActive(){const {data,error}=await sb.from('templates').select('id,name,slug,is_active').eq('is_active',true).limit(1).maybeSingle();if(error){$('activeTemplate').textContent='Gagal dibaca';return}$('activeTemplate').textContent=data?data.name+' • '+data.slug:'Template 1 local'}
-async function loadGuests(opts={}){const {data,error}=await sb.from('guests').select('id,name,guest_slug,rsvp_status,created_at,template_id').order('created_at',{ascending:true});if(error){if(!opts.silent)status('Gagal memuat tamu: '+error.message+' — jalankan SUPABASE-GUESTS-UNIVERSAL-V1.sql pada project DINI & FAQIH.','bad');return}guests=data||[];render()}
-function render(){const q=$('search').value.trim().toLowerCase(),filtered=guests.filter(g=>(g.name||'').toLowerCase().includes(q)||(g.guest_slug||'').toLowerCase().includes(q));$('count').textContent=guests.length+' tamu';$('total').textContent=guests.length;$('hadir').textContent=guests.filter(g=>g.rsvp_status==='hadir').length;$('tidak').textContent=guests.filter(g=>g.rsvp_status==='tidak_hadir').length;$('belum').textContent=guests.filter(g=>!g.rsvp_status||g.rsvp_status==='belum').length;const body=$('rows');body.innerHTML='';$('empty').style.display=filtered.length?'none':'block';for(const g of filtered){const link=linkFor(g),cls=g.rsvp_status==='hadir'?'hadir':g.rsvp_status==='tidak_hadir'?'tidak':'belum',label=g.rsvp_status==='hadir'?'Hadir':g.rsvp_status==='tidak_hadir'?'Tidak hadir':'Belum konfirmasi';const tr=document.createElement('tr');tr.innerHTML=`<td><strong class="name"></strong><div class="slug"></div></td><td class="link"></td><td><span class="status ${cls}" title="Otomatis dari RSVP tamu">${label}</span></td><td><div class="actions"><button class="primary" data-copy>Copy</button><a class="btn whatsapp" target="_blank" rel="noopener">WhatsApp</a><button class="danger" data-delete>Hapus</button></div></td>`;tr.querySelector('.name').textContent=g.name;tr.querySelector('.slug').textContent=g.guest_slug?'/'+g.guest_slug:'slug belum tersedia';tr.querySelector('.link').textContent=link||'Jalankan migration Universal Guest V1';tr.querySelector('a').href='https://wa.me/?text='+encodeURIComponent("Assalamu'alaikum, berikut link undangan Faqih & Dini untuk "+g.name+': '+link);tr.querySelector('[data-copy]').onclick=async()=>{if(!link)return toast('Link belum tersedia.','bad');try{await navigator.clipboard.writeText(link);toast('Link '+g.name+' berhasil disalin ✅')}catch(e){toast('Gagal menyalin link.','bad')}};tr.querySelector('[data-delete]').onclick=async()=>{if(!confirm('Hapus tamu '+g.name+'?'))return;const {error}=await sb.from('guests').delete().eq('id',g.id);if(error)status('Gagal menghapus: '+error.message,'bad');else loadGuests()};body.appendChild(tr)}}
+async function loadGuests(opts={}){const {data,error}=await sb.from('guests').select('id,name,guest_slug,rsvp_status,created_at,template_id,ramah_tamah_side').order('created_at',{ascending:true});if(error){if(!opts.silent)status('Gagal memuat tamu: '+error.message+' — jalankan SUPABASE-GUESTS-UNIVERSAL-V1.sql pada project DINI & FAQIH.','bad');return}guests=data||[];render()}
+function render(){
+  const q=$('search').value.trim().toLowerCase();
+  const filtered=guests.filter(g=>
+    (g.name||'').toLowerCase().includes(q)||
+    (g.guest_slug||'').toLowerCase().includes(q)||
+    (g.ramah_tamah_side||'').toLowerCase().includes(q)
+  );
+  $('count').textContent=guests.length+' tamu';
+  $('total').textContent=guests.length;
+  $('hadir').textContent=guests.filter(g=>g.rsvp_status==='hadir').length;
+  $('tidak').textContent=guests.filter(g=>g.rsvp_status==='tidak_hadir').length;
+  $('belum').textContent=guests.filter(g=>!g.rsvp_status||g.rsvp_status==='belum').length;
+  const body=$('rows');body.innerHTML='';
+  $('empty').style.display=filtered.length?'none':'block';
+
+  for(const g of filtered){
+    const link=linkFor(g);
+    const cls=g.rsvp_status==='hadir'?'hadir':g.rsvp_status==='tidak_hadir'?'tidak':'belum';
+    const label=g.rsvp_status==='hadir'?'Hadir':g.rsvp_status==='tidak_hadir'?'Tidak hadir':'Belum konfirmasi';
+    const side=String(g.ramah_tamah_side||'').toLowerCase();
+
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td><strong class="name"></strong><div class="slug"></div></td><td class="link"></td><td><select data-side aria-label="Tujuan Ramah Tamah"><option value="">Belum dipilih</option><option value="dini">Dini</option><option value="faqih">Faqih</option></select></td><td><span class="status ${cls}" title="Otomatis dari RSVP tamu">${label}</span></td><td><div class="actions"><button class="primary" data-copy>Copy</button><a class="btn whatsapp" target="_blank" rel="noopener">WhatsApp</a><button class="danger" data-delete>Hapus</button></div></td>`;
+
+    tr.querySelector('.name').textContent=g.name;
+    tr.querySelector('.slug').textContent=g.guest_slug?'/'+g.guest_slug:'slug belum tersedia';
+    tr.querySelector('.link').textContent=link||'Jalankan migration Universal Guest V1';
+
+    const sideSelect=tr.querySelector('[data-side]');
+    sideSelect.value=side;
+    sideSelect.onchange=async()=>{
+      const next=sideSelect.value;
+      if(!next){
+        sideSelect.value=String(g.ramah_tamah_side||'').toLowerCase();
+        return toast('Tujuan wajib Dini atau Faqih.','bad');
+      }
+      sideSelect.disabled=true;
+      const {error}=await sb.from('guests').update({ramah_tamah_side:next}).eq('id',g.id);
+      sideSelect.disabled=false;
+      if(error){
+        sideSelect.value=String(g.ramah_tamah_side||'').toLowerCase();
+        return status('Gagal mengubah tujuan Ramah Tamah: '+error.message,'bad');
+      }
+      g.ramah_tamah_side=next;
+      toast('Tujuan '+g.name+' → '+(next==='dini'?'Dini':'Faqih')+' ✅');
+    };
+
+    tr.querySelector('a').href='https://wa.me/?text='+encodeURIComponent("Assalamu'alaikum, berikut link undangan Faqih & Dini untuk "+g.name+': '+link);
+    tr.querySelector('[data-copy]').onclick=async()=>{
+      if(!link)return toast('Link belum tersedia.','bad');
+      try{await navigator.clipboard.writeText(link);toast('Link '+g.name+' berhasil disalin ✅')}
+      catch(e){toast('Gagal menyalin link.','bad')}
+    };
+    tr.querySelector('[data-delete]').onclick=async()=>{
+      if(!confirm('Hapus tamu '+g.name+'?'))return;
+      const {error}=await sb.from('guests').delete().eq('id',g.id);
+      if(error)status('Gagal menghapus: '+error.message,'bad');else loadGuests()
+    };
+    body.appendChild(tr);
+  }
+}
 function startRsvpAutoSync(){
   if(rsvpChannel){try{sb.removeChannel(rsvpChannel)}catch{}}
   rsvpChannel=sb.channel('buat-tamu-rsvp-status')
@@ -116,50 +183,105 @@ function startRsvpAutoSync(){
 }
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadGuests({silent:true})});
 
-async function addGuest(){const input=$('guest'),name=input.value.trim();if(!name)return input.focus();const btn=$('add');btn.disabled=true;try{const {data,error}=await sb.from('guests').insert({name,rsvp_status:'belum'}).select('id,name,guest_slug,rsvp_status,created_at,template_id').single();if(error)throw error;input.value='';await loadGuests();status('Tamu ditambahkan: '+data.name+' → '+linkFor(data),'good');input.focus()}catch(e){status('Gagal menambah tamu: '+e.message+(String(e.message).includes('guest_slug')?' — jalankan SUPABASE-GUESTS-UNIVERSAL-V1.sql.':''),'bad')}finally{btn.disabled=false}}
-function batchNames(){return $('batchGuests').value.split(/\r?\n/).map(v=>v.replace(/\s+/g,' ').trim()).filter(Boolean)}
+async function addGuest(){
+  const input=$('guest'),name=input.value.trim(),side=$('guestSide').value;
+  if(!name){status('Nama tamu wajib diisi.','bad');return input.focus()}
+  if(!side){status('Pilih tujuan Ramah Tamah: Dini atau Faqih.','bad');return $('guestSide').focus()}
+  const btn=$('add');btn.disabled=true;
+  try{
+    const {data,error}=await sb.from('guests')
+      .insert({name,rsvp_status:'belum',ramah_tamah_side:side})
+      .select('id,name,guest_slug,rsvp_status,created_at,template_id,ramah_tamah_side')
+      .single();
+    if(error)throw error;
+    input.value='';$('guestSide').value='';
+    await loadGuests();
+    status('Tamu ditambahkan: '+data.name+' · '+(side==='dini'?'Dini':'Faqih')+' → '+linkFor(data),'good');
+    input.focus();
+  }catch(e){
+    status('Gagal menambah tamu: '+e.message+(String(e.message).includes('ramah_tamah_side')?' — cek migration Ramah Tamah.':''),'bad');
+  }finally{btn.disabled=false}
+}
+function batchEntries(){
+  return $('batchGuests').value.split(/\r?\n/).map(raw=>raw.trim()).filter(Boolean).map(raw=>{
+    const parts=raw.split('|');
+    const sideRaw=String(parts.pop()||'').trim().toLowerCase();
+    const name=parts.join('|').replace(/\s+/g,' ').trim();
+    const side=sideRaw==='dini'||sideRaw==='faqih'?sideRaw:'';
+    return {raw,name,side,valid:!!name&&!!side};
+  });
+}
 function updateBatchMeta(){
-  const names=batchNames(),seen=new Set(),dupes=[];
-  for(const name of names){const k=name.toLocaleLowerCase('id-ID');if(seen.has(k))dupes.push(name);else seen.add(k)}
-  $('batchMeta').textContent=names.length+' nama siap dibuat'+(dupes.length?' · '+dupes.length+' nama duplikat akan tetap dibuat dengan slug unik':'')+'.';
+  const entries=batchEntries(),valid=entries.filter(x=>x.valid),invalid=entries.filter(x=>!x.valid);
+  const seen=new Set(),dupes=[];
+  for(const item of valid){
+    const k=item.name.toLocaleLowerCase('id-ID');
+    if(seen.has(k))dupes.push(item.name);else seen.add(k);
+  }
+  $('batchMeta').textContent=
+    valid.length+' siap dibuat'+
+    (invalid.length?' · '+invalid.length+' baris invalid/gagal':'')+
+    (dupes.length?' · '+dupes.length+' nama duplikat tetap dibuat dengan slug unik':'')+'.';
 }
 function renderBatchResult(ok,failed,total){
   lastBatch=ok.slice();
   const box=$('batchResult');box.classList.add('show');
   $('batchResultTitle').textContent=failed.length?'Batch selesai dengan sebagian error.':'Batch berhasil dibuat.';
   $('batchResultDetail').textContent=ok.length+' berhasil · '+failed.length+' gagal · '+total+' total.';
-  $('batchErrors').textContent=failed.length?failed.map(x=>'• '+x.name+': '+x.error).join('\n'):'';
+  $('batchErrors').textContent=failed.length?failed.map(x=>'• '+x.raw+': '+x.error).join('\n'):'';
   $('copyBatchLinks').disabled=!ok.length;$('downloadBatchCsv').disabled=!ok.length;
 }
 async function addGuestBatch(){
-  const names=batchNames();if(!names.length){$('batchGuests').focus();return status('Masukkan minimal 1 nama tamu untuk batch.','bad')}
-  if(names.length>500)return status('Maksimal 500 nama per batch. Pecah daftar menjadi beberapa batch.','bad');
+  const entries=batchEntries();
+  if(!entries.length){$('batchGuests').focus();return status('Masukkan minimal 1 tamu dengan format Nama | Dini/Faqih.','bad')}
+  if(entries.length>500)return status('Maksimal 500 baris per batch. Pecah daftar menjadi beberapa batch.','bad');
+
   const btn=$('addBatch'),clear=$('clearBatch');btn.disabled=true;clear.disabled=true;lastBatch=[];
   const ok=[],failed=[];
   try{
-    for(let i=0;i<names.length;i++){
-      btn.textContent='Memproses '+(i+1)+' / '+names.length+'…';
-      $('batchMeta').textContent='Membuat '+(i+1)+' dari '+names.length+' · '+names[i];
+    for(let i=0;i<entries.length;i++){
+      const item=entries[i];
+      btn.textContent='Memproses '+(i+1)+' / '+entries.length+'…';
+      $('batchMeta').textContent='Memproses '+(i+1)+' dari '+entries.length+' · '+item.raw;
+
+      if(!item.valid){
+        failed.push({raw:item.raw,error:'Format wajib: Nama | Dini atau Nama | Faqih'});
+        continue;
+      }
+
       try{
-        const {data,error}=await sb.from('guests').insert({name:names[i],rsvp_status:'belum'}).select('id,name,guest_slug,rsvp_status,created_at,template_id').single();
+        const {data,error}=await sb.from('guests')
+          .insert({name:item.name,rsvp_status:'belum',ramah_tamah_side:item.side})
+          .select('id,name,guest_slug,rsvp_status,created_at,template_id,ramah_tamah_side')
+          .single();
         if(error)throw error;
         ok.push(data);
-      }catch(err){failed.push({name:names[i],error:err?.message||String(err)})}
+      }catch(err){
+        failed.push({raw:item.raw,error:err?.message||String(err)});
+      }
     }
+
     await loadGuests();
-    renderBatchResult(ok,failed,names.length);
-    if(ok.length&&!failed.length){$('batchGuests').value='';updateBatchMeta();status(ok.length+' tamu batch berhasil dibuat.','good')}
-    else if(failed.length){$('batchGuests').value=failed.map(x=>x.name).join('\n');updateBatchMeta();if(ok.length)status(ok.length+' tamu berhasil, '+failed.length+' gagal. Daftar input sekarang hanya berisi yang gagal untuk retry.','bad');else status('Batch gagal dibuat. Daftar input tetap siap untuk retry.','bad')}
+    renderBatchResult(ok,failed,entries.length);
+
+    if(ok.length&&!failed.length){
+      $('batchGuests').value='';updateBatchMeta();
+      status(ok.length+' tamu batch berhasil dibuat.','good');
+    }else if(failed.length){
+      $('batchGuests').value=failed.map(x=>x.raw).join('\n');updateBatchMeta();
+      if(ok.length)status(ok.length+' tamu berhasil, '+failed.length+' gagal. Input sekarang hanya berisi baris gagal untuk retry.','bad');
+      else status('Batch gagal dibuat. Periksa format Nama | Dini/Faqih.','bad');
+    }
   }finally{
     btn.disabled=false;clear.disabled=false;btn.textContent='+ Generate Batch';
     if($('batchGuests').value.trim())updateBatchMeta();
   }
 }
 function batchCsv(rows){
-  const data=[['Nama','Slug','Link'],...rows.map(g=>[g.name,g.guest_slug||'',linkFor(g)])];
+  const data=[['Nama','Tujuan Ramah Tamah','Slug','Link'],...rows.map(g=>[g.name,g.ramah_tamah_side==='dini'?'Dini':'Faqih',g.guest_slug||'',linkFor(g)])];
   return '\ufeff'+data.map(r=>r.map(v=>'"'+String(v??'').replaceAll('"','""')+'"').join(',')).join('\n');
 }
-$('loginBtn').onclick=login;$('password').addEventListener('keydown',e=>{if(e.key==='Enter')login()});$('logout').onclick=()=>sb.auth.signOut();$('search').oninput=render;$('add').onclick=addGuest;$('guest').addEventListener('keydown',e=>{if(e.key==='Enter')addGuest()});$('batchGuests').addEventListener('input',updateBatchMeta);$('addBatch').onclick=addGuestBatch;$('clearBatch').onclick=()=>{$('batchGuests').value='';updateBatchMeta();$('batchResult').classList.remove('show')};$('copyBatchLinks').onclick=async()=>{const text=lastBatch.map(g=>g.name+'\t'+linkFor(g)).join('\n');if(text){try{await navigator.clipboard.writeText(text);toast('Link batch berhasil disalin ✅')}catch(e){toast('Gagal menyalin link batch.','bad')}}};$('downloadBatchCsv').onclick=()=>{if(!lastBatch.length)return;const blob=new Blob([batchCsv(lastBatch)],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='batch-tamu-dini-faqih.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};$('copyAll').onclick=async()=>{const rows=guests.filter(g=>g.guest_slug),text=rows.map(g=>g.name+'\t'+linkFor(g)).join('\n');if(text){try{await navigator.clipboard.writeText(text);toast(rows.length+' link berhasil disalin ✅')}catch(e){toast('Gagal menyalin semua link.','bad')}}};$('export').onclick=()=>{const data=[['Nama','Slug','Link','Status RSVP'],...guests.map(g=>[g.name,g.guest_slug||'',linkFor(g),g.rsvp_status||'belum'])],csv=data.map(r=>r.map(v=>'"'+String(v).replaceAll('"','""')+'"').join(',')).join('\n'),blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='daftar-tamu-dini-faqih.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
+$('loginBtn').onclick=login;$('password').addEventListener('keydown',e=>{if(e.key==='Enter')login()});$('logout').onclick=()=>sb.auth.signOut();$('search').oninput=render;$('add').onclick=addGuest;$('guest').addEventListener('keydown',e=>{if(e.key==='Enter')addGuest()});$('batchGuests').addEventListener('input',updateBatchMeta);$('addBatch').onclick=addGuestBatch;$('clearBatch').onclick=()=>{$('batchGuests').value='';updateBatchMeta();$('batchResult').classList.remove('show')};$('copyBatchLinks').onclick=async()=>{const text=lastBatch.map(g=>g.name+'\t'+linkFor(g)).join('\n');if(text){try{await navigator.clipboard.writeText(text);toast('Link batch berhasil disalin ✅')}catch(e){toast('Gagal menyalin link batch.','bad')}}};$('downloadBatchCsv').onclick=()=>{if(!lastBatch.length)return;const blob=new Blob([batchCsv(lastBatch)],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='batch-tamu-dini-faqih.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};$('copyAll').onclick=async()=>{const rows=guests.filter(g=>g.guest_slug),text=rows.map(g=>g.name+'\t'+linkFor(g)).join('\n');if(text){try{await navigator.clipboard.writeText(text);toast(rows.length+' link berhasil disalin ✅')}catch(e){toast('Gagal menyalin semua link.','bad')}}};$('export').onclick=()=>{const data=[['Nama','Tujuan Ramah Tamah','Slug','Link','Status RSVP'],...guests.map(g=>[g.name,g.ramah_tamah_side==='dini'?'Dini':g.ramah_tamah_side==='faqih'?'Faqih':'Belum dipilih',g.guest_slug||'',linkFor(g),g.rsvp_status||'belum'])],csv=data.map(r=>r.map(v=>'"'+String(v).replaceAll('"','""')+'"').join(',')).join('\n'),blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='daftar-tamu-dini-faqih.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
 updateBatchMeta();
 sb.auth.onAuthStateChange(async(_event,session)=>{const on=!!session;$('login').classList.toggle('hidden',on);$('app').classList.toggle('hidden',!on);if(on){await loadActive();await loadGuests();startRsvpAutoSync()}else{clearInterval(rsvpPollTimer);rsvpPollTimer=0;if(rsvpChannel){try{sb.removeChannel(rsvpChannel)}catch{}rsvpChannel=null}}});
 </script>
