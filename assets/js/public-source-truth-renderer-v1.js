@@ -547,6 +547,7 @@
       if(galleryPerf.count){
         blocks.push('<script src="'+localAsset('/assets/js/gallery-performance-v1.js?v=141')+'"></script>');
         blocks.push('<script src="'+localAsset('/assets/js/gallery-breathing-v1.js?v=130')+'"></script>');
+        blocks.push('<script src="'+localAsset('/assets/js/gallery-section-transparent-v1.js?v=100')+'"></script>');
       }
     }else{
       if(pkg.authority){
