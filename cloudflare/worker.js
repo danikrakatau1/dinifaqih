@@ -16,6 +16,11 @@ const SAFE_API_PROXY = new Set([
   '/api/preview-load'
 ]);
 
+const SAFE_WRITE_PROXY = new Set([
+  '/api/rsvp',
+  '/api/gift-confirmation'
+]);
+
 function json(body, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(body), {
     status,
@@ -39,7 +44,7 @@ async function proxyReadOnlyApi(request) {
   const headers = new Headers(request.headers);
   headers.delete('host');
   headers.delete('origin');
-  headers.set('x-dinifaqih-preview-host', 'cloudflare-test-final');
+  headers.set('x-dinifaqih-preview-host', 'cloudflare-test-rsvp-gift');
 
   const init = {
     method: request.method,
@@ -51,7 +56,10 @@ async function proxyReadOnlyApi(request) {
   const upstream = await fetch(target.toString(), init);
   const outHeaders = new Headers(upstream.headers);
   outHeaders.set('cache-control', 'no-store');
-  outHeaders.set('x-dinifaqih-preview-api', 'vercel-readonly-proxy');
+  outHeaders.set(
+    'x-dinifaqih-preview-api',
+    ['GET','HEAD'].includes(request.method) ? 'vercel-readonly-proxy' : 'vercel-feature-write-proxy'
+  );
 
   return new Response(upstream.body, {
     status: upstream.status,
@@ -72,21 +80,25 @@ export default {
     const path = url.pathname;
     const routePath = path.length > 1 && path.endsWith('/') ? path.slice(0, -1) : path;
 
-    // Test-final is intentionally read-only for server-side write APIs.
+    // Feature preview stays locked down except for the two explicitly
+    // requested public submission endpoints. Those POSTs use the same Vercel
+    // handlers as production, so validation + Supabase policies remain shared.
     if (routePath.startsWith('/api/')) {
-      if (!SAFE_API_PROXY.has(routePath) || !['GET', 'HEAD'].includes(request.method)) {
+      const readAllowed = SAFE_API_PROXY.has(routePath) && ['GET', 'HEAD'].includes(request.method);
+      const writeAllowed = SAFE_WRITE_PROXY.has(routePath) && request.method === 'POST';
+      if (!readAllowed && !writeAllowed) {
         return json({
           ok: false,
           preview_only: true,
-          error: 'Cloudflare test-final memblokir API write. Production Supabase/B2 tidak diubah dari preview.'
-        }, 503, { 'x-dinifaqih-preview-guard': 'write-blocked' });
+          error: 'Cloudflare feature preview hanya mengizinkan API yang sudah di-whitelist.'
+        }, 503, { 'x-dinifaqih-preview-guard': 'route-blocked' });
       }
       try {
         return await proxyReadOnlyApi(request);
       } catch (error) {
         return json({
           ok: false,
-          error: 'Cloudflare test-final gagal meneruskan API read-only ke Vercel.',
+          error: 'Cloudflare feature preview gagal meneruskan API ke Vercel.',
           detail: error?.message || String(error)
         }, 502);
       }
@@ -97,7 +109,7 @@ export default {
       const response = await env.ASSETS.fetch(assetRequest(request, rewritten));
       const headers = new Headers(response.headers);
       headers.set('cache-control', 'no-store');
-      headers.set('x-dinifaqih-preview', 'cloudflare-test-final');
+      headers.set('x-dinifaqih-preview', 'cloudflare-test-rsvp-gift');
       return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
     }
 
@@ -106,7 +118,7 @@ export default {
       const response = await env.ASSETS.fetch(assetRequest(request, '/guest-entry-v18.html'));
       const headers = new Headers(response.headers);
       headers.set('cache-control', 'no-store');
-      headers.set('x-dinifaqih-preview', 'cloudflare-test-final-guest');
+      headers.set('x-dinifaqih-preview', 'cloudflare-test-rsvp-gift-guest');
       headers.set('x-dinifaqih-preview-guest-slug', routePath.slice(1));
       return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
     }
@@ -120,7 +132,7 @@ export default {
     ) {
       headers.set('cache-control', 'no-store');
     }
-    headers.set('x-dinifaqih-preview', 'cloudflare-test-final');
+    headers.set('x-dinifaqih-preview', 'cloudflare-test-rsvp-gift');
 
     return new Response(response.body, {
       status: response.status,
