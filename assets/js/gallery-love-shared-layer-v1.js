@@ -2,14 +2,13 @@
   'use strict';
   if(window.DINI_GALLERY_LOVE_SHARED_LAYER_V1?.version)return;
 
-  const VERSION='1.2.0';
+  const VERSION='1.3.0';
   const doc=document;
   const GALLERY_TOP_ID='bc6eeaf';
 
   function galleryTop(){
     const exact=doc.querySelector('[data-id="'+GALLERY_TOP_ID+'"]');
     if(exact&&exact.querySelector('.elementor-widget-gallery'))return exact;
-
     const widget=doc.querySelector('.elementor-widget-gallery');
     return widget?.closest('.elementor-top-section,.elementor-section,.e-con')||null;
   }
@@ -23,22 +22,15 @@
 
     for(let depth=0;node&&depth<16;depth++,node=node.parentElement){
       if(node.matches?.('.elementor-top-section,.elementor-section,.e-con'))fallback=node;
-
       const slideshow=node.querySelector?.('.elementor-background-slideshow');
-      if(slideshow){
-        return{section:node,slideshow,carousel};
-      }
+      if(slideshow)return{section:node,slideshow,carousel};
     }
 
-    return fallback?{section:fallback,slideshow:fallback.querySelector?.('.elementor-background-slideshow')||null,carousel}:null;
-  }
-
-  function commonAncestor(a,b){
-    if(!a||!b)return null;
-    const seen=new Set();
-    for(let n=a;n;n=n.parentElement)seen.add(n);
-    for(let n=b;n;n=n.parentElement)if(seen.has(n))return n;
-    return null;
+    return fallback?{
+      section:fallback,
+      slideshow:fallback.querySelector?.('.elementor-background-slideshow')||null,
+      carousel
+    }:null;
   }
 
   function bgFrom(el){
@@ -46,10 +38,8 @@
     let cs=null;
     try{cs=getComputedStyle(el)}catch{}
     if(!cs)return null;
-
     const image=String(cs.backgroundImage||'').trim();
     if(!image||image==='none')return null;
-
     return{
       image,
       size:String(cs.backgroundSize||'cover')||'cover',
@@ -61,7 +51,6 @@
   function activeLoveBackground(ctx){
     if(!ctx?.section)return null;
     const root=ctx.slideshow||ctx.section;
-
     const selectors=[
       '.swiper-slide-active .elementor-background-slideshow__slide__image',
       '.swiper-slide-active [style*="background-image"]',
@@ -77,49 +66,27 @@
       }
     }
 
-    const sectionBg=bgFrom(ctx.section);
-    return sectionBg;
+    return bgFrom(ctx.section);
   }
 
   function ensureStyle(){
-    if(doc.getElementById('diniGalleryLoveSharedLayerStyleV1'))return;
+    if(doc.getElementById('diniGalleryLoveDocumentLayerStyle'))return;
 
     const style=doc.createElement('style');
-    style.id='diniGalleryLoveSharedLayerStyleV1';
+    style.id='diniGalleryLoveDocumentLayerStyle';
     style.textContent=`
-      [data-dini-gallery-love-host="1"]{
+      body{
         position:relative!important;
-        isolation:isolate!important;
       }
 
-      [data-dini-gallery-love-layer="1"]{
+      [data-dini-gallery-love-document-layer="1"]{
         position:absolute!important;
-        left:0!important;
-        width:100%!important;
         z-index:0!important;
+        pointer-events:none!important;
         overflow:hidden!important;
-        pointer-events:none!important;
-      }
-
-      [data-dini-gallery-love-layer="1"] > span{
-        position:absolute;
-        inset:0;
-        display:block;
-        opacity:1;
-        background-size:cover;
-        background-position:center center;
-        background-repeat:no-repeat;
-        will-change:background-image;
-      }
-
-      [data-dini-love-native-slideshow-hidden="1"]{
-        opacity:0!important;
-        pointer-events:none!important;
-      }
-
-      [data-dini-love-shared-section="1"]{
-        background-color:transparent!important;
-        background-image:none!important;
+        background-repeat:no-repeat!important;
+        background-size:cover!important;
+        background-position:center center!important;
       }
 
       [data-dini-gallery-love-content="1"]{
@@ -136,28 +103,40 @@
       [data-dini-gallery-love-gallery="1"] .e-con,
       [data-dini-gallery-love-gallery="1"] .e-con-inner{
         background-color:transparent!important;
+        background-image:none!important;
       }
 
       [data-dini-gallery-love-gallery="1"] .elementor-background-overlay{
         background-color:transparent!important;
+        background-image:none!important;
+      }
+
+      [data-dini-love-shared-section="1"]{
+        background-color:transparent!important;
+        background-image:none!important;
+      }
+
+      [data-dini-love-shared-section="1"] > .elementor-background-overlay{
+        background-color:transparent!important;
+        background-image:none!important;
+      }
+
+      [data-dini-love-native-slideshow-hidden="1"]{
+        opacity:0!important;
+        pointer-events:none!important;
       }
     `;
 
     (doc.head||doc.documentElement).appendChild(style);
   }
 
-  function makeLayer(host){
-    let layer=host.querySelector(':scope > [data-dini-gallery-love-layer="1"]');
+  function ensureLayer(){
+    let layer=doc.querySelector('[data-dini-gallery-love-document-layer="1"]');
     if(layer)return layer;
-
     layer=doc.createElement('div');
-    layer.setAttribute('data-dini-gallery-love-layer','1');
+    layer.setAttribute('data-dini-gallery-love-document-layer','1');
     layer.setAttribute('aria-hidden','true');
-
-    const pane=doc.createElement('span');
-    layer.appendChild(pane);
-
-    host.insertBefore(layer,host.firstChild);
+    doc.body.appendChild(layer);
     return layer;
   }
 
@@ -165,6 +144,7 @@
     gallery.setAttribute('data-dini-gallery-love-gallery','1');
     gallery.setAttribute('data-dini-gallery-love-content','1');
     gallery.style.setProperty('background-color','transparent','important');
+    gallery.style.setProperty('background-image','none','important');
 
     for(const el of gallery.querySelectorAll(
       '.elementor-container,.elementor-column,.elementor-widget-wrap,'+
@@ -173,11 +153,13 @@
       if(el.matches('.e-gallery-image,.e-gallery-item'))continue;
       if(el.closest('.e-gallery-image,.e-gallery-item'))continue;
       el.style.setProperty('background-color','transparent','important');
+      el.style.setProperty('background-image','none','important');
     }
 
     for(const overlay of gallery.querySelectorAll('.elementor-background-overlay')){
       if(overlay.closest('.e-gallery-image,.e-gallery-item'))continue;
       overlay.style.setProperty('background-color','transparent','important');
+      overlay.style.setProperty('background-image','none','important');
     }
   }
 
@@ -186,12 +168,9 @@
     const love=loveContext();
     if(!gallery||!love?.section)return null;
 
-    const host=commonAncestor(gallery,love.section);
-    if(!host||host===doc.body||host===doc.documentElement)return null;
-
     ensureStyle();
+    const layer=ensureLayer();
 
-    host.setAttribute('data-dini-gallery-love-host','1');
     clearGallerySurface(gallery);
 
     love.section.setAttribute('data-dini-gallery-love-content','1');
@@ -205,25 +184,30 @@
       love.slideshow.style.setProperty('pointer-events','none','important');
     }
 
-    const layer=makeLayer(host);
-    const pane=layer.firstElementChild;
     let lastImage='';
 
     const layout=()=>{
-      const h=host.getBoundingClientRect();
       const g=gallery.getBoundingClientRect();
       const l=love.section.getBoundingClientRect();
 
-      const top=Math.max(0,Math.round(g.top-h.top));
-      const height=Math.max(1,Math.round(l.bottom-g.top));
+      const scrollX=window.scrollX||doc.documentElement.scrollLeft||0;
+      const scrollY=window.scrollY||doc.documentElement.scrollTop||0;
 
-      // ONE continuous visible layer from Gallery through Love Story.
+      const left=Math.round(g.left+scrollX);
+      const top=Math.round(g.top+scrollY);
+      const width=Math.max(1,Math.round(g.width));
+      const height=Math.max(1,Math.round((l.bottom+scrollY)-top));
+
+      layer.style.setProperty('left',left+'px','important');
       layer.style.setProperty('top',top+'px','important');
+      layer.style.setProperty('width',width+'px','important');
       layer.style.setProperty('height',height+'px','important');
 
+      doc.documentElement.setAttribute('data-dini-gallery-love-layer-left',String(left));
       doc.documentElement.setAttribute('data-dini-gallery-love-layer-top',String(top));
+      doc.documentElement.setAttribute('data-dini-gallery-love-layer-width',String(width));
       doc.documentElement.setAttribute('data-dini-gallery-love-layer-height',String(height));
-      doc.documentElement.setAttribute('data-dini-gallery-love-layer-scope','gallery-plus-love-single');
+      doc.documentElement.setAttribute('data-dini-gallery-love-layer-scope','document-gallery-through-love');
     };
 
     const sync=()=>{
@@ -231,10 +215,10 @@
       if(!bg||!bg.image||bg.image===lastImage)return false;
 
       lastImage=bg.image;
-      pane.style.backgroundImage=bg.image;
-      pane.style.backgroundSize=bg.size||'cover';
-      pane.style.backgroundPosition=bg.position||'center center';
-      pane.style.backgroundRepeat=bg.repeat||'no-repeat';
+      layer.style.setProperty('background-image',bg.image,'important');
+      layer.style.setProperty('background-size',bg.size||'cover','important');
+      layer.style.setProperty('background-position',bg.position||'center center','important');
+      layer.style.setProperty('background-repeat',bg.repeat||'no-repeat','important');
 
       doc.documentElement.setAttribute('data-dini-gallery-love-shared-layer',VERSION);
       doc.documentElement.setAttribute('data-dini-gallery-love-shared-active','1');
@@ -257,12 +241,13 @@
     }catch{}
 
     const ro='ResizeObserver' in window?new ResizeObserver(()=>requestAnimationFrame(layout)):null;
-    try{ro?.observe(host);ro?.observe(gallery);ro?.observe(love.section)}catch{}
+    try{ro?.observe(gallery);ro?.observe(love.section)}catch{}
 
     [0,120,320,700,1200,2000,3200,5000,7500].forEach(ms=>setTimeout(refresh,ms));
 
     window.addEventListener('resize',refresh,{passive:true});
     window.addEventListener('orientationchange',refresh,{passive:true});
+
     window.addEventListener('pagehide',()=>{
       try{mo.disconnect()}catch{}
       try{ro?.disconnect()}catch{}
@@ -271,8 +256,7 @@
     },{once:true});
 
     refresh();
-
-    return{host,gallery,love:love.section,layer,refresh};
+    return{gallery,love:love.section,layer,refresh};
   }
 
   function boot(){
