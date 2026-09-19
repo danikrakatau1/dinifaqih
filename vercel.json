@@ -73,7 +73,8 @@
     "deploymentEnabled": {
       "test-final": false,
       "perf-*": false,
-      "guest-*": false
+      "guest-*": false,
+      "home-*": false
     }
   }
 }
