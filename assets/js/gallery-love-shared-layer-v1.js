@@ -2,7 +2,7 @@
   'use strict';
   if(window.DINI_GALLERY_LOVE_SHARED_LAYER_V1?.version)return;
 
-  const VERSION='1.1.0';
+  const VERSION='1.2.0';
   const doc=document;
   const GALLERY_TOP_ID='bc6eeaf';
 
@@ -105,16 +105,21 @@
         position:absolute;
         inset:0;
         display:block;
-        opacity:0;
+        opacity:1;
         background-size:cover;
         background-position:center center;
         background-repeat:no-repeat;
-        transition:opacity 900ms cubic-bezier(.22,1,.36,1);
-        will-change:opacity;
+        will-change:background-image;
       }
 
-      [data-dini-gallery-love-layer="1"] > span.is-active{
-        opacity:1;
+      [data-dini-love-native-slideshow-hidden="1"]{
+        opacity:0!important;
+        pointer-events:none!important;
+      }
+
+      [data-dini-love-shared-section="1"]{
+        background-color:transparent!important;
+        background-image:none!important;
       }
 
       [data-dini-gallery-love-content="1"]{
@@ -149,10 +154,8 @@
     layer.setAttribute('data-dini-gallery-love-layer','1');
     layer.setAttribute('aria-hidden','true');
 
-    const a=doc.createElement('span');
-    const b=doc.createElement('span');
-    a.className='is-active';
-    layer.append(a,b);
+    const pane=doc.createElement('span');
+    layer.appendChild(pane);
 
     host.insertBefore(layer,host.firstChild);
     return layer;
@@ -190,28 +193,37 @@
 
     host.setAttribute('data-dini-gallery-love-host','1');
     clearGallerySurface(gallery);
-    love.section.removeAttribute('data-dini-gallery-love-content');
+
+    love.section.setAttribute('data-dini-gallery-love-content','1');
+    love.section.setAttribute('data-dini-love-shared-section','1');
+    love.section.style.setProperty('background-color','transparent','important');
+    love.section.style.setProperty('background-image','none','important');
+
+    if(love.slideshow){
+      love.slideshow.setAttribute('data-dini-love-native-slideshow-hidden','1');
+      love.slideshow.style.setProperty('opacity','0','important');
+      love.slideshow.style.setProperty('pointer-events','none','important');
+    }
 
     const layer=makeLayer(host);
-    const panes=[...layer.children];
-    let active=0;
+    const pane=layer.firstElementChild;
     let lastImage='';
 
     const layout=()=>{
       const h=host.getBoundingClientRect();
       const g=gallery.getBoundingClientRect();
+      const l=love.section.getBoundingClientRect();
 
       const top=Math.max(0,Math.round(g.top-h.top));
-      const height=Math.max(1,Math.round(g.height));
+      const height=Math.max(1,Math.round(l.bottom-g.top));
 
-      // The follower background belongs ONLY to Gallery.
-      // Love Story below keeps its original source-native slideshow.
+      // ONE continuous visible layer from Gallery through Love Story.
       layer.style.setProperty('top',top+'px','important');
       layer.style.setProperty('height',height+'px','important');
 
       doc.documentElement.setAttribute('data-dini-gallery-love-layer-top',String(top));
       doc.documentElement.setAttribute('data-dini-gallery-love-layer-height',String(height));
-      doc.documentElement.setAttribute('data-dini-gallery-love-layer-scope','gallery-only');
+      doc.documentElement.setAttribute('data-dini-gallery-love-layer-scope','gallery-plus-love-single');
     };
 
     const sync=()=>{
@@ -219,20 +231,10 @@
       if(!bg||!bg.image||bg.image===lastImage)return false;
 
       lastImage=bg.image;
-      const next=active===0?1:0;
-      const nextPane=panes[next];
-      const oldPane=panes[active];
-
-      nextPane.style.backgroundImage=bg.image;
-      nextPane.style.backgroundSize=bg.size||'cover';
-      nextPane.style.backgroundPosition=bg.position||'center center';
-      nextPane.style.backgroundRepeat=bg.repeat||'no-repeat';
-
-      requestAnimationFrame(()=>{
-        nextPane.classList.add('is-active');
-        oldPane.classList.remove('is-active');
-        active=next;
-      });
+      pane.style.backgroundImage=bg.image;
+      pane.style.backgroundSize=bg.size||'cover';
+      pane.style.backgroundPosition=bg.position||'center center';
+      pane.style.backgroundRepeat=bg.repeat||'no-repeat';
 
       doc.documentElement.setAttribute('data-dini-gallery-love-shared-layer',VERSION);
       doc.documentElement.setAttribute('data-dini-gallery-love-shared-active','1');
