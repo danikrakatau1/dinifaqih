@@ -305,6 +305,25 @@
     return data;
   }
 
+  async function postSupabaseInsert(table, payload) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+        Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => '');
+      console.error('[public-action-bridge] direct Supabase insert failed', table, res.status, detail);
+      throw new Error(`supabase_${table}_http_${res.status}`);
+    }
+    return { ok: true };
+  }
+
   function attendanceValue(raw) {
     const value = norm(raw);
     if (/tidak|absen|decline|no/.test(value)) return 'tidak_hadir';
@@ -361,12 +380,12 @@
       const guestCountRaw = values.guest_count || values.guestCount || values.pax || values.jumlah || values['form_fields[jumlah]'] || 1;
       const guestCount = Number.parseInt(String(guestCountRaw), 10) || 1;
       const message = values.message || values.note || values.ucapan || values['form_fields[ucapan]'] || values.wishes || '';
-      return postJSON('/api/rsvp', {
+      return postSupabaseInsert('invitation_rsvps', {
         invitation_id: invitationId,
         guest_name: guestName,
         attendance: attendanceValue(attendanceRaw),
         guest_count: guestCount,
-        message,
+        message: message || null,
       });
     }
 
@@ -386,13 +405,13 @@
     const selectedProof = selectedGiftProof(form);
     const uploadedProofPath = selectedProof ? await uploadGiftProof(selectedProof, invitationId) : '';
     const proofPath = uploadedProofPath || values.proof_path || values.proofPath || values.proof_url || values.proofUrl || '';
-    return postJSON('/api/gift-confirmation', {
+    return postSupabaseInsert('gift_confirmations', {
       invitation_id: invitationId,
       guest_name: guestName,
-      bank_name: bankName,
-      amount,
-      note,
-      proof_path: proofPath,
+      bank_name: bankName || null,
+      amount: amount || null,
+      note: note || null,
+      proof_path: proofPath || null,
     });
   }
 
