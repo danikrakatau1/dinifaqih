@@ -3,7 +3,7 @@
   if(window.__DINI_PUBLIC_SOURCE_TRUTH_RENDERER_V1__)return;
   window.__DINI_PUBLIC_SOURCE_TRUTH_RENDERER_V1__=true;
 
-  const VERSION='1.3.55';
+  const VERSION='1.3.56';
   const CFG=window.DINI_PUBLIC_ENTRY||{};
   const MODE=CFG.mode==='guest'?'guest':'public';
   const SB='https://jfvmcerrsxjvbiogfqes.supabase.co';
@@ -12,7 +12,54 @@
   const state=document.getElementById('diniPublicState');
 
   const esc=s=>String(s||'').replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
+  const renderGuest404=()=>{
+    document.title='404 — Faqih & Dini';
+    document.documentElement.dataset.publicEntryError='404';
+    document.documentElement.dataset.guestNotFound='custom-404-v1';
+    document.documentElement.style.cssText='margin:0;width:100%;min-height:100%;background:#fff;overflow:auto';
+    document.body.style.cssText='margin:0;width:100%;min-height:100vh;background:#fff;overflow:auto;display:block';
+
+    if(!state)return;
+    state.className='guest-404-state';
+    state.removeAttribute('aria-busy');
+    state.setAttribute('aria-live','polite');
+    state.style.cssText='min-height:100vh;display:grid;place-items:center;padding:24px;box-sizing:border-box;background:#fff;color:#1a2e35';
+
+    state.innerHTML=`
+      <style>
+        .guest-404-card{width:min(760px,100%);text-align:center;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
+        .guest-404-art{width:min(430px,86vw);height:auto;display:block;margin:0 auto 14px}
+        .guest-404-code{margin:0;font-size:clamp(52px,10vw,92px);line-height:.9;font-weight:900;letter-spacing:-.055em;color:#1a2e35}
+        .guest-404-title{margin:18px 0 8px;font-size:clamp(21px,4vw,30px);line-height:1.18;font-weight:800;color:#1a2e35}
+        .guest-404-copy{max-width:470px;margin:0 auto;color:#657078;font-size:14px;line-height:1.65}
+        .guest-404-action{display:inline-flex;align-items:center;justify-content:center;margin-top:22px;padding:12px 18px;border-radius:999px;background:#1a2e35;color:#fff;text-decoration:none;font-weight:800;font-size:13px;box-shadow:0 10px 26px rgba(26,46,53,.16);transition:transform .18s ease,box-shadow .18s ease}
+        .guest-404-action:hover{transform:translateY(-1px);box-shadow:0 14px 30px rgba(26,46,53,.2)}
+        @media(max-width:520px){.guest-404-card{padding:10px}.guest-404-art{width:min(350px,92vw)}}
+        @media(prefers-reduced-motion:reduce){.guest-404-action{transition:none}}
+      </style>
+      <main class="guest-404-card" role="main">
+        <svg class="guest-404-art" viewBox="0 0 520 330" aria-hidden="true">
+          <path d="M52 176C35 111 82 43 164 25c92-20 198 5 260 73 59 65 36 148-22 184-56 34-137 28-209 20-76-8-123-48-141-126Z" fill="#aaff00" opacity=".28"/>
+          <g fill="none" stroke="#1a2e35" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M175 235c-17-32-14-73 4-99l-7-42 39 25c21-9 48-9 69 0l39-25-7 42c18 26 21 67 4 99"/>
+            <path d="M192 180c13-9 31-10 46-2M276 178c14-8 32-7 44 3"/>
+            <path d="M220 195c0 10-7 18-15 18s-15-8-15-18M306 195c0 10-7 18-15 18s-15-8-15-18"/>
+            <path d="M248 218l13 9 13-9M261 228v17M261 245c-11 0-18-5-23-12M261 245c11 0 18-5 23-12"/>
+            <path d="M187 225l-48-8M188 238l-51 6M335 225l48-8M334 238l51 6"/>
+            <path d="M177 255c-20 14-31 34-34 53M345 255c20 14 31 34 34 53M145 308h232"/>
+          </g>
+          <circle cx="206" cy="194" r="5" fill="#1a2e35"/><circle cx="306" cy="194" r="5" fill="#1a2e35"/>
+          <path d="M392 100c20 15 31 37 35 65M407 88c18 9 33 25 43 45M122 94c-18 14-29 34-34 58" fill="none" stroke="#aaff00" stroke-width="9" stroke-linecap="round"/>
+        </svg>
+        <div class="guest-404-code">404</div>
+        <h1 class="guest-404-title">Oops! Tamu tidak ditemukan</h1>
+        <p class="guest-404-copy">Link undangan ini tidak tersedia atau data tamunya sudah tidak aktif. Periksa kembali link yang dibagikan.</p>
+        <a class="guest-404-action" href="/" aria-label="Kembali ke halaman utama">Kembali ke halaman utama</a>
+      </main>`;
+  };
   const fail=(title,msg,code=500)=>{
+    const guestExpectedError=MODE==='guest'&&/^(Tamu tidak ditemukan\.|Link tamu tidak valid\.)$/i.test(String(msg||'').trim());
+    if(guestExpectedError)return renderGuest404();
     document.title=title+' — Faqih & Dini';
     if(state)state.innerHTML='<div><b>'+esc(title)+'</b><small>'+esc(msg||'')+'</small></div>';
     document.documentElement.dataset.publicEntryError=String(code);
