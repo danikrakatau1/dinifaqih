@@ -2,7 +2,7 @@
   'use strict';
   if(window.DINI_RSVP_GIFT_FEATURE_RUNTIME_V1?.version)return;
 
-  const VERSION='1.1.0';
+  const VERSION='1.2.0';
   const SUPABASE_URL='https://jfvmcerrsxjvbiogfqes.supabase.co';
   const SUPABASE_PUBLISHABLE_KEY='sb_publishable_3IqSDxkpxCGiDpxAEwdsXQ_AsJpsC4W';
 
@@ -54,7 +54,7 @@
       margin:0!important;
       border:1px solid rgba(255,255,255,.55);
       border-radius:14px;
-      max-height:300px;
+      max-height:270px;
       overflow-x:hidden;
       overflow-y:auto;
       overscroll-behavior:contain;
@@ -186,7 +186,7 @@
     if(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches)return;
 
     const maxScroll=Math.max(0,list.scrollHeight-list.clientHeight);
-    if(maxScroll<10){
+    if(maxScroll<8){
       list.scrollTop=0;
       list.removeAttribute('data-dini-auto-scroll');
       return;
@@ -196,17 +196,15 @@
       stopped:false,
       raf:0,
       dir:1,
-      last:0,
-      holdUntil:performance.now()+1400,
+      timer:0,
       pausedUntil:0,
       cleanups:[]
     };
     wishAutoControllers.set(list,ctl);
-    list.setAttribute('data-dini-auto-scroll','ping-pong');
+    list.setAttribute('data-dini-auto-scroll','ping-pong-step');
 
     const pauseFor=(ms=4200)=>{
-      ctl.pausedUntil=performance.now()+ms;
-      ctl.last=0;
+      ctl.pausedUntil=Date.now()+ms;
     };
     const add=(type,fn,opts)=>{
       list.addEventListener(type,fn,opts);
@@ -216,43 +214,47 @@
     add('touchstart',()=>pauseFor(),{passive:true});
     add('wheel',()=>pauseFor(),{passive:true});
 
-    const speed=.032; // ~32 px/second, intentionally calm.
-    const edgePause=1500;
-
-    const tick=now=>{
+    const next=()=>{
       if(ctl.stopped||!list.isConnected)return;
+      if(Date.now()<ctl.pausedUntil){
+        ctl.timer=setTimeout(next,500);
+        return;
+      }
+
       const max=Math.max(0,list.scrollHeight-list.clientHeight);
-      if(max<10){
+      if(max<8){
         list.scrollTop=0;
         stopWishAutoScroll(list);
         return;
       }
 
-      if(now<ctl.pausedUntil||now<ctl.holdUntil){
-        ctl.last=now;
-        ctl.raf=requestAnimationFrame(tick);
-        return;
+      const cards=[...list.querySelectorAll('.dini-rsvp-wish')];
+      const fallbackStep=Math.max(72,Math.round(list.clientHeight*.42));
+      const cardStep=Math.max(
+        fallbackStep,
+        ...cards.slice(0,3).map(card=>Math.round(card.getBoundingClientRect().height||0))
+      );
+
+      let target=list.scrollTop+(ctl.dir*cardStep);
+      if(ctl.dir>0&&target>=max-2){
+        target=max;
+      }else if(ctl.dir<0&&target<=2){
+        target=0;
       }
 
-      if(!ctl.last)ctl.last=now;
-      const dt=Math.min(48,Math.max(0,now-ctl.last));
-      ctl.last=now;
-      list.scrollTop+=ctl.dir*speed*dt;
+      try{list.scrollTo({top:target,behavior:'smooth'})}
+      catch{list.scrollTop=target}
 
-      if(ctl.dir>0&&list.scrollTop>=max-1){
-        list.scrollTop=max;
-        ctl.dir=-1;
-        ctl.holdUntil=now+edgePause;
-      }else if(ctl.dir<0&&list.scrollTop<=1){
-        list.scrollTop=0;
-        ctl.dir=1;
-        ctl.holdUntil=now+edgePause;
-      }
+      const reachedBottom=ctl.dir>0&&target>=max-1;
+      const reachedTop=ctl.dir<0&&target<=1;
+      if(reachedBottom)ctl.dir=-1;
+      else if(reachedTop)ctl.dir=1;
 
-      ctl.raf=requestAnimationFrame(tick);
+      ctl.timer=setTimeout(next,(reachedBottom||reachedTop)?1800:2200);
     };
 
-    ctl.raf=requestAnimationFrame(tick);
+    ctl.cleanups.push(()=>clearTimeout(ctl.timer));
+    ctl.timer=setTimeout(next,1200);
   }
 
   function renderMessages(rows=[]){
