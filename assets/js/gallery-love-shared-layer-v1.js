@@ -2,7 +2,7 @@
   'use strict';
   if(window.DINI_GALLERY_LOVE_SHARED_LAYER_V1?.version)return;
 
-  const VERSION='1.0.0';
+  const VERSION='1.1.0';
   const doc=document;
   const GALLERY_TOP_ID='bc6eeaf';
 
@@ -190,7 +190,7 @@
 
     host.setAttribute('data-dini-gallery-love-host','1');
     clearGallerySurface(gallery);
-    love.section.setAttribute('data-dini-gallery-love-content','1');
+    love.section.removeAttribute('data-dini-gallery-love-content');
 
     const layer=makeLayer(host);
     const panes=[...layer.children];
@@ -200,16 +200,18 @@
     const layout=()=>{
       const h=host.getBoundingClientRect();
       const g=gallery.getBoundingClientRect();
-      const l=love.section.getBoundingClientRect();
 
       const top=Math.max(0,Math.round(g.top-h.top));
-      const height=Math.max(1,Math.round(l.bottom-g.top));
+      const height=Math.max(1,Math.round(g.height));
 
+      // The follower background belongs ONLY to Gallery.
+      // Love Story below keeps its original source-native slideshow.
       layer.style.setProperty('top',top+'px','important');
       layer.style.setProperty('height',height+'px','important');
 
       doc.documentElement.setAttribute('data-dini-gallery-love-layer-top',String(top));
       doc.documentElement.setAttribute('data-dini-gallery-love-layer-height',String(height));
+      doc.documentElement.setAttribute('data-dini-gallery-love-layer-scope','gallery-only');
     };
 
     const sync=()=>{
