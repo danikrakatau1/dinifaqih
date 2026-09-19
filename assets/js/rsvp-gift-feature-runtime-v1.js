@@ -2,7 +2,7 @@
   'use strict';
   if(window.DINI_RSVP_GIFT_FEATURE_RUNTIME_V1?.version)return;
 
-  const VERSION='1.3.1';
+  const VERSION='1.3.2';
   const SUPABASE_URL='https://jfvmcerrsxjvbiogfqes.supabase.co';
   const SUPABASE_PUBLISHABLE_KEY='sb_publishable_3IqSDxkpxCGiDpxAEwdsXQ_AsJpsC4W';
 
@@ -132,6 +132,21 @@
     }
     [data-dini-rsvp-ucapan-wrap="1"]{
       position:relative;
+    }
+    [data-dini-rsvp-ucapan-wrap="1"].elementor-select-wrapper::before,
+    [data-dini-rsvp-ucapan-wrap="1"].elementor-select-wrapper::after{
+      display:none!important;
+      content:none!important;
+    }
+    [data-dini-rsvp-ucapan-wrap="1"] .select-caret-down-wrapper,
+    [data-dini-rsvp-ucapan-wrap="1"] .eicon-caret-down,
+    [data-dini-rsvp-ucapan-wrap="1"] .elementor-select-wrapper__icon{
+      display:none!important;
+    }
+    [data-dini-rsvp-ucapan="1"]{
+      background-image:none!important;
+      -webkit-appearance:none!important;
+      appearance:none!important;
     }
     [data-dini-rsvp-ucapan="1"].dini-rsvp-ucapan-invalid{
       border-color:#d85b5b!important;
@@ -451,11 +466,49 @@
     input.setAttribute('data-dini-native-field-role','message');
     input.setAttribute('data-dini-rsvp-ucapan','1');
 
+    // Match the authored Nama field instead of inheriting the old SELECT skin.
+    // This keeps the RSVP visual contract source-native while removing the
+    // select caret/background that belonged to "Jumlah".
+    const nameControl=Array.from(form.querySelectorAll('input')).find(el=>{
+      if(el===input||el.type==='hidden'||el.type==='file')return false;
+      const hint=norm([
+        el.name,el.id,el.placeholder,el.getAttribute('aria-label'),
+        el.closest?.('.elementor-field-group,.form-group,.field-group,div')?.querySelector?.('label')?.textContent
+      ].join(' '));
+      return /(^|\s)nama(\s|$)/.test(hint);
+    })||Array.from(form.querySelectorAll('input')).find(el=>el!==input&&el.type!=='hidden'&&el.type!=='file');
+
+    if(nameControl){
+      try{
+        const cs=(form.ownerDocument?.defaultView||window).getComputedStyle(nameControl);
+        const props=[
+          'backgroundColor','color','borderTopColor','borderRightColor','borderBottomColor','borderLeftColor',
+          'borderTopWidth','borderRightWidth','borderBottomWidth','borderLeftWidth',
+          'borderTopStyle','borderRightStyle','borderBottomStyle','borderLeftStyle',
+          'borderTopLeftRadius','borderTopRightRadius','borderBottomRightRadius','borderBottomLeftRadius',
+          'boxShadow','fontFamily','fontSize','fontWeight','fontStyle','letterSpacing','lineHeight',
+          'paddingTop','paddingRight','paddingBottom','paddingLeft','height'
+        ];
+        for(const prop of props){
+          const value=cs[prop];
+          if(value)input.style[prop]=value;
+        }
+        input.style.backgroundImage='none';
+        input.style.webkitAppearance='none';
+        input.style.appearance='none';
+        input.style.webkitTextFillColor=cs.color;
+      }catch{}
+    }
+
     replaceJumlahLabel(label);
     if(input.id)label.setAttribute('for',input.id);
 
     oldControl.replaceWith(input);
     wrap?.setAttribute?.('data-dini-rsvp-ucapan-wrap','1');
+    // Elementor's select wrapper owns the caret pseudo-element; this field is
+    // now a text input, so remove the select-only wrapper class when present.
+    wrap?.classList?.remove?.('elementor-select-wrapper');
+    wrap?.querySelectorAll?.('.select-caret-down-wrapper,.eicon-caret-down,.elementor-select-wrapper__icon')?.forEach?.(el=>el.remove());
 
     const error=document.createElement('div');
     error.className='dini-rsvp-ucapan-error';
