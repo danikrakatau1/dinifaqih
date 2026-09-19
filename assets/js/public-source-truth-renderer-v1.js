@@ -3,7 +3,7 @@
   if(window.__DINI_PUBLIC_SOURCE_TRUTH_RENDERER_V1__)return;
   window.__DINI_PUBLIC_SOURCE_TRUTH_RENDERER_V1__=true;
 
-  const VERSION='1.3.51';
+  const VERSION='1.3.52';
   const CFG=window.DINI_PUBLIC_ENTRY||{};
   const MODE=CFG.mode==='guest'?'guest':'public';
   const SB='https://jfvmcerrsxjvbiogfqes.supabase.co';
@@ -525,8 +525,8 @@
       blocks.push('<script type="application/json" id="diniGuestPersonalizationContract">'+safeJson(contract)+'</script>');
       blocks.push('<script src="'+localAsset('/assets/js/guest-contract-core-v1.js?v=112')+'"></script>');
       blocks.push('<script src="'+localAsset('/assets/js/guest-runtime-v1.js?v=214')+'"></script>');
-      blocks.push('<script src="'+localAsset('/assets/js/ramah-tamah-runtime-v1.js?v=101')+'"></script>');
     }
+    blocks.push('<script src="'+localAsset('/assets/js/ramah-tamah-runtime-v1.js?v=110')+'"></script>');
     blocks.push('<script type="application/json" id="diniRsvpGiftFeatureConfig">'+safeJson({
       invitationId:String(CFG.invitationId||''),
       giftWhatsapp:'6285702606816'
