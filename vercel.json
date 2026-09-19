@@ -75,7 +75,8 @@
       "perf-*": false,
       "guest-*": false,
       "home-*": false,
-      "gift-*": false
+      "gift-*": false,
+      "rsvp-*": false
     }
   }
 }
