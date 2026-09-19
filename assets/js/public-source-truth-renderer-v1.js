@@ -3,7 +3,7 @@
   if(window.__DINI_PUBLIC_SOURCE_TRUTH_RENDERER_V1__)return;
   window.__DINI_PUBLIC_SOURCE_TRUTH_RENDERER_V1__=true;
 
-  const VERSION='1.3.59';
+  const VERSION='1.3.60';
   const CFG=window.DINI_PUBLIC_ENTRY||{};
   const MODE=CFG.mode==='guest'?'guest':'public';
   const SB='https://jfvmcerrsxjvbiogfqes.supabase.co';
@@ -546,7 +546,7 @@
       blocks.push('<script src="'+localAsset('/assets/js/testimonial-carousel-runtime-v1.js?v=104')+'"></script>');
       if(galleryPerf.count){
         blocks.push('<script src="'+localAsset('/assets/js/gallery-performance-v1.js?v=141')+'"></script>');
-        blocks.push('<script src="'+localAsset('/assets/js/gallery-breathing-v1.js?v=100')+'"></script>');
+        blocks.push('<script src="'+localAsset('/assets/js/gallery-breathing-v1.js?v=110')+'"></script>');
       }
     }else{
       if(pkg.authority){
@@ -563,6 +563,7 @@
       blocks.push('<script src="'+localAsset('/assets/js/guest-runtime-v1.js?v=214')+'"></script>');
     }
     blocks.push('<script src="'+localAsset('/assets/js/ramah-tamah-runtime-v1.js?v=110')+'"></script>');
+    blocks.push('<script src="'+localAsset('/assets/js/live-stream-gallery-marquee-v1.js?v=100')+'"></script>');
     const giftWhatsappBySide={
       dini:'6285702606816',
       faqih:'62895328484764'
