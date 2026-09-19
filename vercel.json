@@ -74,7 +74,8 @@
       "test-final": false,
       "perf-*": false,
       "guest-*": false,
-      "home-*": false
+      "home-*": false,
+      "gift-*": false
     }
   }
 }
