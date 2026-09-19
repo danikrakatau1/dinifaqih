@@ -505,7 +505,7 @@
     if(pkg.source_truth){
       blocks.push('<script>document.documentElement.dataset.diniSourceTruthPublic="1";document.documentElement.dataset.diniPublicCompatibility="source-truth-exact-plus-runtime-compat";</script>');
       blocks.push('<script src="'+localAsset('/assets/js/icon-contract-v1.js?v=100')+'"></script>');
-      blocks.push('<script src="'+localAsset('/assets/js/source-truth-runtime-compat-v1.js?v=123')+'"></script>');
+      blocks.push('<script src="'+localAsset('/assets/js/source-truth-runtime-compat-v1.js?v=124')+'"></script>');
       blocks.push('<script src="'+localAsset('/assets/js/testimonial-carousel-runtime-v1.js?v=102')+'"></script>');
       if(galleryPerf.count)blocks.push('<script src="'+localAsset('/assets/js/gallery-performance-v1.js?v=141')+'"></script>');
     }else{
@@ -520,7 +520,7 @@
       blocks.push('<script type="application/json" id="diniGuestRuntimeData">'+safeJson(guest)+'</script>');
       blocks.push('<script type="application/json" id="diniGuestPersonalizationContract">'+safeJson(contract)+'</script>');
       blocks.push('<script src="'+localAsset('/assets/js/guest-contract-core-v1.js?v=112')+'"></script>');
-      blocks.push('<script src="'+localAsset('/assets/js/guest-runtime-v1.js?v=213')+'"></script>');
+      blocks.push('<script src="'+localAsset('/assets/js/guest-runtime-v1.js?v=214')+'"></script>');
     }
     blocks.push('<script type="application/json" id="diniRsvpGiftFeatureConfig">'+safeJson({
       invitationId:String(CFG.invitationId||''),
