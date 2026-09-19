@@ -2,7 +2,7 @@
   'use strict';
   if(window.DINI_RSVP_GIFT_FEATURE_RUNTIME_V1?.version)return;
 
-  const VERSION='1.3.0';
+  const VERSION='1.3.1';
   const SUPABASE_URL='https://jfvmcerrsxjvbiogfqes.supabase.co';
   const SUPABASE_PUBLISHABLE_KEY='sb_publishable_3IqSDxkpxCGiDpxAEwdsXQ_AsJpsC4W';
 
@@ -129,6 +129,27 @@
     }
     .dini-rsvp-wish__loading{
       opacity:.7;
+    }
+    [data-dini-rsvp-ucapan-wrap="1"]{
+      position:relative;
+    }
+    [data-dini-rsvp-ucapan="1"].dini-rsvp-ucapan-invalid{
+      border-color:#d85b5b!important;
+      box-shadow:0 0 0 2px rgba(216,91,91,.14)!important;
+    }
+    .dini-rsvp-ucapan-error{
+      display:none;
+      margin-top:6px;
+      padding:6px 9px;
+      border-radius:8px;
+      background:rgba(110,18,18,.78);
+      color:#fff;
+      font-size:11px;
+      line-height:1.35;
+      font-weight:700;
+    }
+    .dini-rsvp-ucapan-error.show{
+      display:block;
     }
   `;
   (document.head||document.documentElement).appendChild(style);
@@ -353,6 +374,157 @@
     return true;
   }
 
+  function rsvpFormText(form){
+    return norm([
+      form?.id,form?.className,form?.textContent,
+      ...Array.from(form?.querySelectorAll?.('label,input,textarea,select')||[]).map(el=>
+        [el.name,el.id,el.placeholder,el.getAttribute?.('aria-label'),el.textContent].join(' ')
+      )
+    ].join(' '));
+  }
+
+  function isRsvpForm(form){
+    if(!form?.querySelectorAll)return false;
+    const hay=rsvpFormText(form);
+    if(/nama\s*bank|namabank|bukti\s*tf|gift|transfer/.test(hay))return false;
+    return /konfirmasi\s+kehadiran/.test(hay)&&/\bjumlah\b/.test(hay);
+  }
+
+  function labelForJumlah(form){
+    return Array.from(form.querySelectorAll('label')).find(label=>/\bjumlah\b/i.test(text(label.textContent)))||null;
+  }
+
+  function controlForLabel(form,label){
+    if(!label)return null;
+    const id=text(label.getAttribute('for'));
+    if(id){
+      try{
+        const direct=form.querySelector('#'+CSS.escape(id));
+        if(direct?.matches?.('input,textarea,select'))return direct;
+      }catch{}
+    }
+    const group=label.closest('.elementor-field-group,.form-group,.field-group,.elementor-field-type-select,.elementor-field-type-text,div')||label.parentElement;
+    const local=group?.querySelector?.('select,input,textarea');
+    if(local)return local;
+    const labels=Array.from(form.querySelectorAll('label'));
+    const idx=labels.indexOf(label);
+    const controls=Array.from(form.querySelectorAll('select,input,textarea'));
+    return controls[Math.max(0,idx)]||null;
+  }
+
+  function replaceJumlahLabel(label){
+    if(!label)return;
+    const walker=document.createTreeWalker(label,NodeFilter.SHOW_TEXT);
+    const nodes=[];
+    while(walker.nextNode())nodes.push(walker.currentNode);
+    for(const node of nodes){
+      const raw=String(node.nodeValue||'');
+      if(/jumlah/i.test(raw))node.nodeValue=raw.replace(/jumlah/gi,'Ucapan');
+    }
+  }
+
+  function installRsvpUcapanForm(form){
+    if(!isRsvpForm(form))return false;
+    if(form.getAttribute('data-dini-rsvp-ucapan-form')==='1')return true;
+
+    const label=labelForJumlah(form);
+    const oldControl=controlForLabel(form,label);
+    if(!label||!oldControl)return false;
+
+    const wrap=oldControl.closest('.elementor-field-group,.form-group,.field-group,.elementor-field-type-select,.elementor-field-type-text,div')||oldControl.parentElement;
+    const input=document.createElement('input');
+    input.type='text';
+    input.className=oldControl.className||'';
+    const oldStyle=oldControl.getAttribute('style');
+    if(oldStyle)input.setAttribute('style',oldStyle);
+    for(const attr of ['aria-label','aria-required']){
+      const v=oldControl.getAttribute(attr);
+      if(v)input.setAttribute(attr,v);
+    }
+    input.name='form_fields[ucapan]';
+    input.id=(oldControl.id?String(oldControl.id).replace(/jumlah/gi,'ucapan'):'form-field-ucapan')||'form-field-ucapan';
+    input.placeholder='Tulis ucapan';
+    input.autocomplete='off';
+    input.maxLength=1000;
+    input.required=true;
+    input.setAttribute('aria-required','true');
+    input.setAttribute('data-dini-native-field-role','message');
+    input.setAttribute('data-dini-rsvp-ucapan','1');
+
+    replaceJumlahLabel(label);
+    if(input.id)label.setAttribute('for',input.id);
+
+    oldControl.replaceWith(input);
+    wrap?.setAttribute?.('data-dini-rsvp-ucapan-wrap','1');
+
+    const error=document.createElement('div');
+    error.className='dini-rsvp-ucapan-error';
+    error.textContent='Ucapan wajib diisi.';
+    error.id=input.id+'-error';
+    input.setAttribute('aria-describedby',error.id);
+    (wrap||input.parentElement)?.appendChild(error);
+
+    const showError=()=>{
+      input.classList.add('dini-rsvp-ucapan-invalid');
+      input.setAttribute('aria-invalid','true');
+      error.classList.add('show');
+      try{input.focus({preventScroll:false})}catch{try{input.focus()}catch{}}
+    };
+    const clearError=()=>{
+      if(text(input.value)){
+        input.classList.remove('dini-rsvp-ucapan-invalid');
+        input.removeAttribute('aria-invalid');
+        error.classList.remove('show');
+        input.setCustomValidity('');
+      }
+    };
+
+    input.addEventListener('input',clearError,{passive:true});
+    input.addEventListener('invalid',event=>{
+      event.preventDefault();
+      input.setCustomValidity('Ucapan wajib diisi.');
+      showError();
+    });
+
+    form.addEventListener('submit',event=>{
+      if(text(input.value))return clearError();
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      input.setCustomValidity('Ucapan wajib diisi.');
+      showError();
+    },true);
+
+    form.setAttribute('data-dini-rsvp-ucapan-form','1');
+    document.documentElement.setAttribute('data-dini-rsvp-ucapan','ready');
+    return true;
+  }
+
+  function installRsvpUcapanForms(){
+    let installed=0;
+    for(const form of document.querySelectorAll('form')){
+      if(installRsvpUcapanForm(form))installed++;
+    }
+    if(installed)document.documentElement.setAttribute('data-dini-rsvp-ucapan-count',String(installed));
+    return installed;
+  }
+
+  function bootRsvpUcapan(){
+    if(installRsvpUcapanForms())return;
+    let observer=null;
+    const settle=()=>{
+      if(installRsvpUcapanForms()){
+        observer?.disconnect();
+        observer=null;
+        return true;
+      }
+      return false;
+    };
+    observer=new MutationObserver(()=>settle());
+    try{observer.observe(document.body||document.documentElement,{childList:true,subtree:true})}catch{}
+    [120,400,900,1800,3200].forEach(ms=>setTimeout(settle,ms));
+    setTimeout(()=>{observer?.disconnect();observer=null},5000);
+  }
+
   function classifyGiftForm(form){
     if(!form?.querySelectorAll)return false;
     const hay=norm([
@@ -466,6 +638,7 @@
   });
 
   const boot=()=>{
+    bootRsvpUcapan();
     loadRsvpMessages().catch(error=>console.error('[rsvp-gift-feature] initial RSVP wishes',error));
     [500,1500,3500].forEach(ms=>setTimeout(()=>{
       if(!document.documentElement.hasAttribute('data-dini-rsvp-wishes-loaded')){
