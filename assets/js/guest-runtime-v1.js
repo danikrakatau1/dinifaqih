@@ -1,9 +1,9 @@
 (()=>{
   'use strict';
-  if(window.__DINI_UNIVERSAL_GUEST_RUNTIME_V213__)return;
-  window.__DINI_UNIVERSAL_GUEST_RUNTIME_V213__=true;
+  if(window.__DINI_UNIVERSAL_GUEST_RUNTIME_V214__)return;
+  window.__DINI_UNIVERSAL_GUEST_RUNTIME_V214__=true;
 
-  const VERSION='2.1.3';
+  const VERSION='2.1.4';
   const Core=window.DINI_GUEST_CONTRACT_CORE_V1;
   const cfgEl=document.getElementById('diniGuestRuntimeData');
   let cfg={};try{cfg=cfgEl?JSON.parse(cfgEl.textContent||'{}'):{} }catch{}
@@ -13,7 +13,7 @@
   const slug=String(cfg.slug||'').trim();
   if(!name)return;
 
-  document.documentElement.dataset.guestRuntime='v2.1.3';
+  document.documentElement.dataset.guestRuntime='v2.1.4';
   document.documentElement.dataset.guestMutation='role-aware';
   if(slug)document.documentElement.dataset.guestSlug=slug;
 
@@ -176,14 +176,27 @@
   }
 
   let timer=0;
-  const schedule=()=>{clearTimeout(timer);timer=setTimeout(apply,25)};
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',apply,{once:true});else apply();
-  [80,220,600,1400,3000,6000].forEach(ms=>setTimeout(apply,ms));
-  const observer=new MutationObserver(mutations=>{
+  let observer=null;
+  let stableRuns=0;
+  const runApply=()=>{
+    const result=apply();
+    if(result.matched>0&&result.changed===0)stableRuns++;
+    else stableRuns=0;
+    if(stableRuns>=2&&observer){
+      observer.disconnect();
+      observer=null;
+      document.documentElement.dataset.guestObserver='settled';
+    }
+    return result;
+  };
+  const schedule=()=>{clearTimeout(timer);timer=setTimeout(runApply,25)};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',runApply,{once:true});else runApply();
+  [80,220,600,1400,3000,6000].forEach(ms=>setTimeout(runApply,ms));
+  observer=new MutationObserver(mutations=>{
     if(mutations.some(m=>m.type==='childList'&&m.addedNodes?.length))schedule();
   });
   try{observer.observe(document.documentElement,{subtree:true,childList:true})}catch{}
-  setTimeout(()=>observer.disconnect(),15000);
+  setTimeout(()=>{observer?.disconnect();observer=null},6000);
 
-  window.DINI_GUEST_RUNTIME_V2={VERSION,apply,boundNodes,boundSlots,currentContract,sanitizeName,pruneLegacyProbeCoverDuplicate};
+  window.DINI_GUEST_RUNTIME_V2={VERSION,apply:runApply,boundNodes,boundSlots,currentContract,sanitizeName,pruneLegacyProbeCoverDuplicate};
 })();
