@@ -2,11 +2,13 @@
   'use strict';
   if(window.DINI_GALLERY_BREATHING_V1?.version)return;
 
-  const VERSION='1.2.0';
+  const VERSION='1.3.0';
   const doc=document;
   const SELECTOR='.elementor-widget-gallery .e-gallery-image';
+  const WIDGET_SELECTOR='.elementor-widget-gallery';
   const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches===true;
   const timers=new WeakMap();
+  const watchedWidgets=new WeakSet();
 
   function ensureStyle(){
     if(doc.getElementById('diniGalleryBreathingStyle'))return;
@@ -48,12 +50,8 @@
       }
 
       @keyframes diniGalleryBreathingLayer{
-        0%,100%{
-          transform:translate3d(0,0,0) scale(1);
-        }
-        50%{
-          transform:translate3d(0,0,0) scale(1.038);
-        }
+        0%,100%{transform:translate3d(0,0,0) scale(1)}
+        50%{transform:translate3d(0,0,0) scale(1.038)}
       }
 
       @media (prefers-reduced-motion:reduce){
@@ -74,9 +72,14 @@
     let computed=null;
     try{computed=getComputedStyle(image)}catch{}
 
+    const runtime=String(image.getAttribute('data-dini-gallery-bg-runtime')||'').trim();
     const inline=String(image.style?.backgroundImage||'').trim();
     const css=String(computed?.backgroundImage||'').trim();
-    const backgroundImage=(inline&&inline!=='none')?inline:css;
+
+    let backgroundImage='';
+    if(inline&&inline!=='none')backgroundImage=inline;
+    else if(css&&css!=='none')backgroundImage=css;
+    else if(runtime)backgroundImage='url("'+runtime.replaceAll('"','%22')+'")';
 
     if(!backgroundImage||backgroundImage==='none')return null;
 
@@ -107,80 +110,133 @@
 
     image.style.setProperty('--dini-gallery-breathe-duration',String(durations[index%durations.length])+'s');
 
-    // Put the animated copy in place first, then remove the static parent
-    // background in the same frame. This avoids a visible blank/flash.
     image.insertBefore(layer,image.firstChild);
     image.setAttribute('data-dini-gallery-breathe','1');
     image.style.setProperty('background-image','none','important');
-
     return true;
   }
 
-  function schedule(image,index){
+  function imageReady(image){
+    return image.classList.contains('e-gallery-image-loaded')&&(
+      image.classList.contains('dini-gallery-compositor-released')||
+      image.getAttribute('data-dini-gallery-bg-loaded')==='1'||
+      !!image.getAttribute('data-dini-gallery-bg-runtime')||
+      !!String(image.style?.backgroundImage||'').replace(/^none$/i,'')
+    );
+  }
+
+  function schedule(image,index,onChange){
     if(!image?.isConnected)return;
     if(image.getAttribute('data-dini-gallery-breathe')==='1')return;
-    if(timers.has(image))return;
-
-    // Breathing starts only after the source-native reveal has substantially
-    // finished, preserving the existing one-by-one gallery choreography.
-    const ready=
-      image.classList.contains('e-gallery-image-loaded')||
-      image.getAttribute('data-dini-gallery-bg-loaded')==='1';
-
-    if(!ready)return;
+    if(timers.has(image)||!imageReady(image))return;
 
     const timer=setTimeout(()=>{
       timers.delete(image);
       activate(image,index);
-      updateState();
-    },900);
+      onChange?.();
+    },760);
 
     timers.set(image,timer);
   }
 
-  function updateState(){
-    const images=[...doc.querySelectorAll(SELECTOR)];
+  function widgetState(widget){
+    const images=[...widget.querySelectorAll('.e-gallery-image')];
     const active=images.filter(x=>x.getAttribute('data-dini-gallery-breathe')==='1').length;
-    doc.documentElement.setAttribute('data-dini-gallery-breathing',VERSION);
-    doc.documentElement.setAttribute('data-dini-gallery-breathing-count',String(active));
-    return{total:images.length,active};
+    return{images,active,total:images.length};
   }
 
-  function scan(){
-    const images=[...doc.querySelectorAll(SELECTOR)];
-    images.forEach((image,index)=>schedule(image,index));
-    return updateState();
+  function updateDocumentState(){
+    const all=[...doc.querySelectorAll(SELECTOR)];
+    const active=all.filter(x=>x.getAttribute('data-dini-gallery-breathe')==='1').length;
+    doc.documentElement.setAttribute('data-dini-gallery-breathing',VERSION);
+    doc.documentElement.setAttribute('data-dini-gallery-breathing-count',String(active));
+    doc.documentElement.setAttribute('data-dini-gallery-breathing-total',String(all.length));
+  }
+
+  function watchWidget(widget){
+    if(!widget?.isConnected||watchedWidgets.has(widget))return;
+    watchedWidgets.add(widget);
+
+    let observer=null;
+    let settleTimer=0;
+    let hardTimer=0;
+
+    const cleanup=()=>{
+      clearTimeout(settleTimer);
+      clearTimeout(hardTimer);
+      try{observer?.disconnect()}catch{}
+      observer=null;
+    };
+
+    const scan=()=>{
+      if(!widget.isConnected)return cleanup();
+
+      const state=widgetState(widget);
+      state.images.forEach((image,index)=>schedule(image,index,scan));
+      updateDocumentState();
+
+      const latest=widgetState(widget);
+      if(latest.total>0&&latest.active>=latest.total){
+        clearTimeout(settleTimer);
+        settleTimer=setTimeout(cleanup,1200);
+      }
+    };
+
+    observer=new MutationObserver(scan);
+    observer.observe(widget,{
+      subtree:true,
+      childList:true,
+      attributes:true,
+      attributeFilter:['class','style','data-dini-gallery-bg-loaded','data-dini-gallery-bg-runtime']
+    });
+
+    // This watcher starts only when the Gallery itself approaches the viewport,
+    // so lazy-loaded photos 2..N are still observed even if the user reaches the
+    // Gallery long after page load.
+    [0,120,320,650,1050,1600,2400,3400,4800,6500,8500,11000,14000].forEach(ms=>setTimeout(scan,ms));
+    hardTimer=setTimeout(()=>{
+      scan();
+      cleanup();
+    },18000);
+
+    scan();
   }
 
   function boot(){
     ensureStyle();
+    updateDocumentState();
 
     if(reduced){
-      // Respect accessibility preference: keep gallery visually unchanged.
       doc.documentElement.setAttribute('data-dini-gallery-breathing',VERSION+'-reduced');
       return;
     }
 
-    const observer=new MutationObserver(scan);
-    try{
-      observer.observe(doc.documentElement,{
-        subtree:true,
-        childList:true,
-        attributes:true,
-        attributeFilter:['class','style','data-dini-gallery-bg-loaded']
-      });
-    }catch{}
+    const widgets=[...doc.querySelectorAll(WIDGET_SELECTOR)];
+    if(!widgets.length)return;
 
-    [0,120,300,600,1000,1500,2200,3200,4500,6000,8000].forEach(ms=>setTimeout(scan,ms));
-    setTimeout(()=>{
-      scan();
-      observer.disconnect();
-    },11000);
+    if('IntersectionObserver' in window){
+      const io=new IntersectionObserver(entries=>{
+        for(const entry of entries){
+          if(!entry.isIntersecting)continue;
+          io.unobserve(entry.target);
+          watchWidget(entry.target);
+        }
+      },{
+        root:null,
+        rootMargin:'1200px 0px',
+        threshold:0.01
+      });
+
+      widgets.forEach(widget=>io.observe(widget));
+      window.addEventListener('pagehide',()=>io.disconnect(),{once:true});
+    }else{
+      widgets.forEach(watchWidget);
+    }
   }
 
   window.DINI_GALLERY_BREATHING_V1={
     version:VERSION,
-    scan,
+    watchWidget,
     activate
   };
 
