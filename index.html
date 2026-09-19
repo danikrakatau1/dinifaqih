@@ -32,30 +32,56 @@ html,body{margin:0;width:100%;height:100%;min-height:100%;background:#fff;color:
 (()=>{
   const invitationId='17a598bd-13be-4a18-82e6-b0506a85a3b3';
   window.__INVITATION_ID__=invitationId;
-  window.DiniFaqihPublicActions?.setContext?.({invitationId});
 
-  let tries=0;
+  let frame=null;
+  let frameLoadBound=false;
+  let observer=null;
+  let done=false;
+
   const sync=()=>{
-    tries++;
+    if(done)return true;
     try{
-      const frame=document.getElementById('diniPublicCanonicalFrame');
-      const doc=frame?.contentDocument;
-      const compatApi=window.DINI_SOURCE_TRUTH_RUNTIME_COMPAT_V1;
-      const actionApi=window.DiniFaqihPublicActions;
+      frame=frame||document.getElementById('diniPublicCanonicalFrame');
+      if(!frame)return false;
 
-      if(frame&&actionApi?.bindFrame){
-        actionApi.bindFrame(frame,{invitationId});
+      if(!frameLoadBound){
+        frameLoadBound=true;
+        frame.addEventListener('load',sync,{passive:true});
       }
 
+      const actionApi=window.DiniFaqihPublicActions;
+      actionApi?.setContext?.({invitationId});
+      actionApi?.bindFrame?.(frame,{invitationId});
+
+      const doc=frame.contentDocument;
+      const compatApi=window.DINI_SOURCE_TRUTH_RUNTIME_COMPAT_V1;
       if(doc?.querySelector?.('[data-id="678f991a"]')&&compatApi?.applyDocument){
         compatApi.applyDocument(doc);
-        if(doc.documentElement?.getAttribute('data-dini-source-truth-runtime-compat'))return true;
+      }
+
+      const compatReady=!!doc?.documentElement?.getAttribute('data-dini-source-truth-runtime-compat');
+      const actionReady=!!actionApi?.bindFrame;
+      if(compatReady&&actionReady){
+        done=true;
+        observer?.disconnect();
+        observer=null;
+        document.documentElement.dataset.publicBootBinding='event-ready';
+        return true;
       }
     }catch{}
     return false;
   };
-  const timer=setInterval(()=>{if(sync()||tries>=120)clearInterval(timer)},80);
-  sync();
+
+  const watch=()=>{
+    if(sync())return;
+    observer=new MutationObserver(()=>sync());
+    try{observer.observe(document.body||document.documentElement,{childList:true,subtree:true})}catch{}
+    [120,500,1500,4000].forEach(ms=>setTimeout(sync,ms));
+    setTimeout(()=>{observer?.disconnect();observer=null},6000);
+  };
+
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',watch,{once:true});
+  else watch();
 })();
 </script>
 </body>
