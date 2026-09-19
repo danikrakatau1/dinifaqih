@@ -2,7 +2,7 @@
   'use strict';
   if(window.DINI_MAP_ICON_RUNTIME_V1?.version)return;
 
-  const VERSION='1.2.0';
+  const VERSION='1.3.0';
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
 
   const isMapLink=a=>{
@@ -31,6 +31,17 @@
       }
       [data-dini-event-map-pin-runtime] > [data-dini-event-map-pin-svg]{
         display:block!important;
+      }
+      [data-dini-event-map-pin-runtime] img,
+      [data-dini-event-map-pin-runtime] i,
+      [data-dini-event-map-pin-runtime] svg:not([data-dini-event-map-pin-svg]){
+        display:none!important;
+      }
+      [data-dini-event-map-pin-runtime] *::before,
+      [data-dini-event-map-pin-runtime] *::after{
+        content:none!important;
+        display:none!important;
+        background:none!important;
       }
     `;
     (document.head||document.documentElement).appendChild(style);
@@ -107,6 +118,37 @@
       if(score>bestScore){bestScore=score;best=el}
     }
     return best;
+  }
+
+  function siblingPinFromAddress(address,root){
+    if(!address)return null;
+    const addressWidget=address.closest?.('.elementor-element')||address.parentElement;
+    if(!addressWidget)return null;
+
+    let sibling=addressWidget.previousElementSibling;
+    for(let step=0;sibling&&step<5;step++,sibling=sibling.previousElementSibling){
+      if(root&&!root.contains(sibling))break;
+      const txt=clean(sibling.textContent);
+      if(txt.length>4)continue;
+
+      const directIcon=sibling.querySelector?.('.elementor-icon');
+      const visual=sibling.querySelector?.('svg,i,img,[class*="icon"],[class*="marker"],[class*="location"]');
+      const container=sibling.querySelector?.('.elementor-widget-container')||sibling;
+      const pseudo=pseudoHasVisual(sibling)||pseudoHasVisual(container);
+      let rect=null;
+      try{rect=sibling.getBoundingClientRect()}catch{}
+      if(!rect||rect.height<4||rect.height>130)continue;
+
+      if(directIcon||visual||pseudo){
+        return {
+          widget:sibling,
+          host:directIcon||container,
+          source:directIcon||visual||container,
+          step
+        };
+      }
+    }
+    return null;
   }
 
   function signature(el){
@@ -215,37 +257,50 @@
     const root=eventRootFromButton(button);
     if(!root)return false;
     const address=findAddress(root,button);
-    const pin=findStandalonePin(root,button,address);
+
+    // Elementor source uses a dedicated widget immediately before the address
+    // for this large pin. Prefer that exact sibling relationship before any
+    // class/geometry fallback.
+    const siblingHit=siblingPinFromAddress(address,root);
+    const pin=siblingHit?.source||findStandalonePin(root,button,address);
     if(!pin)return false;
 
-    const host=replacementHost(pin);
+    let host=siblingHit?.host||replacementHost(pin);
     if(!host)return false;
     if(host.getAttribute?.('data-dini-event-map-pin-runtime')===VERSION)return true;
 
     let color='';
     try{
-      color=getComputedStyle(host).color||getComputedStyle(pin).color||'';
+      color=getComputedStyle(pin).color||getComputedStyle(host).color||'';
     }catch{}
     if(!color||color==='rgb(0, 0, 0)'||color==='rgba(0, 0, 0, 0)')color='#b79a6d';
 
+    // Remove the authored low-resolution/icon-font visual while preserving its
+    // Elementor widget slot, spacing and animation position.
     host.textContent='';
+    host.style.setProperty('background','none','important');
+    host.style.setProperty('background-image','none','important');
     host.appendChild(iconSvg());
     host.setAttribute('data-dini-event-map-pin-runtime',VERSION);
     host.setAttribute('data-native-icon-role','location');
     host.setAttribute('aria-hidden','true');
-    host.style.setProperty('display','inline-flex','important');
+    host.style.setProperty('display','flex','important');
     host.style.setProperty('align-items','center','important');
     host.style.setProperty('justify-content','center','important');
     host.style.setProperty('line-height','1','important');
-    host.style.setProperty('width','30px','important');
-    host.style.setProperty('height','30px','important');
-    host.style.setProperty('min-width','30px','important');
-    host.style.setProperty('min-height','30px','important');
     host.style.setProperty('font-size','0','important');
-    host.style.setProperty('background','none','important');
-    host.style.setProperty('background-image','none','important');
     host.style.setProperty('color',color,'important');
     host.style.setProperty('overflow','visible','important');
+
+    if(!siblingHit){
+      host.style.setProperty('width','30px','important');
+      host.style.setProperty('height','30px','important');
+      host.style.setProperty('min-width','30px','important');
+      host.style.setProperty('min-height','30px','important');
+    }else{
+      siblingHit.widget.setAttribute('data-dini-event-map-pin-widget','1');
+      siblingHit.widget.dataset.diniEventMapPinSibling=String(siblingHit.step);
+    }
 
     button.setAttribute('data-dini-map-button-preserved','1');
     return true;
