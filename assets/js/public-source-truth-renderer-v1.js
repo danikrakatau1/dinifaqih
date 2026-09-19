@@ -3,7 +3,7 @@
   if(window.__DINI_PUBLIC_SOURCE_TRUTH_RENDERER_V1__)return;
   window.__DINI_PUBLIC_SOURCE_TRUTH_RENDERER_V1__=true;
 
-  const VERSION='1.3.46';
+  const VERSION='1.3.47';
   const CFG=window.DINI_PUBLIC_ENTRY||{};
   const MODE=CFG.mode==='guest'?'guest':'public';
   const SB='https://jfvmcerrsxjvbiogfqes.supabase.co';
@@ -407,7 +407,7 @@
       loader.style.zIndex='20';
       loader.style.margin='0';
       loader.style.boxSizing='border-box';
-      loader.style.transition='opacity 120ms ease-out';
+      loader.style.transition='opacity 460ms cubic-bezier(.22,1,.36,1)';
       loader.style.opacity='1';
       loader.style.pointerEvents='auto';
       try{
@@ -423,6 +423,8 @@
 
     let presented=false;
     const started=performance.now();
+    const minLoaderMs=2600;
+    let minPresentTimer=0;
     let readyMessageHandler=null;
 
     const childApi=()=>{
@@ -443,9 +445,21 @@
     };
     const present=()=>{
       if(presented)return;
+      const elapsed=performance.now()-started;
+      if(elapsed<minLoaderMs){
+        if(!minPresentTimer){
+          minPresentTimer=setTimeout(()=>{
+            minPresentTimer=0;
+            present();
+          },Math.max(0,minLoaderMs-elapsed));
+        }
+        return;
+      }
+
       presented=true;
       frame.style.pointerEvents='auto';
       document.documentElement.dataset.publicCoverFirstPaintReady=childReady()?'1':'fallback';
+      document.documentElement.dataset.publicLoaderDuration=String(Math.round(performance.now()-started));
 
       const releaseAfterHandoff=()=>{
         requestAnimationFrame(()=>requestAnimationFrame(releaseChild));
@@ -458,7 +472,7 @@
         setTimeout(()=>{
           try{loader.remove()}catch{}
           releaseAfterHandoff();
-        },130);
+        },500);
       }else{
         releaseAfterHandoff();
       }
@@ -480,7 +494,7 @@
     window.addEventListener('message',readyMessageHandler);
     frame.addEventListener('load',()=>requestAnimationFrame(check),{once:true});
     requestAnimationFrame(check);
-    setTimeout(present,1800);
+    setTimeout(present,3200);
 
     document.documentElement.dataset.publicCanonicalViewport=fullDocument?'source-layout':'450';
     document.documentElement.dataset.publicLayoutTopology=topology;
