@@ -22,7 +22,7 @@ html,body{margin:0;width:100%;height:100%;min-height:100%;background:#fff;color:
 <script src="/assets/js/canonical-consumer-bridge-v1250.js?v=1250" defer></script>
 <script src="/assets/js/source-consumer-contract-v1.js?v=101"></script>
 <script src="/assets/js/public-device-compat-v1.js?v=110"></script>
-<script src="/assets/js/public-action-bridge-v1.js?v=121" defer></script>
+<script src="/assets/js/public-action-bridge-v1.js?v=122" defer></script>
 </head>
 <body>
 <div class="state dini-premium-loader" id="diniPublicState" aria-live="polite" aria-busy="true">
@@ -43,13 +43,15 @@ html,body{margin:0;width:100%;height:100%;min-height:100%;background:#fff;color:
     const frame=document.getElementById('diniPublicCanonicalFrame');
     if(!api||!frame)return false;
 
-    let guestName='';
+    let guestName='',guestSlug='';
     try{
       const raw=frame.contentDocument?.getElementById('diniGuestRuntimeData')?.textContent||'';
-      guestName=raw?String(JSON.parse(raw)?.name||'').trim():'';
+      const parsed=raw?JSON.parse(raw):null;
+      guestName=String(parsed?.name||'').trim();
+      guestSlug=String(parsed?.slug||parsed?.guest_slug||'').trim();
     }catch{}
 
-    const context={invitationId,guestName};
+    const context={invitationId,guestName,guestSlug};
     api.setContext(context);
     api.bindFrame(frame,context);
     document.documentElement.dataset.publicActionBridge='guest-bound';
