@@ -1,0 +1,76 @@
+name: Diagnose Gallery Layer
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - gallery-breathing-v1
+    paths:
+      - .github/workflows/diagnose-gallery-layer.yml
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch and inspect Source Truth DOM
+        shell: bash
+        run: |
+          python - <<'PY'
+          import urllib.request, subprocess, sys
+          url="https://jfvmcerrsxjvbiogfqes.supabase.co/storage/v1/object/public/template-packages/template-8-b5b940c0/revisions/r-v2-mu82m4zf-3e5001/index.html"
+          html=urllib.request.urlopen(url, timeout=30).read()
+          open("/tmp/source.html","wb").write(html)
+          print("SOURCE_BYTES", len(html))
+          PY
+          python -m pip install --quiet beautifulsoup4 lxml
+          python - <<'PY'
+          from bs4 import BeautifulSoup
+          html=open("/tmp/source.html","rb").read()
+          soup=BeautifulSoup(html,"lxml")
+
+          targets={
+            "GALLERY_WIDGET":"2a1e508",
+            "GALLERY_INNER":"9687b1a",
+            "LOVE_CAROUSEL":"f1f9d2d",
+            "RSVP_FORM":"f05a916",
+          }
+
+          def summarize(el):
+            if not el: return None
+            return {
+              "tag":el.name,
+              "data-id":el.get("data-id"),
+              "id":el.get("id"),
+              "class":" ".join(el.get("class",[])),
+              "style":el.get("style","")[:500],
+              "data-settings":el.get("data-settings","")[:900],
+            }
+
+          for label,tid in targets.items():
+            el=soup.find(attrs={"data-id":tid})
+            print("\n###",label,tid,"FOUND",bool(el))
+            if not el: continue
+            cur=el
+            for depth in range(0,14):
+              if not cur or not getattr(cur,"name",None): break
+              print("DEPTH",depth,summarize(cur))
+              cur=cur.parent
+
+          print("\n### BACKGROUND SLIDESHOW ELEMENTS")
+          for i,el in enumerate(soup.select(".elementor-background-slideshow")[:30]):
+            parent=el.parent
+            print("SLIDESHOW",i,"self",summarize(el),"parent",summarize(parent))
+
+          print("\n### ELEMENTS WITH background_slideshow_gallery")
+          found=0
+          for el in soup.find_all(attrs={"data-settings":True}):
+            ds=el.get("data-settings","")
+            if "background_slideshow_gallery" in ds:
+              print("SETTINGS_SLIDE",found,summarize(el))
+              found+=1
+              if found>=30: break
+          PY
