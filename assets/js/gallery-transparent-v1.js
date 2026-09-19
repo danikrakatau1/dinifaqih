@@ -2,10 +2,9 @@
   'use strict';
   if(window.DINI_GALLERY_TRANSPARENT_V1?.version)return;
 
-  const VERSION='6.0.0';
+  const VERSION='7.0.0';
   const doc=document;
   const GALLERY_SECTION_ID='9687b1a';
-  const RSVP_FORM_ID='f05a916';
 
   function gallerySection(){
     const exact=doc.querySelector('[data-id="'+GALLERY_SECTION_ID+'"]');
@@ -14,91 +13,84 @@
     return widget?.closest('.elementor-inner-section,.elementor-section,.e-con')||widget?.parentElement||null;
   }
 
-  function rsvpAnchor(){
-    const exact=doc.querySelector('[data-id="'+RSVP_FORM_ID+'"]');
-    if(exact)return exact;
+  function loveContext(){
+    const carousel=doc.querySelector('.elementor-widget-testimonial-carousel');
+    if(!carousel)return null;
 
-    const headings=[...doc.querySelectorAll('.elementor-heading-title,h1,h2,h3,h4,h5,h6')];
-    const title=headings.find(el=>/^rsvp$/i.test(String(el.textContent||'').trim()));
-    if(title){
-      return title.closest('.elementor-section,.e-con,.elementor-element')||title;
+    let node=carousel;
+    let fallback=carousel.closest('.elementor-section,.elementor-top-section,.e-con')||carousel.parentElement;
+
+    for(let depth=0;node&&depth<16;depth++,node=node.parentElement){
+      if(node.matches?.('.elementor-section,.elementor-top-section,.e-con'))fallback=node;
+      const slideshow=node.querySelector?.('.elementor-background-slideshow');
+      if(slideshow){
+        return{section:node,slideshow,carousel};
+      }
     }
+
     return null;
   }
 
   function commonAncestor(a,b){
     if(!a||!b)return null;
-    const set=new Set();
-    for(let n=a;n;n=n.parentElement)set.add(n);
-    for(let n=b;n;n=n.parentElement)if(set.has(n))return n;
+    const seen=new Set();
+    for(let n=a;n;n=n.parentElement)seen.add(n);
+    for(let n=b;n;n=n.parentElement)if(seen.has(n))return n;
     return null;
   }
 
   function ensureStyle(){
-    if(doc.getElementById('diniGalleryPureTransparentV6Style'))return;
+    if(doc.getElementById('diniGalleryLoveLayerExtensionStyle'))return;
 
     const style=doc.createElement('style');
-    style.id='diniGalleryPureTransparentV6Style';
+    style.id='diniGalleryLoveLayerExtensionStyle';
     style.textContent=`
-      [data-dini-gallery-transparent-path="1"],
-      [data-dini-gallery-transparent-path="1"] > .elementor-container,
-      [data-dini-gallery-transparent-path="1"] > .e-con-inner,
-      [data-dini-gallery-pure-transparent="1"],
-      [data-dini-gallery-pure-transparent="1"] .elementor-container,
-      [data-dini-gallery-pure-transparent="1"] .elementor-column,
-      [data-dini-gallery-pure-transparent="1"] .elementor-widget-wrap,
-      [data-dini-gallery-pure-transparent="1"] .elementor-widget-heading,
-      [data-dini-gallery-pure-transparent="1"] .elementor-widget-gallery,
-      [data-dini-gallery-pure-transparent="1"] .e-con,
-      [data-dini-gallery-pure-transparent="1"] .e-con-inner{
+      [data-dini-gallery-layer-transparent="1"],
+      [data-dini-gallery-layer-transparent="1"] > .elementor-container,
+      [data-dini-gallery-layer-transparent="1"] > .e-con-inner,
+      [data-dini-gallery-layer-transparent="1"] .elementor-column,
+      [data-dini-gallery-layer-transparent="1"] .elementor-widget-wrap,
+      [data-dini-gallery-layer-transparent="1"] .elementor-widget-heading,
+      [data-dini-gallery-layer-transparent="1"] .elementor-widget-gallery,
+      [data-dini-gallery-layer-transparent="1"] .e-con,
+      [data-dini-gallery-layer-transparent="1"] .e-con-inner,
+      [data-dini-gallery-layer-path="1"]{
         background-color:transparent!important;
       }
 
-      [data-dini-gallery-pure-transparent="1"] .elementor-background-overlay{
+      [data-dini-gallery-layer-transparent="1"] .elementor-background-overlay{
         background-color:transparent!important;
       }
 
-      [data-dini-gallery-pure-transparent="1"]::before,
-      [data-dini-gallery-pure-transparent="1"]::after,
-      [data-dini-gallery-transparent-path="1"]::before,
-      [data-dini-gallery-transparent-path="1"]::after{
-        background-color:transparent!important;
+      [data-dini-gallery-layer-transparent="1"]{
+        position:relative!important;
+        z-index:2!important;
+      }
+
+      [data-dini-love-layer-host="1"]{
+        position:relative!important;
+        overflow:visible!important;
+        z-index:1!important;
+      }
+
+      [data-dini-love-layer-path="1"]{
+        overflow:visible!important;
+      }
+
+      [data-dini-love-layer-extended="1"]{
+        pointer-events:none!important;
+        z-index:0!important;
+        overflow:hidden!important;
       }
     `;
 
     (doc.head||doc.documentElement).appendChild(style);
   }
 
-  function clearColorOnly(el,attr){
-    if(!el?.style)return;
-    el.setAttribute(attr,'1');
-    el.style.setProperty('background-color','transparent','important');
-  }
+  function clearGalleryPath(gallery,common){
+    gallery.setAttribute('data-dini-gallery-layer-transparent','1');
+    gallery.style.setProperty('background-color','transparent','important');
 
-  function apply(){
-    const gallery=gallerySection();
-    const rsvp=rsvpAnchor();
-    if(!gallery||!rsvp)return false;
-
-    const common=commonAncestor(gallery,rsvp);
-    if(!common)return false;
-
-    ensureStyle();
-
-    gallery.setAttribute('data-dini-gallery-pure-transparent','1');
-    clearColorOnly(gallery,'data-dini-gallery-pure-transparent');
-
-    // Clear ONLY color surfaces on the Gallery branch up to the same shared
-    // ancestor that also contains RSVP. Do not remove/copy/move any image layer.
-    let node=gallery.parentElement;
-    let depth=0;
-    while(node&&node!==common&&depth<14){
-      clearColorOnly(node,'data-dini-gallery-transparent-path');
-      node=node.parentElement;
-      depth++;
-    }
-
-    // Gallery-local wrappers can carry their own white/black fill.
     for(const el of gallery.querySelectorAll(
       '.elementor-container,.elementor-column,.elementor-widget-wrap,'+
       '.elementor-widget-heading,.elementor-widget-gallery,.e-con,.e-con-inner'
@@ -108,18 +100,100 @@
       el.style.setProperty('background-color','transparent','important');
     }
 
-    // Remove only solid overlay color. Never touch overlay background-image.
     for(const overlay of gallery.querySelectorAll('.elementor-background-overlay')){
       overlay.style.setProperty('background-color','transparent','important');
     }
 
-    doc.documentElement.setAttribute('data-dini-gallery-transparent',VERSION);
-    doc.documentElement.setAttribute('data-dini-gallery-transparent-path-depth',String(depth));
-    doc.documentElement.setAttribute('data-dini-gallery-rsvp-common-found','1');
-    doc.documentElement.setAttribute(
-      'data-dini-gallery-rsvp-common-id',
-      String(common.getAttribute?.('data-id')||common.id||common.tagName||'common')
-    );
+    let node=gallery.parentElement;
+    let depth=0;
+    while(node&&node!==common&&depth<14){
+      node.setAttribute('data-dini-gallery-layer-path','1');
+      node.style.setProperty('background-color','transparent','important');
+      node=node.parentElement;
+      depth++;
+    }
+    return depth;
+  }
+
+  function exposeLoveLayer(love,common){
+    love.setAttribute('data-dini-love-layer-host','1');
+    love.style.setProperty('overflow','visible','important');
+
+    let node=love.parentElement;
+    let depth=0;
+    while(node&&node!==common&&depth<14){
+      node.setAttribute('data-dini-love-layer-path','1');
+      node.style.setProperty('overflow','visible','important');
+      node=node.parentElement;
+      depth++;
+    }
+    return depth;
+  }
+
+  function extendLayer(gallery,love,slideshow){
+    if(!gallery||!love||!slideshow)return false;
+
+    const g=gallery.getBoundingClientRect();
+    const l=love.getBoundingClientRect();
+    if(!g.height||!l.height)return false;
+
+    // Distance from the Love Story section's top edge back to the Gallery's
+    // top edge. The ORIGINAL slideshow is extended upward by this amount.
+    const extend=Math.max(0,Math.round(l.top-g.top));
+    if(extend<20)return false;
+
+    slideshow.setAttribute('data-dini-love-layer-extended','1');
+    slideshow.style.setProperty('top',(-extend)+'px','important');
+    slideshow.style.setProperty('height','calc(100% + '+extend+'px)','important');
+    slideshow.style.setProperty('min-height','calc(100% + '+extend+'px)','important');
+
+    doc.documentElement.setAttribute('data-dini-gallery-love-layer-extend',String(extend));
+    return true;
+  }
+
+  function apply(){
+    const gallery=gallerySection();
+    const ctx=loveContext();
+    if(!gallery||!ctx?.section||!ctx?.slideshow)return false;
+
+    const love=ctx.section;
+    const slideshow=ctx.slideshow;
+    const common=commonAncestor(gallery,love);
+    if(!common)return false;
+
+    ensureStyle();
+    const galleryDepth=clearGalleryPath(gallery,common);
+    const loveDepth=exposeLoveLayer(love,common);
+
+    const sync=()=>{
+      const ok=extendLayer(gallery,love,slideshow);
+      if(ok){
+        doc.documentElement.setAttribute('data-dini-gallery-transparent',VERSION);
+        doc.documentElement.setAttribute('data-dini-gallery-love-layer-active','1');
+        doc.documentElement.setAttribute('data-dini-gallery-path-depth',String(galleryDepth));
+        doc.documentElement.setAttribute('data-dini-love-path-depth',String(loveDepth));
+      }
+      return ok;
+    };
+
+    sync();
+
+    let raf=0;
+    const onResize=()=>{
+      cancelAnimationFrame(raf);
+      raf=requestAnimationFrame(sync);
+    };
+    window.addEventListener('resize',onResize,{passive:true});
+    window.addEventListener('orientationchange',onResize,{passive:true});
+
+    const ro='ResizeObserver' in window?new ResizeObserver(onResize):null;
+    try{ro?.observe(gallery);ro?.observe(love)}catch{}
+
+    window.addEventListener('pagehide',()=>{
+      window.removeEventListener('resize',onResize);
+      window.removeEventListener('orientationchange',onResize);
+      try{ro?.disconnect()}catch{}
+    },{once:true});
 
     return true;
   }
@@ -130,7 +204,7 @@
     let attempts=0;
     const timer=setInterval(()=>{
       attempts++;
-      if(apply()||attempts>=40)clearInterval(timer);
+      if(apply()||attempts>=48)clearInterval(timer);
     },250);
   }
 
