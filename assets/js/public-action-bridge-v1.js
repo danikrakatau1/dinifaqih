@@ -4,6 +4,7 @@
   const state = {
     invitationId: '',
     guestName: '',
+    guestSlug: '',
   };
 
   const boundDocuments = new WeakSet();
@@ -23,6 +24,7 @@
     return {
       invitationId: text(next.invitationId || next.invitation_id || base.invitationId || base.invitation_id),
       guestName: text(next.guestName || next.guest_name || base.guestName || base.guest_name),
+      guestSlug: text(next.guestSlug || next.guest_slug || base.guestSlug || base.guest_slug),
     };
   }
 
@@ -58,10 +60,32 @@
     return '';
   }
 
+  function getGuestSlug(doc, context = {}) {
+    const explicit = text(context.guestSlug || context.guest_slug || state.guestSlug);
+    if (explicit) return explicit;
+
+    try {
+      const raw = doc?.getElementById?.('diniGuestRuntimeData')?.textContent || '';
+      const parsed = raw ? JSON.parse(raw) : null;
+      const fromRuntime = text(parsed?.slug || parsed?.guest_slug);
+      if (fromRuntime) return fromRuntime;
+    } catch (_) {}
+
+    try {
+      const path = String(window.location?.pathname || '').replace(/^\/+|\/+$/g, '');
+      if (path && !/^(index\.html?|guest-entry-v18\.html?)$/i.test(path)) {
+        return decodeURIComponent(path.split('/').pop() || '').trim();
+      }
+    } catch (_) {}
+
+    return '';
+  }
+
   function setContext(next = {}) {
     const merged = mergeContext(state, next);
     if (merged.invitationId) state.invitationId = merged.invitationId;
     if (merged.guestName) state.guestName = merged.guestName;
+    if (merged.guestSlug) state.guestSlug = merged.guestSlug;
   }
 
   async function writeClipboard(value, targetDocument = document) {
@@ -380,9 +404,15 @@
       const guestCountRaw = values.guest_count || values.guestCount || values.pax || values.jumlah || values['form_fields[jumlah]'] || 1;
       const guestCount = Number.parseInt(String(guestCountRaw), 10) || 1;
       const message = values.message || values.note || values.ucapan || values['form_fields[ucapan]'] || values.wishes || '';
+      const guestSlug = text(
+        values.guest_slug || values.guestSlug ||
+        context.guestSlug || context.guest_slug ||
+        getGuestSlug(form.ownerDocument, context)
+      );
       return postSupabaseInsert('invitation_rsvps', {
         invitation_id: invitationId,
         guest_name: guestName,
+        guest_slug: guestSlug || null,
         attendance: attendanceValue(attendanceRaw),
         guest_count: guestCount,
         message: message || null,
