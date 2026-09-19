@@ -2,7 +2,7 @@
   'use strict';
   if(window.DINI_TESTIMONIAL_CAROUSEL_V1?.version)return;
 
-  const VERSION='1.0.2';
+  const VERSION='1.0.3';
   const clamp=(n,min,max)=>Math.min(max,Math.max(min,n));
   const parseSettings=el=>{
     try{return JSON.parse(el.getAttribute('data-settings')||'{}')||{}}catch{return{}}
@@ -173,9 +173,12 @@
     let visible=true;
 
     function stopAuto(){clearTimeout(timer);timer=0}
+    let scrolling=false;
+    let scrollIdleTimer=0;
+
     function schedule(){
       stopAuto();
-      if(!autoplay||interactionPaused||hoverPaused||!visible||document.hidden)return;
+      if(!autoplay||interactionPaused||hoverPaused||!visible||document.hidden||scrolling)return;
       timer=setTimeout(()=>{next(false);schedule()},delay);
     }
     function onUserInteraction(){
@@ -226,6 +229,37 @@
       io.observe(widget);
     }
 
+    // Android Chrome can emit resize events while its browser chrome expands/
+    // collapses during vertical scrolling. Height-only viewport churn must not
+    // force carousel re-measurement because stabilizeHeight() reads every slide.
+    let lastViewportWidth=Math.round(window.innerWidth||document.documentElement.clientWidth||0);
+    let resizeTimer=0;
+    window.addEventListener('resize',()=>{
+      const width=Math.round(window.innerWidth||document.documentElement.clientWidth||0);
+      if(lastViewportWidth&&Math.abs(width-lastViewportWidth)<=2)return;
+      lastViewportWidth=width;
+      clearTimeout(resizeTimer);
+      resizeTimer=setTimeout(()=>{
+        stabilizedHeight=0;
+        stabilizeHeight();
+        render(false);
+      },160);
+    },{passive:true});
+
+    // Do not let autoplay transition compete with an active finger/scroll frame.
+    // The exact slide timing resumes once scrolling has been idle briefly.
+    const onScroll=()=>{
+      if(!visible)return;
+      scrolling=true;
+      stopAuto();
+      clearTimeout(scrollIdleTimer);
+      scrollIdleTimer=setTimeout(()=>{
+        scrolling=false;
+        schedule();
+      },180);
+    };
+    window.addEventListener('scroll',onScroll,{passive:true});
+
     document.addEventListener('visibilitychange',()=>{if(document.hidden)stopAuto();else schedule()});
 
     stabilizeHeight();
@@ -236,15 +270,6 @@
         render(false);
       })).catch(()=>{});
     }
-    let resizeTimer=0;
-    window.addEventListener('resize',()=>{
-      clearTimeout(resizeTimer);
-      resizeTimer=setTimeout(()=>{
-        stabilizedHeight=0;
-        stabilizeHeight();
-        render(false);
-      },160);
-    },{passive:true});
 
     render(false);
     schedule();
