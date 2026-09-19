@@ -77,7 +77,9 @@
       "home-*": false,
       "gift-*": false,
       "rsvp-*": false,
-      "love-*": false,\n      "gallery-*": false
+      "love-*": false,
+      "live-*": false,
+      "gallery-*": false
     }
   }
 }
