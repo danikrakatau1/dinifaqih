@@ -74,6 +74,7 @@ const cleanText = (value, max = 500) => String(value ?? '').trim().slice(0, max)
 
 const supabaseHeaders = (extra = {}) => ({
   apikey: SUPABASE_PUBLISHABLE_KEY,
+  Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
   ...extra
 });
 
