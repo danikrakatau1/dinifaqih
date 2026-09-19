@@ -1,62 +1,74 @@
-name: Diagnose Gallery Layer
+name: Fix Fetch Editor Srcdoc Race V148
 
 on:
   push:
-    branches: [gallery-breathing-v1]
+    branches: [main]
     paths:
       - '.github/workflows/fix-srcdoc-race-v148.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  diagnose:
+  fix:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Inspect Source Truth DOM
+        with:
+          fetch-depth: 0
+
+      - name: Remove blank srcdoc navigation race
         shell: bash
         run: |
           python - <<'PY'
-          import urllib.request
-          url="https://jfvmcerrsxjvbiogfqes.supabase.co/storage/v1/object/public/template-packages/template-8-b5b940c0/revisions/r-v2-mu82m4zf-3e5001/index.html"
-          html=urllib.request.urlopen(url, timeout=30).read()
-          open("/tmp/source.html","wb").write(html)
-          print("SOURCE_BYTES", len(html))
+          from pathlib import Path
+
+          p = Path('dashboard-admin-edit/editor.js')
+          s = p.read_text(encoding='utf-8')
+
+          old1 = """   frame.removeAttribute('src');
+   frame.srcdoc='';
+   requestAnimationFrame(()=>{frame.srcdoc=html});"""
+          new1 = """   frame.removeAttribute('src');
+   // V1.4.8: assign the exact Fetch HTML in one navigation. Clearing srcdoc first can race
+   // with the real srcdoc navigation in Chromium and leave the iframe committed to an empty DOM.
+   frame.srcdoc=html;"""
+          if old1 in s:
+              s = s.replace(old1, new1, 1)
+          else:
+              raise SystemExit('Fetch srcdoc race marker not found')
+
+          old2 = "frame.removeAttribute('src');frame.srcdoc='';requestAnimationFrame(()=>{frame.srcdoc=html})"
+          new2 = "frame.removeAttribute('src');frame.srcdoc=html"
+          if old2 in s:
+              s = s.replace(old2, new2, 1)
+
+          p.write_text(s, encoding='utf-8')
+
+          ip = Path('dashboard-admin-edit/index.html')
+          h = ip.read_text(encoding='utf-8')
+          import re
+          h = re.sub(r'\.\/editor\.js\?v=[^\"\']+', './editor.js?v=fetch-srcdoc-148', h, count=1)
+          ip.write_text(h, encoding='utf-8')
           PY
-          python -m pip install --quiet beautifulsoup4 lxml
-          python - <<'PY'
-          from bs4 import BeautifulSoup
-          soup=BeautifulSoup(open("/tmp/source.html","rb").read(),"lxml")
-          targets={
-            "GALLERY_WIDGET":"2a1e508",
-            "GALLERY_INNER":"9687b1a",
-            "LOVE_CAROUSEL":"f1f9d2d",
-            "RSVP_FORM":"f05a916",
-          }
-          def sm(el):
-            if not el:return None
-            return {
-              "tag":el.name,
-              "data-id":el.get("data-id"),
-              "id":el.get("id"),
-              "class":" ".join(el.get("class",[])),
-              "style":el.get("style","")[:350],
-              "settings":el.get("data-settings","")[:700],
-            }
-          for label,tid in targets.items():
-            el=soup.find(attrs={"data-id":tid})
-            print("\n###",label,tid,"FOUND",bool(el))
-            cur=el
-            for depth in range(14):
-              if not cur or not getattr(cur,"name",None):break
-              print("DEPTH",depth,sm(cur))
-              cur=cur.parent
-          print("\n### SLIDESHOW OWNERS")
-          found=0
-          for el in soup.find_all(attrs={"data-settings":True}):
-            ds=el.get("data-settings","")
-            if "background_slideshow_gallery" not in ds: continue
-            print("SLIDEOWNER",found,sm(el))
-            found+=1
-          PY
+
+      - name: Verify
+        shell: bash
+        run: |
+          node --check dashboard-admin-edit/editor.js
+          ! grep -Fq "frame.srcdoc='';" dashboard-admin-edit/editor.js
+          grep -Fq "frame.srcdoc=html" dashboard-admin-edit/editor.js
+          grep -Fq "fetch-srcdoc-148" dashboard-admin-edit/index.html
+
+      - name: Commit
+        shell: bash
+        run: |
+          if git diff --quiet -- dashboard-admin-edit/editor.js dashboard-admin-edit/index.html; then
+            echo "No change"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add dashboard-admin-edit/editor.js dashboard-admin-edit/index.html
+          git commit -m "fix: remove Fetch Editor srcdoc blank navigation race v1.4.8"
+          git push origin main
