@@ -2,7 +2,7 @@
   'use strict';
   if(window.DINI_RSVP_GIFT_FEATURE_RUNTIME_V1?.version)return;
 
-  const VERSION='1.2.0';
+  const VERSION='1.3.0';
   const SUPABASE_URL='https://jfvmcerrsxjvbiogfqes.supabase.co';
   const SUPABASE_PUBLISHABLE_KEY='sb_publishable_3IqSDxkpxCGiDpxAEwdsXQ_AsJpsC4W';
 
@@ -61,9 +61,9 @@
       scroll-behavior:auto;
       scrollbar-width:none;
       -ms-overflow-style:none;
-      background:rgba(25,18,13,.22);
-      -webkit-backdrop-filter:blur(2px);
-      backdrop-filter:blur(2px);
+      background:rgba(25,18,13,.34);
+      contain:layout paint;
+      transform:translateZ(0);
     }
     .cui-wrapper[data-dini-rsvp-wishes="1"] .cui-container-comments::-webkit-scrollbar{
       display:none;
@@ -78,6 +78,7 @@
       border-bottom:1px solid rgba(255,255,255,.38)!important;
       background:transparent!important;
       color:#fff!important;
+      contain:layout paint style;
     }
     .cui-wrapper[data-dini-rsvp-wishes="1"] .dini-rsvp-wish:last-child{
       border-bottom:0!important;
@@ -185,7 +186,7 @@
     stopWishAutoScroll(list);
     if(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches)return;
 
-    const maxScroll=Math.max(0,list.scrollHeight-list.clientHeight);
+    let maxScroll=Math.max(0,list.scrollHeight-list.clientHeight);
     if(maxScroll<8){
       list.scrollTop=0;
       list.removeAttribute('data-dini-auto-scroll');
@@ -196,65 +197,98 @@
       stopped:false,
       raf:0,
       dir:1,
-      timer:0,
+      pos:Math.max(0,Math.min(maxScroll,list.scrollTop||0)),
+      last:0,
       pausedUntil:0,
+      visible:false,
+      observer:null,
+      resizeObserver:null,
       cleanups:[]
     };
     wishAutoControllers.set(list,ctl);
-    list.setAttribute('data-dini-auto-scroll','ping-pong-step');
+    list.setAttribute('data-dini-auto-scroll','continuous-ping-pong');
 
-    const pauseFor=(ms=4200)=>{
-      ctl.pausedUntil=Date.now()+ms;
+    const pauseFor=(ms=2500)=>{
+      ctl.pausedUntil=performance.now()+ms;
+      ctl.pos=list.scrollTop||ctl.pos;
+      ctl.last=0;
     };
     const add=(type,fn,opts)=>{
       list.addEventListener(type,fn,opts);
       ctl.cleanups.push(()=>list.removeEventListener(type,fn,opts));
     };
+
+    // Manual interaction still wins briefly, but automatic travel itself
+    // never pauses at the top/bottom.
     add('pointerdown',()=>pauseFor(),{passive:true});
     add('touchstart',()=>pauseFor(),{passive:true});
     add('wheel',()=>pauseFor(),{passive:true});
 
-    const next=()=>{
+    const refreshMax=()=>{
+      maxScroll=Math.max(0,list.scrollHeight-list.clientHeight);
+      ctl.pos=Math.max(0,Math.min(maxScroll,ctl.pos));
+    };
+
+    if('ResizeObserver' in window){
+      ctl.resizeObserver=new ResizeObserver(refreshMax);
+      ctl.resizeObserver.observe(list);
+      ctl.cleanups.push(()=>ctl.resizeObserver?.disconnect());
+    }
+
+    // Do not burn animation frames while the RSVP panel is off-screen.
+    // This also avoids the small scroll hitch that used to happen when
+    // arriving at Ucapan & Doa.
+    if('IntersectionObserver' in window){
+      ctl.observer=new IntersectionObserver(entries=>{
+        ctl.visible=!!entries[0]?.isIntersecting;
+        ctl.last=0;
+      },{root:null,threshold:0.05,rootMargin:'80px 0px 80px'});
+      ctl.observer.observe(list);
+      ctl.cleanups.push(()=>ctl.observer?.disconnect());
+    }else{
+      ctl.visible=true;
+    }
+
+    const speed=30; // pixels/second: calm, continuous, clearly visible.
+
+    const tick=now=>{
       if(ctl.stopped||!list.isConnected)return;
-      if(Date.now()<ctl.pausedUntil){
-        ctl.timer=setTimeout(next,500);
+      if(!ctl.visible||document.hidden||now<ctl.pausedUntil){
+        ctl.last=now;
+        ctl.raf=requestAnimationFrame(tick);
         return;
       }
 
-      const max=Math.max(0,list.scrollHeight-list.clientHeight);
-      if(max<8){
+      if(!ctl.last)ctl.last=now;
+      const dt=Math.min(40,Math.max(0,now-ctl.last))/1000;
+      ctl.last=now;
+
+      // Refresh occasionally without forcing layout every frame.
+      if((Math.floor(now/1000)%2)===0)refreshMax();
+      if(maxScroll<8){
         list.scrollTop=0;
         stopWishAutoScroll(list);
         return;
       }
 
-      const cards=[...list.querySelectorAll('.dini-rsvp-wish')];
-      const fallbackStep=Math.max(72,Math.round(list.clientHeight*.42));
-      const cardStep=Math.max(
-        fallbackStep,
-        ...cards.slice(0,3).map(card=>Math.round(card.getBoundingClientRect().height||0))
-      );
+      ctl.pos+=ctl.dir*speed*dt;
 
-      let target=list.scrollTop+(ctl.dir*cardStep);
-      if(ctl.dir>0&&target>=max-2){
-        target=max;
-      }else if(ctl.dir<0&&target<=2){
-        target=0;
+      // Reflect overshoot at the edges so direction reverses immediately,
+      // with no hold/jump/pause.
+      if(ctl.pos>=maxScroll){
+        const over=ctl.pos-maxScroll;
+        ctl.pos=Math.max(0,maxScroll-over);
+        ctl.dir=-1;
+      }else if(ctl.pos<=0){
+        ctl.pos=Math.min(maxScroll,-ctl.pos);
+        ctl.dir=1;
       }
 
-      try{list.scrollTo({top:target,behavior:'smooth'})}
-      catch{list.scrollTop=target}
-
-      const reachedBottom=ctl.dir>0&&target>=max-1;
-      const reachedTop=ctl.dir<0&&target<=1;
-      if(reachedBottom)ctl.dir=-1;
-      else if(reachedTop)ctl.dir=1;
-
-      ctl.timer=setTimeout(next,(reachedBottom||reachedTop)?1800:2200);
+      list.scrollTop=ctl.pos;
+      ctl.raf=requestAnimationFrame(tick);
     };
 
-    ctl.cleanups.push(()=>clearTimeout(ctl.timer));
-    ctl.timer=setTimeout(next,1200);
+    ctl.raf=requestAnimationFrame(tick);
   }
 
   function renderMessages(rows=[]){
@@ -302,7 +336,7 @@
     const res=await fetch(SUPABASE_URL+'/rest/v1/rpc/get_public_rsvp_messages',{
       method:'POST',
       headers,
-      body:JSON.stringify({p_invitation_id:invitationId,p_limit:50}),
+      body:JSON.stringify({p_invitation_id:invitationId,p_limit:30}),
       cache:'no-store'
     });
     if(!res.ok){
