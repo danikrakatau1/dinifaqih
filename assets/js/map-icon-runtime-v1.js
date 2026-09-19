@@ -2,7 +2,7 @@
   'use strict';
   if(window.DINI_MAP_ICON_RUNTIME_V1?.version)return;
 
-  const VERSION='1.0.0';
+  const VERSION='1.0.1';
   const clean=v=>String(v||'').replace(/\s+/g,' ').trim();
   const isMapLink=a=>{
     if(!a?.matches?.('a,button,[role="button"]'))return false;
@@ -17,25 +17,17 @@
     const ns='http://www.w3.org/2000/svg';
     const svg=document.createElementNS(ns,'svg');
     svg.setAttribute('viewBox','0 0 24 24');
-    svg.setAttribute('width','15');
-    svg.setAttribute('height','15');
-    svg.setAttribute('fill','none');
-    svg.setAttribute('stroke','currentColor');
-    svg.setAttribute('stroke-width','2');
-    svg.setAttribute('stroke-linecap','round');
-    svg.setAttribute('stroke-linejoin','round');
+    svg.setAttribute('width','18');
+    svg.setAttribute('height','18');
+    svg.setAttribute('fill','currentColor');
     svg.setAttribute('aria-hidden','true');
     svg.setAttribute('focusable','false');
-    svg.setAttribute('data-dini-map-pin-svg','lucide');
-    svg.style.cssText='display:block;width:1em;height:1em;min-width:1em;flex:none;overflow:visible';
+    svg.setAttribute('data-dini-map-pin-svg','material-location-on');
+    svg.style.cssText='display:block;width:18px;height:18px;min-width:18px;flex:none;overflow:visible';
 
     const path=document.createElementNS(ns,'path');
-    path.setAttribute('d','M20 10c0 5-5.5 11-7.4 12.9a1 1 0 0 1-1.2 0C9.5 21 4 15 4 10a8 8 0 1 1 16 0');
-    const circle=document.createElementNS(ns,'circle');
-    circle.setAttribute('cx','12');
-    circle.setAttribute('cy','10');
-    circle.setAttribute('r','3');
-    svg.append(path,circle);
+    path.setAttribute('d','M12 2C8.13 2 5 5.13 5 9c0 5.2 7 13 7 13s7-7.8 7-13c0-3.87-3.13-7-7-7Zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5Z');
+    svg.append(path);
     return svg;
   };
 
@@ -60,10 +52,10 @@
     host.style.setProperty('display','inline-flex');
     host.style.setProperty('align-items','center');
     host.style.setProperty('justify-content','center');
-    host.style.setProperty('font-size','1em');
+    host.style.setProperty('font-size','18px');
     host.style.setProperty('line-height','1');
     host.style.setProperty('vertical-align','middle');
-    host.style.setProperty('margin-right','5px');
+    host.style.setProperty('margin-right','6px');
 
     button.setAttribute('data-dini-map-icon-runtime',VERSION);
     button.setAttribute('data-native-icon-role','location');
