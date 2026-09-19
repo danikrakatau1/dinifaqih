@@ -36,12 +36,22 @@ html,body{margin:0;width:100%;height:100%;min-height:100%;background:#fff;color:
 <script>
 (()=>{
   const invitationId='17a598bd-13be-4a18-82e6-b0506a85a3b3';
-  let tries=0;
+
+  let frame=null;
+  let frameLoadBound=false;
+  let observer=null;
+  let done=false;
+
   const bind=()=>{
-    tries++;
+    if(done)return true;
     const api=window.DiniFaqihPublicActions;
-    const frame=document.getElementById('diniPublicCanonicalFrame');
+    frame=frame||document.getElementById('diniPublicCanonicalFrame');
     if(!api||!frame)return false;
+
+    if(!frameLoadBound){
+      frameLoadBound=true;
+      frame.addEventListener('load',bind,{passive:true});
+    }
 
     let guestName='',guestSlug='';
     try{
@@ -54,12 +64,28 @@ html,body{margin:0;width:100%;height:100%;min-height:100%;background:#fff;color:
     const context={invitationId,guestName,guestSlug};
     api.setContext(context);
     api.bindFrame(frame,context);
-    document.documentElement.dataset.publicActionBridge='guest-bound';
 
-    return !!frame.contentDocument?.documentElement && !!guestName;
+    if(frame.contentDocument?.documentElement&&guestName){
+      done=true;
+      observer?.disconnect();
+      observer=null;
+      document.documentElement.dataset.publicActionBridge='guest-bound';
+      document.documentElement.dataset.publicBootBinding='event-ready';
+      return true;
+    }
+    return false;
   };
-  const timer=setInterval(()=>{if(bind()||tries>=160)clearInterval(timer)},75);
-  bind();
+
+  const watch=()=>{
+    if(bind())return;
+    observer=new MutationObserver(()=>bind());
+    try{observer.observe(document.body||document.documentElement,{childList:true,subtree:true})}catch{}
+    [120,500,1500,4000].forEach(ms=>setTimeout(bind,ms));
+    setTimeout(()=>{observer?.disconnect();observer=null},6000);
+  };
+
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',watch,{once:true});
+  else watch();
 })();
 </script>
 </body>
