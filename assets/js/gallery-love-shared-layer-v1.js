@@ -2,7 +2,7 @@
   'use strict';
   if(window.DINI_GALLERY_LOVE_SHARED_LAYER_V1?.version)return;
 
-  const VERSION='1.6.0';
+  const VERSION='1.7.0';
   const doc=document;
   const GALLERY_TOP_ID='bc6eeaf';
 
@@ -85,11 +85,26 @@
 
       [data-dini-love-same-section-owner="1"]{
         position:relative!important;
+        display:block!important;
+      }
+
+      [data-dini-gallery-same-section="1"]{
+        display:block!important;
+        width:100%!important;
+        max-width:none!important;
+        margin-left:0!important;
+        margin-right:0!important;
+        margin-bottom:clamp(120px,18vh,220px)!important;
+        clear:both!important;
       }
 
       [data-dini-love-same-section-content="1"]{
         position:relative!important;
         z-index:1!important;
+        display:flex!important;
+        width:100%!important;
+        max-width:none!important;
+        clear:both!important;
       }
     `;
 
@@ -150,7 +165,8 @@
     }
 
     doc.documentElement.setAttribute('data-dini-gallery-love-shared-layer',VERSION);
-    doc.documentElement.setAttribute('data-dini-gallery-love-layer-mode','same-section-native');
+    doc.documentElement.setAttribute('data-dini-gallery-love-layer-mode','same-section-native-vertical');
+    doc.documentElement.setAttribute('data-dini-gallery-love-layout','gallery-spacer-love');
     doc.documentElement.setAttribute(
       'data-dini-love-owner-id',
       String(section.getAttribute('data-id')||'love-section')
