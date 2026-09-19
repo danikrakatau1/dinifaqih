@@ -2,7 +2,7 @@
   'use strict';
   if(window.DINI_GALLERY_LOVE_SHARED_LAYER_V1?.version)return;
 
-  const VERSION='1.4.0';
+  const VERSION='1.5.0';
   const doc=document;
   const GALLERY_TOP_ID='bc6eeaf';
 
@@ -23,7 +23,6 @@
 
     for(let depth=0;node&&depth<16;depth++,node=node.parentElement){
       if(node.matches?.('.elementor-top-section,.elementor-section,.e-con'))fallback=node;
-
       const slideshow=node.querySelector?.('.elementor-background-slideshow');
       if(slideshow)return{section:node,slideshow,carousel};
     }
@@ -35,110 +34,47 @@
     }:null;
   }
 
-  function bgFrom(el){
-    if(!el)return null;
-
-    let cs=null;
-    try{cs=getComputedStyle(el)}catch{}
-    if(!cs)return null;
-
-    const image=String(cs.backgroundImage||'').trim();
-    if(!image||image==='none')return null;
-
-    return{
-      image,
-      size:String(cs.backgroundSize||'cover')||'cover',
-      position:String(cs.backgroundPosition||'50% 50%')||'50% 50%',
-      repeat:String(cs.backgroundRepeat||'no-repeat')||'no-repeat'
-    };
-  }
-
-  function activeLoveBackground(ctx){
-    if(!ctx?.section)return null;
-
-    const root=ctx.slideshow||ctx.section;
-    const selectors=[
-      '.swiper-slide-active .elementor-background-slideshow__slide__image',
-      '.swiper-slide-active [style*="background-image"]',
-      '.elementor-background-slideshow__slide.swiper-slide-active .elementor-background-slideshow__slide__image',
-      '.swiper-slide-active',
-      '.elementor-background-slideshow__slide__image'
-    ];
-
-    for(const selector of selectors){
-      for(const el of root.querySelectorAll?.(selector)||[]){
-        const bg=bgFrom(el);
-        if(bg)return bg;
-      }
-    }
-
-    return bgFrom(ctx.section);
-  }
-
   function ensureStyle(){
-    if(doc.getElementById('diniGalleryLoveContinuationStyle'))return;
+    if(doc.getElementById('diniGalleryLoveNativeOverlapStyle'))return;
 
     const style=doc.createElement('style');
-    style.id='diniGalleryLoveContinuationStyle';
+    style.id='diniGalleryLoveNativeOverlapStyle';
     style.textContent=`
-      [data-dini-gallery-love-proxy-host="1"]{
+      [data-dini-gallery-native-overlap="1"]{
         position:relative!important;
-        isolation:isolate!important;
+        z-index:2!important;
+        background-color:transparent!important;
+        background-image:none!important;
       }
 
-      [data-dini-gallery-love-proxy="1"]{
-        position:absolute!important;
-        inset:0!important;
-        z-index:0!important;
-        pointer-events:none!important;
-        overflow:hidden!important;
-        background-repeat:no-repeat!important;
-        background-size:cover!important;
-        background-position:center top!important;
+      [data-dini-gallery-native-overlap="1"] > .elementor-container,
+      [data-dini-gallery-native-overlap="1"] .elementor-column,
+      [data-dini-gallery-native-overlap="1"] .elementor-widget-wrap,
+      [data-dini-gallery-native-overlap="1"] .elementor-widget-heading,
+      [data-dini-gallery-native-overlap="1"] .elementor-widget-gallery,
+      [data-dini-gallery-native-overlap="1"] .e-con,
+      [data-dini-gallery-native-overlap="1"] .e-con-inner{
+        background-color:transparent!important;
+        background-image:none!important;
       }
 
-      [data-dini-gallery-love-gallery="1"]{
+      [data-dini-gallery-native-overlap="1"] .elementor-background-overlay{
+        background-color:transparent!important;
+        background-image:none!important;
+      }
+
+      [data-dini-love-native-overlap="1"]{
         position:relative!important;
         z-index:1!important;
-        background-color:transparent!important;
-        background-image:none!important;
-      }
-
-      [data-dini-gallery-love-gallery="1"] > .elementor-container,
-      [data-dini-gallery-love-gallery="1"] .elementor-column,
-      [data-dini-gallery-love-gallery="1"] .elementor-widget-wrap,
-      [data-dini-gallery-love-gallery="1"] .elementor-widget-heading,
-      [data-dini-gallery-love-gallery="1"] .elementor-widget-gallery,
-      [data-dini-gallery-love-gallery="1"] .e-con,
-      [data-dini-gallery-love-gallery="1"] .e-con-inner{
-        background-color:transparent!important;
-        background-image:none!important;
-      }
-
-      [data-dini-gallery-love-gallery="1"] .elementor-background-overlay{
-        background-color:transparent!important;
-        background-image:none!important;
+        box-sizing:border-box!important;
       }
     `;
 
     (doc.head||doc.documentElement).appendChild(style);
   }
 
-  function ensureProxy(gallery){
-    let proxy=gallery.querySelector(':scope > [data-dini-gallery-love-proxy="1"]');
-    if(proxy)return proxy;
-
-    proxy=doc.createElement('div');
-    proxy.setAttribute('data-dini-gallery-love-proxy','1');
-    proxy.setAttribute('aria-hidden','true');
-
-    gallery.insertBefore(proxy,gallery.firstChild);
-    return proxy;
-  }
-
   function clearGallerySurface(gallery){
-    gallery.setAttribute('data-dini-gallery-love-proxy-host','1');
-    gallery.setAttribute('data-dini-gallery-love-gallery','1');
+    gallery.setAttribute('data-dini-gallery-native-overlap','1');
     gallery.style.setProperty('background-color','transparent','important');
     gallery.style.setProperty('background-image','none','important');
 
@@ -161,6 +97,11 @@
     }
   }
 
+  function numberPx(value){
+    const n=Number.parseFloat(String(value||'0'));
+    return Number.isFinite(n)?n:0;
+  }
+
   function setup(){
     const gallery=galleryTop();
     const love=loveContext();
@@ -169,53 +110,68 @@
     ensureStyle();
     clearGallerySurface(gallery);
 
-    // IMPORTANT:
-    // Love Story stays completely source-native.
-    // No opacity/background/DOM changes are applied to Love Story.
-    const proxy=ensureProxy(gallery);
+    const section=love.section;
+    section.setAttribute('data-dini-love-native-overlap','1');
 
-    let lastImage='';
+    const initialStyle=getComputedStyle(section);
+    const nativeMarginTop=numberPx(initialStyle.marginTop);
+    const nativePaddingTop=numberPx(initialStyle.paddingTop);
 
-    const sync=()=>{
-      const bg=activeLoveBackground(love);
-      if(!bg||!bg.image||bg.image===lastImage)return false;
+    let appliedOverlap=0;
+    let raf=0;
 
-      lastImage=bg.image;
+    const layout=()=>{
+      cancelAnimationFrame(raf);
+      raf=requestAnimationFrame(()=>{
+        const g=gallery.getBoundingClientRect();
+        const l=section.getBoundingClientRect();
 
-      proxy.style.setProperty('background-image',bg.image,'important');
-      proxy.style.setProperty('background-size','cover','important');
-      proxy.style.setProperty('background-position','center top','important');
-      proxy.style.setProperty('background-repeat','no-repeat','important');
+        // Recover where Love Story would naturally start without the overlap
+        // already applied, then align its native background box to Gallery top.
+        const nativeLoveTop=l.top+appliedOverlap;
+        const overlap=Math.max(0,Math.round(nativeLoveTop-g.top));
 
-      doc.documentElement.setAttribute('data-dini-gallery-love-shared-layer',VERSION);
-      doc.documentElement.setAttribute('data-dini-gallery-love-shared-active','1');
-      doc.documentElement.setAttribute('data-dini-gallery-love-layer-scope','gallery-continuation-window');
-      return true;
+        section.style.setProperty(
+          'margin-top',
+          (nativeMarginTop-overlap)+'px',
+          'important'
+        );
+        section.style.setProperty(
+          'padding-top',
+          (nativePaddingTop+overlap)+'px',
+          'important'
+        );
+
+        appliedOverlap=overlap;
+
+        doc.documentElement.setAttribute('data-dini-gallery-love-shared-layer',VERSION);
+        doc.documentElement.setAttribute('data-dini-gallery-love-layer-mode','native-overlap');
+        doc.documentElement.setAttribute('data-dini-gallery-love-overlap',String(overlap));
+      });
     };
 
-    const mo=new MutationObserver(()=>requestAnimationFrame(sync));
-    try{
-      mo.observe(love.section,{
-        subtree:true,
-        childList:true,
-        attributes:true,
-        attributeFilter:['class','style','aria-hidden']
-      });
-    }catch{}
+    const ro='ResizeObserver' in window?new ResizeObserver(layout):null;
+    try{ro?.observe(gallery);ro?.observe(section)}catch{}
 
-    [0,120,320,700,1200,2000,3200,5000,7500].forEach(ms=>setTimeout(sync,ms));
+    window.addEventListener('resize',layout,{passive:true});
+    window.addEventListener('orientationchange',layout,{passive:true});
+
+    [0,100,260,600,1100,1800,2800].forEach(ms=>setTimeout(layout,ms));
 
     window.addEventListener('pagehide',()=>{
-      try{mo.disconnect()}catch{}
+      cancelAnimationFrame(raf);
+      try{ro?.disconnect()}catch{}
+      window.removeEventListener('resize',layout);
+      window.removeEventListener('orientationchange',layout);
     },{once:true});
 
-    sync();
+    layout();
 
     return{
       gallery,
-      love:love.section,
-      proxy,
-      sync
+      love:section,
+      slideshow:love.slideshow,
+      layout
     };
   }
 
@@ -226,15 +182,15 @@
       return;
     }
 
-    let n=0;
+    let tries=0;
     const timer=setInterval(()=>{
-      n++;
+      tries++;
       const controller=setup();
 
       if(controller){
         window.DINI_GALLERY_LOVE_SHARED_LAYER_V1.controller=controller;
         clearInterval(timer);
-      }else if(n>=40){
+      }else if(tries>=40){
         clearInterval(timer);
       }
     },250);
