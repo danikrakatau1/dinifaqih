@@ -2,7 +2,7 @@
   'use strict';
   if(window.DINI_GALLERY_LOVE_SHARED_LAYER_V1?.version)return;
 
-  const VERSION='1.7.0';
+  const VERSION='1.8.0';
   const doc=document;
   const GALLERY_TOP_ID='bc6eeaf';
 
@@ -85,26 +85,47 @@
 
       [data-dini-love-same-section-owner="1"]{
         position:relative!important;
-        display:block!important;
-      }
-
-      [data-dini-gallery-same-section="1"]{
-        display:block!important;
-        width:100%!important;
-        max-width:none!important;
-        margin-left:0!important;
-        margin-right:0!important;
-        margin-bottom:clamp(120px,18vh,220px)!important;
-        clear:both!important;
       }
 
       [data-dini-love-same-section-content="1"]{
         position:relative!important;
         z-index:1!important;
         display:flex!important;
+        flex-direction:column!important;
+        align-items:stretch!important;
         width:100%!important;
         max-width:none!important;
-        clear:both!important;
+      }
+
+      [data-dini-gallery-same-section-slot="1"]{
+        order:-2!important;
+        display:block!important;
+        width:100%!important;
+        max-width:none!important;
+        flex:0 0 auto!important;
+      }
+
+      [data-dini-gallery-same-section="1"]{
+        display:block!important;
+        width:100%!important;
+        max-width:none!important;
+        margin:0!important;
+      }
+
+      [data-dini-gallery-love-spacer="1"]{
+        order:-1!important;
+        display:block!important;
+        width:100%!important;
+        height:clamp(150px,22vh,260px)!important;
+        min-height:150px!important;
+        flex:0 0 auto!important;
+        pointer-events:none!important;
+      }
+
+      [data-dini-love-original-content="1"]{
+        order:0!important;
+        width:100%!important;
+        flex:0 0 auto!important;
       }
     `;
 
@@ -149,23 +170,49 @@
     const contentRoot=directContentRoot(section);
 
     section.setAttribute('data-dini-love-same-section-owner','1');
-    if(contentRoot){
-      contentRoot.setAttribute('data-dini-love-same-section-content','1');
+
+    if(!contentRoot){
+      return null;
     }
 
-    // Gallery becomes the first content block INSIDE the native Love Story
-    // section. The source-native slideshow/background remains untouched and
-    // automatically covers Gallery + Love Story as one section.
-    if(gallery.parentElement!==section){
-      if(contentRoot){
-        section.insertBefore(gallery,contentRoot);
-      }else{
-        section.appendChild(gallery);
+    contentRoot.setAttribute('data-dini-love-same-section-content','1');
+
+    // Preserve the original Love Story children as the final content block.
+    let original=contentRoot.querySelector(':scope > [data-dini-love-original-content="1"]');
+    if(!original){
+      original=doc.createElement('div');
+      original.setAttribute('data-dini-love-original-content','1');
+
+      const originalChildren=[...contentRoot.children];
+      for(const child of originalChildren){
+        original.appendChild(child);
       }
+      contentRoot.appendChild(original);
+    }
+
+    // Gallery occupies the FIRST slot in the Love Story content container.
+    let slot=contentRoot.querySelector(':scope > [data-dini-gallery-same-section-slot="1"]');
+    if(!slot){
+      slot=doc.createElement('div');
+      slot.setAttribute('data-dini-gallery-same-section-slot','1');
+      contentRoot.insertBefore(slot,original);
+    }
+
+    if(gallery.parentElement!==slot){
+      slot.appendChild(gallery);
+    }
+
+    // Real empty breathing area between Gallery and Love Story.
+    let spacer=contentRoot.querySelector(':scope > [data-dini-gallery-love-spacer="1"]');
+    if(!spacer){
+      spacer=doc.createElement('div');
+      spacer.setAttribute('data-dini-gallery-love-spacer','1');
+      spacer.setAttribute('aria-hidden','true');
+      contentRoot.insertBefore(spacer,original);
     }
 
     doc.documentElement.setAttribute('data-dini-gallery-love-shared-layer',VERSION);
-    doc.documentElement.setAttribute('data-dini-gallery-love-layer-mode','same-section-native-vertical');
+    doc.documentElement.setAttribute('data-dini-gallery-love-layer-mode','same-section-native-ordered');
     doc.documentElement.setAttribute('data-dini-gallery-love-layout','gallery-spacer-love');
     doc.documentElement.setAttribute(
       'data-dini-love-owner-id',
@@ -176,7 +223,9 @@
       gallery,
       love:section,
       slideshow:love.slideshow,
-      contentRoot
+      contentRoot,
+      slot:contentRoot.querySelector(':scope > [data-dini-gallery-same-section-slot="1"]'),
+      spacer:contentRoot.querySelector(':scope > [data-dini-gallery-love-spacer="1"]')
     };
   }
 
