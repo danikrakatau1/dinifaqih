@@ -72,7 +72,8 @@
   "git": {
     "deploymentEnabled": {
       "test-final": false,
-      "perf-*": false
+      "perf-*": false,
+      "guest-*": false
     }
   }
 }
