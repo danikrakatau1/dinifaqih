@@ -2,7 +2,7 @@
   'use strict';
   if(window.DINI_GALLERY_LOVE_SHARED_LAYER_V1?.version)return;
 
-  const VERSION='2.3.0';
+  const VERSION='2.4.0';
   const doc=document;
   const GALLERY_TOP_ID='bc6eeaf';
 
@@ -93,7 +93,7 @@
       }
 
       [data-dini-love-same-section-owner="1"] > [data-dini-gallery-same-section="1"]{
-        order:0!important;
+        order:2!important;
         width:100%!important;
         max-width:none!important;
         flex:0 0 auto!important;
@@ -114,7 +114,7 @@
       }
 
       [data-dini-love-same-section-content="1"]{
-        order:2!important;
+        order:3!important;
         position:relative!important;
         z-index:1!important;
         display:block!important;
@@ -191,8 +191,17 @@
       section.insertBefore(spacer,contentRoot);
     }
 
+    // V2.4: enforce final sequence only. No background/slideshow changes:
+    // Gallery -> empty spacer -> original Love Story content.
+    if(contentRoot){
+      section.insertBefore(gallery,contentRoot);
+      if(spacer){
+        section.insertBefore(spacer,contentRoot);
+      }
+    }
+
     doc.documentElement.setAttribute('data-dini-gallery-love-shared-layer',VERSION);
-    doc.documentElement.setAttribute('data-dini-gallery-love-layer-mode','v23-layout-only-vertical');
+    doc.documentElement.setAttribute('data-dini-gallery-love-layer-mode','v24-gallery-first');
     doc.documentElement.setAttribute('data-dini-gallery-love-layout','gallery-spacer-love');
     doc.documentElement.setAttribute(
       'data-dini-love-owner-id',
