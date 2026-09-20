@@ -2,7 +2,7 @@
   'use strict';
   if(window.DINI_GALLERY_LOVE_SHARED_LAYER_V1?.version)return;
 
-  const VERSION='2.4.0';
+  const VERSION='2.5.0';
   const doc=document;
   const GALLERY_TOP_ID='bc6eeaf';
 
@@ -93,7 +93,7 @@
       }
 
       [data-dini-love-same-section-owner="1"] > [data-dini-gallery-same-section="1"]{
-        order:2!important;
+        order:0!important;
         width:100%!important;
         max-width:none!important;
         flex:0 0 auto!important;
@@ -114,7 +114,7 @@
       }
 
       [data-dini-love-same-section-content="1"]{
-        order:3!important;
+        order:2!important;
         position:relative!important;
         z-index:1!important;
         display:block!important;
@@ -191,17 +191,42 @@
       section.insertBefore(spacer,contentRoot);
     }
 
-    // V2.4: enforce final sequence only. No background/slideshow changes:
-    // Gallery -> empty spacer -> original Love Story content.
+    // V2.5: hard-order the THREE direct children only.
+    // No background/slideshow changes.
     if(contentRoot){
+      // Physical DOM order:
+      // Gallery -> spacer -> original Love Story content.
       section.insertBefore(gallery,contentRoot);
       if(spacer){
         section.insertBefore(spacer,contentRoot);
       }
+
+      // Inline flex/order wins over authored Elementor layout.
+      section.style.setProperty('display','flex','important');
+      section.style.setProperty('flex-direction','column','important');
+      section.style.setProperty('align-items','stretch','important');
+
+      gallery.style.setProperty('order','0','important');
+      gallery.style.setProperty('width','100%','important');
+      gallery.style.setProperty('max-width','none','important');
+      gallery.style.setProperty('flex','0 0 auto','important');
+      gallery.style.setProperty('align-self','stretch','important');
+
+      if(spacer){
+        spacer.style.setProperty('order','1','important');
+        spacer.style.setProperty('width','100%','important');
+        spacer.style.setProperty('flex','0 0 auto','important');
+      }
+
+      contentRoot.style.setProperty('order','2','important');
+      contentRoot.style.setProperty('width','100%','important');
+      contentRoot.style.setProperty('max-width','none','important');
+      contentRoot.style.setProperty('flex','0 0 auto','important');
+      contentRoot.style.setProperty('align-self','stretch','important');
     }
 
     doc.documentElement.setAttribute('data-dini-gallery-love-shared-layer',VERSION);
-    doc.documentElement.setAttribute('data-dini-gallery-love-layer-mode','v24-gallery-first');
+    doc.documentElement.setAttribute('data-dini-gallery-love-layer-mode','v25-hard-gallery-first');
     doc.documentElement.setAttribute('data-dini-gallery-love-layout','gallery-spacer-love');
     doc.documentElement.setAttribute(
       'data-dini-love-owner-id',
