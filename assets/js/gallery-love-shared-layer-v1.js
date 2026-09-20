@@ -2,7 +2,7 @@
   'use strict';
   if(window.DINI_GALLERY_LOVE_SHARED_LAYER_V1?.version)return;
 
-  const VERSION='2.7.0';
+  const VERSION='2.8.0';
   const doc=document;
   const GALLERY_TOP_ID='bc6eeaf';
 
@@ -138,6 +138,7 @@
         max-width:none!important;
         flex:0 0 auto!important;
         align-self:stretch!important;
+        margin-top:clamp(240px,34vh,380px)!important;
       }
     `;
 
@@ -242,10 +243,11 @@
       loveBranch.style.setProperty('max-width','none','important');
       loveBranch.style.setProperty('flex','0 0 auto','important');
       loveBranch.style.setProperty('align-self','stretch','important');
+      loveBranch.style.setProperty('margin-top','clamp(240px,34vh,380px)','important');
     }
 
     doc.documentElement.setAttribute('data-dini-gallery-love-shared-layer',VERSION);
-    doc.documentElement.setAttribute('data-dini-gallery-love-layer-mode','v27-spacer-tune');
+    doc.documentElement.setAttribute('data-dini-gallery-love-layer-mode','v28-love-offset');
     doc.documentElement.setAttribute('data-dini-gallery-love-layout','gallery-spacer-love');
     doc.documentElement.setAttribute(
       'data-dini-love-owner-id',
