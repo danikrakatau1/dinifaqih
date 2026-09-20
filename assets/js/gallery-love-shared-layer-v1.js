@@ -2,7 +2,7 @@
   'use strict';
   if(window.DINI_GALLERY_LOVE_SHARED_LAYER_V1?.version)return;
 
-  const VERSION='2.5.0';
+  const VERSION='2.6.0';
   const doc=document;
   const GALLERY_TOP_ID='bc6eeaf';
 
@@ -51,6 +51,17 @@
     }
 
     return section.querySelector(':scope > .elementor-container,:scope > .e-con-inner');
+  }
+
+  function directBranch(root,node){
+    if(!root||!node)return null;
+    let cur=node;
+
+    while(cur&&cur.parentElement&&cur.parentElement!==root){
+      cur=cur.parentElement;
+    }
+
+    return cur&&cur.parentElement===root?cur:null;
   }
 
   function ensureStyle(){
@@ -114,6 +125,11 @@
       }
 
       [data-dini-love-same-section-content="1"]{
+        position:relative!important;
+        z-index:1!important;
+      }
+
+      [data-dini-love-exact-branch="1"]{
         order:2!important;
         position:relative!important;
         z-index:1!important;
@@ -164,10 +180,14 @@
 
     const section=love.section;
     const contentRoot=directContentRoot(section);
+    const loveBranch=directBranch(section,love.carousel)||contentRoot;
 
     section.setAttribute('data-dini-love-same-section-owner','1');
     if(contentRoot){
       contentRoot.setAttribute('data-dini-love-same-section-content','1');
+    }
+    if(loveBranch){
+      loveBranch.setAttribute('data-dini-love-exact-branch','1');
     }
 
     // Gallery becomes the first content block INSIDE the native Love Story
@@ -191,17 +211,16 @@
       section.insertBefore(spacer,contentRoot);
     }
 
-    // V2.5: hard-order the THREE direct children only.
+    // V2.6: order the EXACT direct branch that contains the Love carousel.
     // No background/slideshow changes.
-    if(contentRoot){
+    if(loveBranch){
       // Physical DOM order:
-      // Gallery -> spacer -> original Love Story content.
-      section.insertBefore(gallery,contentRoot);
+      // Gallery -> spacer -> exact Love Story branch.
+      section.insertBefore(gallery,loveBranch);
       if(spacer){
-        section.insertBefore(spacer,contentRoot);
+        section.insertBefore(spacer,loveBranch);
       }
 
-      // Inline flex/order wins over authored Elementor layout.
       section.style.setProperty('display','flex','important');
       section.style.setProperty('flex-direction','column','important');
       section.style.setProperty('align-items','stretch','important');
@@ -218,15 +237,15 @@
         spacer.style.setProperty('flex','0 0 auto','important');
       }
 
-      contentRoot.style.setProperty('order','2','important');
-      contentRoot.style.setProperty('width','100%','important');
-      contentRoot.style.setProperty('max-width','none','important');
-      contentRoot.style.setProperty('flex','0 0 auto','important');
-      contentRoot.style.setProperty('align-self','stretch','important');
+      loveBranch.style.setProperty('order','2','important');
+      loveBranch.style.setProperty('width','100%','important');
+      loveBranch.style.setProperty('max-width','none','important');
+      loveBranch.style.setProperty('flex','0 0 auto','important');
+      loveBranch.style.setProperty('align-self','stretch','important');
     }
 
     doc.documentElement.setAttribute('data-dini-gallery-love-shared-layer',VERSION);
-    doc.documentElement.setAttribute('data-dini-gallery-love-layer-mode','v25-hard-gallery-first');
+    doc.documentElement.setAttribute('data-dini-gallery-love-layer-mode','v26-exact-love-branch');
     doc.documentElement.setAttribute('data-dini-gallery-love-layout','gallery-spacer-love');
     doc.documentElement.setAttribute(
       'data-dini-love-owner-id',
@@ -238,6 +257,7 @@
       love:section,
       slideshow:love.slideshow,
       contentRoot,
+      loveBranch,
       spacer:section.querySelector(':scope > [data-dini-gallery-love-v22-spacer="1"]')
     };
   }
