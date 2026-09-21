@@ -3,7 +3,7 @@
   if(window.__DINI_PUBLIC_SOURCE_TRUTH_RENDERER_V1__)return;
   window.__DINI_PUBLIC_SOURCE_TRUTH_RENDERER_V1__=true;
 
-  const VERSION='1.3.92';
+  const VERSION='1.3.93';
   const CFG=window.DINI_PUBLIC_ENTRY||{};
   const MODE=CFG.mode==='guest'?'guest':'public';
   const SB='https://jfvmcerrsxjvbiogfqes.supabase.co';
@@ -567,9 +567,9 @@
       mode:guest?'guest':'public',
       guestName:String(guest?.name||''),
       delayMs:1500,
-      holdMs:1500
+      holdMs:2500
     })+'</script>');
-    blocks.push('<script src="'+localAsset('/assets/js/post-open-welcome-v1.js?v=200')+'"></script>');
+    blocks.push('<script src="'+localAsset('/assets/js/post-open-welcome-v1.js?v=300')+'"></script>');
     blocks.push('<script src="'+localAsset('/assets/js/ramah-tamah-runtime-v1.js?v=110')+'"></script>');
     blocks.push('<script src="'+localAsset('/assets/js/live-stream-gallery-marquee-v1.js?v=100')+'"></script>');
     const giftWhatsappBySide={
