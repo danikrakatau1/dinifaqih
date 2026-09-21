@@ -1,0 +1,33 @@
+name: Export Dini Faqih Production ZIP
+
+on:
+  push:
+    branches:
+      - export-project-zip-cad61bb
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact production commit
+        uses: actions/checkout@v4
+        with:
+          ref: cad61bbf70bc95e4357e6d7e822fc51fe673c397
+          fetch-depth: 1
+
+      - name: Create exact production ZIP
+        shell: bash
+        run: |
+          git archive --format=zip --output=Dini-Faqih-PRODUCTION-cad61bb.zip HEAD
+
+      - name: Upload ZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Dini-Faqih-PRODUCTION-cad61bb
+          path: Dini-Faqih-PRODUCTION-cad61bb.zip
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
