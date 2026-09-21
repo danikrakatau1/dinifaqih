@@ -3,7 +3,7 @@
 if(window.__DINI_POST_OPEN_WELCOME_V3__)return;
 window.__DINI_POST_OPEN_WELCOME_V3__=true;
 
-const VERSION='3.0.0';
+const VERSION='3.1.0';
 const root=document.documentElement;
 let cfg={};
 try{cfg=JSON.parse(document.getElementById('diniPostOpenWelcomeConfig')?.textContent||'{}')}catch{}
@@ -253,9 +253,50 @@ function trigger(){
   setTimeout(show,delayMs);
 }
 
-document.addEventListener('click',e=>{
-  if(e.target?.closest?.('#tombolbuka,.tombolbuka'))trigger();
+const OPEN_SELECTOR='#tombolbuka,.tombolbuka';
+
+function isOpenIntent(e){
+  try{return !!e?.target?.closest?.(OPEN_SELECTOR)}catch{return false}
+}
+
+function onOpenIntent(e){
+  if(fired||!isOpenIntent(e))return;
+  trigger();
+}
+
+// Mobile source templates may complete the cover action on touch/pointer before
+// a synthesized click reaches delegated listeners. Capture all activation paths;
+// fired guards keep desktop/touch duplicate events harmless.
+document.addEventListener('pointerup',onOpenIntent,{capture:true,passive:true});
+document.addEventListener('touchend',onOpenIntent,{capture:true,passive:true});
+document.addEventListener('click',onOpenIntent,true);
+document.addEventListener('keydown',e=>{
+  if((e.key==='Enter'||e.key===' ')&&isOpenIntent(e))trigger();
 },true);
+
+// Defensive fallback: if the authored cover starts its 1.5s close animation,
+// treat that as authoritative proof that "Buka Undangan" was activated.
+// The observer only reacts to closing/hiding states, not normal cover entrance.
+const cover=document.getElementById('cover');
+if(cover&&typeof MutationObserver==='function'){
+  const coverObserver=new MutationObserver(()=>{
+    if(fired)return coverObserver.disconnect();
+    let cs;
+    try{cs=getComputedStyle(cover)}catch{return}
+    const inlineTop=String(cover.style.top||'');
+    const inlineOpacity=Number.parseFloat(String(cover.style.opacity||''));
+    const closing=
+      cover.hidden||
+      cs.display==='none'||
+      inlineTop.startsWith('-')||
+      (Number.isFinite(inlineOpacity)&&inlineOpacity<0.98);
+    if(closing){
+      coverObserver.disconnect();
+      trigger();
+    }
+  });
+  try{coverObserver.observe(cover,{attributes:true,attributeFilter:['style','class','hidden']})}catch{}
+}
 
 window.DINI_POST_OPEN_WELCOME_V3={
   VERSION,trigger,
